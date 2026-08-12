@@ -60,6 +60,34 @@ void TestPushableIceSlide() {
         "pushed object should slide off Ice while preserving its generic ID");
 }
 
+void TestPlayerAndPushedBodySlideTogetherOnIce() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {2, 4, 1, Role("player"), -1},
+      {2, 3, 1, Role("weightless-pushable"), 0},
+      {2, 4, 0, Role("floor"), -1},
+      {2, 3, 0, Role("ice"), -1},
+      {2, 2, 0, Role("ice"), -1},
+      {2, 1, 0, Role("ice"), -1},
+      {2, 0, 0, Role("solid"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 7, 5, 5, 0) ==
+            voxelbench::TickResult::kMore,
+        "pushing from Floor onto Ice should retain object momentum");
+  Check(state.tick == 1 && voxels[0].y == 3 && voxels[1].y == 2,
+        "the initial push should move the player and body one cell");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 7, 5, 5, 0) ==
+            voxelbench::TickResult::kMore,
+        "the player and pushed body should keep sliding together");
+  Check(state.tick == 2 && voxels[0].y == 2 && voxels[1].y == 1,
+        "the second Ice tick should advance both horizontal proposals");
+}
+
 void TestIceStopsAtObstacle() {
   voxelbench::Voxel voxels[] = {
       {2, 4, 1, Role("player"), -1},
@@ -247,7 +275,7 @@ void TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero() {
         "all members of the tall polycube should disappear together");
 }
 
-void TestObjectAboveDescendingPlayerFollowsOnNextTick() {
+void TestObjectAboveDescendingPlayerFallsInSameTick() {
   static voxelbench::PhysicsWorkspace workspace;
   static voxelbench::MotionState state;
   voxelbench::Voxel voxels[] = {
@@ -267,16 +295,10 @@ void TestObjectAboveDescendingPlayerFollowsOnNextTick() {
         "horizontal passenger motion should not also change height");
   Check(voxelbench::step_tick(
             &workspace, &state, voxels, 4, 3, 3, 0) ==
-            voxelbench::TickResult::kMore,
-        "the player's landing should schedule its passenger's fall");
-  Check(voxels[0].z == 0 && voxels[1].z == 2,
-        "the passenger should wait until the next gravity tick");
-  Check(voxelbench::step_tick(
-            &workspace, &state, voxels, 4, 3, 3, 0) ==
             voxelbench::TickResult::kComplete,
-        "the passenger should then land above the player");
+        "the player and its passenger should complete one synchronized fall");
   Check(voxels[0].z == 0 && voxels[1].z == 1,
-        "the passenger should remain directly above the landed player");
+        "the passenger should fall with and remain above the player");
 }
 
 }  // namespace
@@ -285,6 +307,7 @@ int main() {
   TestSimplePush();
   TestPlayerIceSlide();
   TestPushableIceSlide();
+  TestPlayerAndPushedBodySlideTogetherOnIce();
   TestIceStopsAtObstacle();
   TestUnknownRoleBlocks();
   TestEveryBoundary();
@@ -292,11 +315,11 @@ int main() {
   TestPlayerGetsVisibleRowZeroVoidFrame();
   TestPushableGetsVisibleRowZeroVoidFrame();
   TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero();
-  TestObjectAboveDescendingPlayerFollowsOnNextTick();
+  TestObjectAboveDescendingPlayerFallsInSameTick();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 11 C++ physics tests passed\n";
+  std::cout << "all 12 C++ physics tests passed\n";
   return EXIT_SUCCESS;
 }

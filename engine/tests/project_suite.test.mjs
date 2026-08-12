@@ -36,36 +36,11 @@ const genericBlocks = new Set(
   project.blocks.filter((block) => genericRoles.has(block.roleId)).map((block) => block.id),
 );
 
-function simulate(voxels, direction, world) {
+function simulateFrames(voxels, direction, world) {
   assert.equal(engine.physics_abi_version(), 3);
   const stride = engine.voxel_stride();
   assert.equal(stride, 5);
   assert.ok(voxels.length <= engine.voxel_capacity());
-  const buffer = new Int32Array(
-    engine.memory.buffer,
-    engine.voxel_buffer(),
-    voxels.length * stride,
-  );
-  voxels.forEach((voxel, index) => {
-    buffer.set([
-      voxel.x,
-      voxel.y,
-      voxel.z,
-      blockRoles.get(voxel.blockId) ?? 0,
-      genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
-    ], index * stride);
-  });
-  assert.equal(engine.simulate_turn(voxels.length, world.width, world.height, direction), 0);
-  return voxels.map((voxel, index) => ({
-    ...voxel,
-    x: buffer[index * stride],
-    y: buffer[index * stride + 1],
-    z: buffer[index * stride + 2],
-  }));
-}
-
-function simulateFrames(voxels, direction, world) {
-  const stride = engine.voxel_stride();
   const buffer = new Int32Array(
     engine.memory.buffer,
     engine.voxel_buffer(),
@@ -129,9 +104,14 @@ for (const authoredTest of project.tests) {
       const expected = rotateVoxelsClockwise(authoredTest.expected.voxels, authoredTest.world, quarterTurns);
       const expectedIntermediate = (authoredTest.intermediate ?? []).map((frame) =>
         rotateVoxelsClockwise(frame.voxels, authoredTest.world, quarterTurns));
-      const actualFrames = expectedIntermediate.length
-        ? simulateFrames(start, quarterTurns, world)
-        : null;
+      const actualFrames = simulateFrames(start, quarterTurns, world);
+      const expectedTickCount = expectedIntermediate.length + 1;
+      if (actualFrames.length !== expectedTickCount) {
+        failures.push(
+          `${quarterTurns * 90}°: expected ${expectedTickCount} tick frame(s), ` +
+          `engine produced ${actualFrames.length}`,
+        );
+      }
       for (let index = 0; index < expectedIntermediate.length; index += 1) {
         const actualTick = actualFrames[index];
         if (!actualTick) {
@@ -147,7 +127,7 @@ for (const authoredTest of project.tests) {
           break;
         }
       }
-      const actual = actualFrames?.at(-1) ?? simulate(start, quarterTurns, world);
+      const actual = actualFrames.at(-1) ?? start;
       const difference = frameDifference(expected, actual, world);
       if (difference.missing.length || difference.unexpected.length) {
         failures.push(

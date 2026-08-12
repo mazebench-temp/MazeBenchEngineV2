@@ -772,6 +772,11 @@ bool ResolveCarriedCollisions(
       }
       const int32_t other = g_voxel_object[occupant];
       if (other >= 0 && g_moving_objects[other] != 0) continue;
+      if (other >= 0 && g_object_falling[other] != 0) {
+        // A falling occupant vacates this source cell in the synchronized
+        // vertical part of the tick.
+        continue;
+      }
       if (allow_push && g_object_kind[object] == kWeightlessObject &&
           other >= 0 && g_object_kind[other] == kWeightlessObject &&
           ObjectIsFullyOnIce(voxels, other, width, height)) {
@@ -809,11 +814,68 @@ bool ObjectHasCarrierBelow(
   return false;
 }
 
+bool FallingObjectRefillsCell(
+    Voxel* voxels,
+    int32_t x,
+    int32_t y,
+    int32_t z,
+    int32_t width,
+    int32_t height) {
+  if (z == INT32_MAX) return false;
+  const int32_t above = FindVoxelAt(
+      voxels, x, y, z + 1, width, height);
+  if (above < 0) return false;
+  const int32_t object = g_voxel_object[above];
+  return object >= 0 && g_object_falling[object] != 0 &&
+      g_moving_objects[object] == 0;
+}
+
+void TranslateObjectsCarriedByPlayerOneStep(
+    Voxel* voxels,
+    int32_t player_index,
+    int32_t dx,
+    int32_t dy,
+    int32_t width,
+    int32_t height) {
+  ClearMovingObjects();
+  for (;;) {
+    BuildCarriedObjects(
+        voxels, player_index, true, width, height);
+    bool added_mandatory = false;
+    if (!ResolveCarriedCollisions(
+            voxels,
+            player_index,
+            dx,
+            dy,
+            width,
+            height,
+            false,
+            added_mandatory)) {
+      break;
+    }
+  }
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_carried_objects[object] == 0 ||
+        g_rejected_carriers[object] != 0) {
+      continue;
+    }
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      voxels[member].x += dx;
+      voxels[member].y += dy;
+    }
+  }
+}
+
 void AdvanceUnmovedGravityOneStep(
     Voxel* voxels,
     int32_t count,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    int32_t player_index,
+    int32_t dx,
+    int32_t dy,
+    bool player_moves_horizontally) {
   bool found_pending = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_pending_fall[object] = 0;
@@ -824,7 +886,7 @@ void AdvanceUnmovedGravityOneStep(
         g_object_gravity_armed[object] == 0) {
       continue;
     }
-    if (ObjectHasDirectSupport(voxels, object, width, height)) {
+    if (ObjectHasStableDirectSupport(voxels, object, width, height)) {
       g_object_falling[object] = 0;
       continue;
     }
@@ -853,17 +915,42 @@ void AdvanceUnmovedGravityOneStep(
           blocked = true;
           break;
         }
+        const int32_t target_x = voxels[member].x;
+        const int32_t target_y = voxels[member].y;
+        const int32_t target_z = voxels[member].z - 1;
+        const int32_t horizontal_source = FindVoxelAt(
+            voxels,
+            target_x - dx,
+            target_y - dy,
+            target_z,
+            width,
+            height);
+        if ((horizontal_source >= 0 &&
+             g_voxel_object[horizontal_source] >= 0 &&
+             g_moving_objects[g_voxel_object[horizontal_source]] != 0) ||
+            (player_moves_horizontally && player_index >= 0 &&
+             voxels[player_index].x + dx == target_x &&
+             voxels[player_index].y + dy == target_y &&
+             voxels[player_index].z == target_z)) {
+          // Horizontal motion wins a same-cell race. The descending body
+          // remains above the incoming support and is caught this tick.
+          blocked = true;
+          break;
+        }
         const int32_t occupant = FindVoxelAt(
             voxels,
-            voxels[member].x,
-            voxels[member].y,
-            voxels[member].z - 1,
+            target_x,
+            target_y,
+            target_z,
             width,
             height);
         if (occupant < 0) continue;
         const int32_t other = g_voxel_object[occupant];
         if (other == object ||
-            (other >= 0 && g_pending_fall[other] != 0)) {
+            (other >= 0 &&
+             (g_pending_fall[other] != 0 ||
+              g_moving_objects[other] != 0)) ||
+            (occupant == player_index && player_moves_horizontally)) {
           continue;
         }
         blocked = true;
@@ -907,10 +994,36 @@ void AdvanceUnmovedGravityOneStep(
   }
   if (!moved) return;
   BuildSpatialIndex(voxels, count, width, height);
-  for (int32_t object = 0; object < g_object_count; ++object) {
-    if (g_pending_fall[object] != 0 &&
-        ObjectHasDirectSupport(voxels, object, width, height)) {
-      g_object_falling[object] = 0;
+  // Clear momentum for bodies that landed on support which will remain after
+  // the horizontal half of this tick. Propagate from the bottom upward so a
+  // newly stable body can support another descending body in the same frame.
+  bool settled = true;
+  while (settled) {
+    settled = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_pending_fall[object] == 0) continue;
+      bool has_stationary_support = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const Voxel& voxel = voxels[member];
+        const int32_t support = FindVoxelAt(
+            voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+        if (support < 0 || g_voxel_object[support] == object) continue;
+        if (support == player_index && player_moves_horizontally) continue;
+        const int32_t support_object = g_voxel_object[support];
+        if (support_object >= 0 &&
+            (g_moving_objects[support_object] != 0 ||
+             g_pending_fall[support_object] != 0)) {
+          continue;
+        }
+        has_stationary_support = true;
+        break;
+      }
+      if (has_stationary_support) {
+        g_pending_fall[object] = 0;
+        g_object_falling[object] = 0;
+        settled = true;
+      }
     }
   }
 }
@@ -986,7 +1099,9 @@ bool TranslateMovingObjects(
     int32_t dy,
     int32_t width,
     int32_t height,
-    bool carry_from_player) {
+    bool carry_from_player,
+    bool allow_push,
+    bool player_moves_horizontally) {
   g_moving_objects_fell = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_fell_objects[object] = 0;
@@ -1015,7 +1130,18 @@ bool TranslateMovingObjects(
           (other_object >= 0 && g_mandatory_objects[other_object] != 0)) {
         continue;
       }
-      if (carry_from_player &&
+      if (other_object >= 0 && g_object_falling[other_object] != 0 &&
+          g_moving_objects[other_object] == 0) {
+        // The occupant's synchronized downward proposal vacates this cell.
+        // A vertical stack can refill it in the same tick, however, in which
+        // case the trailing horizontal body must stop before gravity commits.
+        if (FallingObjectRefillsCell(
+                voxels, next_x, next_y, voxel.z, width, height)) {
+          return false;
+        }
+        continue;
+      }
+      if (allow_push &&
           g_object_kind[object] == kWeightlessObject && other_object >= 0 &&
           g_object_kind[other_object] == kWeightlessObject) {
         AddMandatoryObject(other_object, queue_end);
@@ -1036,7 +1162,7 @@ bool TranslateMovingObjects(
         dy,
         width,
         height,
-        carry_from_player,
+        allow_push,
         added_mandatory);
     if (!changed) break;
     if (added_mandatory) {
@@ -1066,7 +1192,8 @@ bool TranslateMovingObjects(
               (other >= 0 && g_mandatory_objects[other] != 0)) {
             continue;
           }
-          if (g_object_kind[object] == kWeightlessObject && other >= 0 &&
+          if (allow_push &&
+              g_object_kind[object] == kWeightlessObject && other >= 0 &&
               g_object_kind[other] == kWeightlessObject) {
             AddMandatoryObject(other, queue_end);
             continue;
@@ -1082,9 +1209,31 @@ bool TranslateMovingObjects(
     found_moving |= g_moving_objects[object] != 0;
   }
   if (!found_moving) {
-    AdvanceUnmovedGravityOneStep(voxels, count, width, height);
+    AdvanceUnmovedGravityOneStep(
+        voxels,
+        count,
+        width,
+        height,
+        player_index,
+        dx,
+        dy,
+        player_moves_horizontally);
     return true;
   }
+
+  // Commit already-armed vertical proposals before horizontal translation.
+  // Collision validation above treats those source cells as vacating, while
+  // the gravity resolver cancels any destination contested by a horizontal
+  // proposal. Both axes therefore advance once in the same animation tick.
+  AdvanceUnmovedGravityOneStep(
+      voxels,
+      count,
+      width,
+      height,
+      player_index,
+      dx,
+      dy,
+      player_moves_horizontally);
 
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_moving_objects[object] == 0) continue;
@@ -1095,7 +1244,11 @@ bool TranslateMovingObjects(
     }
   }
   BuildSpatialIndex(voxels, count, width, height);
-  MarkObjectsForDeferredGravity(voxels, width, height, true);
+  // A stationary body can lose support when a different body translates out
+  // from beneath it. Mark every armed body here so that its downward proposal
+  // participates in the next synchronized tick, just like a translated body
+  // which leaves the edge of its own support.
+  MarkObjectsForDeferredGravity(voxels, width, height, false);
 
   bool changed = true;
   while (changed) {
@@ -1127,8 +1280,7 @@ bool TranslateMovingObjects(
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_fell_objects[object] != 0) g_mandatory_objects[object] = 0;
   }
-  MarkObjectsForDeferredGravity(voxels, width, height, true);
-  AdvanceUnmovedGravityOneStep(voxels, count, width, height);
+  MarkObjectsForDeferredGravity(voxels, width, height, false);
   return true;
 }
 
@@ -1162,14 +1314,32 @@ bool PushAndSlide(
   g_moving_objects[first_object] = 1;
   g_ignored_support_voxel = player_index;
   if (!TranslateMovingObjects(
-          voxels, count, player_index, dx, dy, width, height, true)) {
+          voxels,
+          count,
+          player_index,
+          dx,
+          dy,
+          width,
+          height,
+          true,
+          true,
+          true)) {
     g_ignored_support_voxel = -1;
     return false;
   }
 
   while (MovingObjectsAreFullyOnIce(voxels, width, height)) {
     if (!TranslateMovingObjects(
-            voxels, count, player_index, dx, dy, width, height, false)) {
+            voxels,
+            count,
+            player_index,
+            dx,
+            dy,
+            width,
+            height,
+            false,
+            false,
+            false)) {
       break;
     }
   }
@@ -1619,6 +1789,9 @@ TickResult step_tick(
   };
 
   if (state->phase == kMotionGravity) {
+    const bool player_has_horizontal_ice_proposal =
+        state->reserved[0] == kResumePlayerIce &&
+        IsSupportedByIce(voxels, voxels[player_index], width, height);
     int32_t object_supported_by_player = -1;
     const Voxel& player_before_gravity = voxels[player_index];
     if (player_before_gravity.z != INT32_MAX) {
@@ -1635,7 +1808,10 @@ TickResult step_tick(
     }
     const RiderSnapshot rider =
         CapturePlayerRider(voxels, player_index, width, height);
-    if (rider.object >= 0) g_ignored_support_voxel = player_index;
+    if (rider.object >= 0 ||
+        (object_supported_by_player >= 0 && state->player_falling != 0)) {
+      g_ignored_support_voxel = player_index;
+    }
     SettleAllObjects(voxels, count, width, height);
     g_ignored_support_voxel = -1;
     const bool objects_advanced = ObjectsAdvancedThisTick();
@@ -1647,8 +1823,42 @@ TickResult step_tick(
           voxels, player_index, rider, width, height);
       BuildSpatialIndex(voxels, count, width, height);
     }
-    const bool player_fell = resolve_player_gravity(true, false, false);
-    const bool player_advanced = player_rode_falling_object || player_fell;
+    bool player_slid = false;
+    if (!player_rode_falling_object && player_has_horizontal_ice_proposal) {
+      Voxel& sliding_player = voxels[player_index];
+      const int32_t next_x = sliding_player.x + dx;
+      const int32_t next_y = sliding_player.y + dy;
+      if (IsInsideRoom(next_x, next_y, width, height) &&
+          FindVoxelAt(
+              voxels,
+              next_x,
+              next_y,
+              sliding_player.z,
+              width,
+              height) < 0) {
+        TranslateObjectsCarriedByPlayerOneStep(
+            voxels, player_index, dx, dy, width, height);
+        sliding_player.x = next_x;
+        sliding_player.y = next_y;
+        player_slid = true;
+        BuildSpatialIndex(voxels, count, width, height);
+        defer_player_gravity(true, true, false);
+        if (!IsSupportedByIce(
+                voxels, sliding_player, width, height)) {
+          state->reserved[0] = kResumeNothing;
+        }
+      } else {
+        // The body that just fell may still occupy this elevation (for
+        // example, a tall polycube). A blocked horizontal proposal spends the
+        // player's Ice momentum rather than resuming after the fall finishes.
+        state->reserved[0] = kResumeNothing;
+      }
+    }
+    const bool player_fell = player_slid
+        ? false
+        : resolve_player_gravity(true, false, false);
+    const bool player_advanced =
+        player_rode_falling_object || player_slid || player_fell;
     if (player_fell && object_supported_by_player >= 0 &&
         ObjectIsActive(
             voxels, object_supported_by_player, width, height) &&
@@ -1679,35 +1889,60 @@ TickResult step_tick(
 
   if (state->phase == kMotionObjectIce) {
     RestoreMandatoryMomentum(state);
+    const bool player_has_ice_momentum =
+        IsSupportedByIce(voxels, voxels[player_index], width, height);
     const RiderSnapshot rider =
         CapturePlayerRider(voxels, player_index, width, height);
     g_ignored_support_voxel = player_index;
     const bool translated = TranslateMovingObjects(
-        voxels, count, player_index, dx, dy, width, height, false);
+        voxels,
+        count,
+        player_index,
+        dx,
+        dy,
+        width,
+        height,
+        true,
+        false,
+        player_has_ice_momentum || rider.object >= 0);
     g_ignored_support_voxel = -1;
     if (!translated) {
       MarkObjectsForDeferredGravity(voxels, width, height, false);
-      const bool gravity_pending = defer_player_gravity(false, false, true);
+      defer_player_gravity(false, false, true);
       const bool gravity_continues =
           state->player_falling != 0 ||
           ObjectsNeedGravityTick(voxels, width, height);
       if (gravity_continues) {
-        state->reserved[0] = IsSupportedByIce(
-            voxels, voxels[player_index], width, height)
-            ? kResumePlayerIce
-            : kResumeNothing;
-      }
-      if (!gravity_continues && !gravity_pending && IsSupportedByIce(
-              voxels, voxels[player_index], width, height)) {
-        ClearHorizontalMomentum(state, count);
-        return store_and_finish(kMotionPlayerIce, false);
+        state->reserved[0] = kResumeNothing;
       }
       return store_and_finish(
           gravity_continues ? kMotionGravity : kMotionComplete,
           ObjectsAdvancedThisTick());
     }
 
-    MovePlayerWithRider(voxels, player_index, rider, width, height);
+    const bool player_rode_object =
+        MovePlayerWithRider(voxels, player_index, rider, width, height);
+    if (!player_rode_object && player_has_ice_momentum) {
+      // A deliberate push can put both the body and the player onto Ice. From
+      // then on their horizontal proposals happen in the same animation tick:
+      // the body vacates its trailing cell and the player slides into it.
+      // Keeping these proposals synchronized also prevents the player from
+      // spuriously pushing the body an extra cell after its own delayed slide.
+      Voxel& sliding_player = voxels[player_index];
+      const int32_t next_x = sliding_player.x + dx;
+      const int32_t next_y = sliding_player.y + dy;
+      if (IsInsideRoom(next_x, next_y, width, height) &&
+          FindVoxelAt(
+              voxels,
+              next_x,
+              next_y,
+              sliding_player.z,
+              width,
+              height) < 0) {
+        sliding_player.x = next_x;
+        sliding_player.y = next_y;
+      }
+    }
     BuildSpatialIndex(voxels, count, width, height);
     if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
       StoreMandatoryMomentum(state, voxels, count, width, height);
@@ -1717,30 +1952,29 @@ TickResult step_tick(
     const bool object_momentum_remains = StoreSupportedMandatoryMomentum(
         state, voxels, count, width, height);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
-    const bool gravity_pending = defer_player_gravity(false, false, true);
+    defer_player_gravity(false, false, true);
     const bool gravity_continues =
         state->player_falling != 0 ||
         ObjectsNeedGravityTick(voxels, width, height);
-    if (gravity_continues) {
-      state->reserved[0] = object_momentum_remains
-          ? kResumeObjectIce
-          : IsSupportedByIce(voxels, voxels[player_index], width, height)
-              ? kResumePlayerIce
-              : kResumeNothing;
-    }
-    if (!gravity_continues && object_momentum_remains) {
+    if (object_momentum_remains) {
+      // Bodies that remain on Ice keep moving while bodies that have left
+      // support fall during the same tick. TranslateMovingObjects advances
+      // gravity for those unmoved bodies, preserving one unit per axis.
+      state->reserved[0] = kResumeNothing;
       return store_and_finish(kMotionObjectIce, true);
     }
-    if (!gravity_continues && !gravity_pending &&
-        IsSupportedByIce(voxels, voxels[player_index], width, height)) {
-      return store_and_finish(kMotionPlayerIce, true);
-    }
+    state->reserved[0] = gravity_continues && IsSupportedByIce(
+        voxels, voxels[player_index], width, height)
+        ? kResumePlayerIce
+        : kResumeNothing;
     return store_and_finish(
         gravity_continues ? kMotionGravity : kMotionComplete,
         true);
   }
 
   const bool automatic_ice_motion = state->phase == kMotionPlayerIce;
+  const bool records_initial_tick =
+      state->phase == kMotionReady && state->tick == 0;
   Voxel& player = voxels[player_index];
   const int32_t player_from_x = player.x;
   const int32_t player_from_y = player.y;
@@ -1749,7 +1983,7 @@ TickResult step_tick(
   const int32_t target_x = player.x + dx;
   const int32_t target_y = player.y + dy;
   if (!IsInsideRoom(target_x, target_y, width, height)) {
-    return store_and_finish(kMotionComplete, false);
+    return store_and_finish(kMotionComplete, records_initial_tick);
   }
 
   const int32_t target_index =
@@ -1761,7 +1995,7 @@ TickResult step_tick(
   if (target_index >= 0) {
     const int32_t object = g_voxel_object[target_index];
     if (automatic_ice_motion || object < 0) {
-      return store_and_finish(kMotionComplete, false);
+      return store_and_finish(kMotionComplete, records_initial_tick);
     }
     rider = CapturePlayerRider(voxels, player_index, width, height);
     ClearMovingObjects();
@@ -1769,9 +2003,18 @@ TickResult step_tick(
     g_moving_objects[object] = 1;
     g_ignored_support_voxel = player_index;
     if (!TranslateMovingObjects(
-            voxels, count, player_index, dx, dy, width, height, true)) {
+            voxels,
+            count,
+            player_index,
+            dx,
+            dy,
+            width,
+            height,
+            true,
+            true,
+            true)) {
       g_ignored_support_voxel = -1;
-      return store_and_finish(kMotionComplete, false);
+      return store_and_finish(kMotionComplete, records_initial_tick);
     }
     g_ignored_support_voxel = -1;
     pushed = true;
@@ -1794,7 +2037,7 @@ TickResult step_tick(
           (current_support >= 0 && voxels[current_support].role == kFloorRole &&
            lower_support < 0);
       if (!may_leave_support) {
-        return store_and_finish(kMotionComplete, false);
+        return store_and_finish(kMotionComplete, records_initial_tick);
       }
     }
   }
@@ -1802,8 +2045,17 @@ TickResult step_tick(
   if (!pushed) {
     ClearMovingObjects();
     if (!TranslateMovingObjects(
-            voxels, count, player_index, dx, dy, width, height, true)) {
-      return store_and_finish(kMotionComplete, false);
+            voxels,
+            count,
+            player_index,
+            dx,
+            dy,
+            width,
+            height,
+            true,
+            true,
+            true)) {
+      return store_and_finish(kMotionComplete, records_initial_tick);
     }
   }
 
@@ -2027,6 +2279,8 @@ int32_t simulate_turn_legacy(
               dy,
               width,
               height,
+              true,
+              true,
               true)) {
         return 0;
       }
