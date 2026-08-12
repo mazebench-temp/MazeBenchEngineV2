@@ -6131,6 +6131,7 @@
           Math.round(topY * 100) / 100,
           layer.direction || "",
           layer.modelUrl || "",
+          layer.genericLabel || "",
           type === "player_lift" ? `${x},${y}` : ""
         ].join(":"),
         layer,
@@ -6222,6 +6223,7 @@
         descriptor.layer?.styleKey || "",
         descriptor.layer?.voxelKey || "",
         descriptor.layer?.voxelColor || "",
+        descriptor.layer?.genericLabel || "",
         descriptor.type === "player_lift" ? `${x},${y}` : ""
       ].join(":");
     }
@@ -6357,6 +6359,7 @@
         lower.type === upper.type &&
         (lower.layer?.voxelKey || "") === (upper.layer?.voxelKey || "") &&
         (lower.layer?.voxelColor || "") === (upper.layer?.voxelColor || "") &&
+        (lower.layer?.genericLabel || "") === (upper.layer?.genericLabel || "") &&
         lower.type !== "tree" &&
         lower.type !== "shrub" &&
         lower.type !== "block_asset" &&
@@ -6534,6 +6537,15 @@
           }
         }
       );
+
+      if (descriptor.layer?.genericLabel !== undefined) {
+        addWeightlessGroupFaceLabels(
+          voxels,
+          descriptor.layer.genericLabel,
+          { x: 0, y: 0, z: 0 },
+          visibility
+        );
+      }
     }
 
     function addTerrainPolycubeRegions(entries, now) {
@@ -6543,7 +6555,8 @@
         const key = [
           entry.descriptor.type,
           entry.descriptor.layer?.voxelKey || "",
-          entry.descriptor.layer?.voxelColor || ""
+          entry.descriptor.layer?.voxelColor || "",
+          entry.descriptor.layer?.genericLabel || ""
         ].join(":");
 
         if (!groups.has(key)) {
@@ -9014,7 +9027,8 @@
         layer.styleKey || "",
         layer.modelUrl || "",
         layer.voxelKey || "",
-        layer.voxelColor || ""
+        layer.voxelColor || "",
+        layer.genericLabel || ""
       ].join(":");
     }
 

@@ -8,15 +8,20 @@ import {
   useState,
 } from "react";
 import * as THREE from "three";
+import { cameraYawQuarterTurns } from "./cameraNavigation.mjs";
+import {
+  marqueeRectangle,
+  marqueeSamplePoints,
+} from "./marqueeSelection.mjs";
 
 type BlockDefinition = {
   id: string;
   name: string;
   color: string;
-  behavior: string;
+  roleId: string;
 };
 
-type Voxel = { x: number; y: number; z: number; blockId: string };
+type Voxel = { x: number; y: number; z: number; blockId: string; genericId?: number };
 type Frame = { voxels: Voxel[] };
 type WorldSettings = { width: number; height: number; floorLayer: 0 };
 
@@ -49,6 +54,16 @@ type PaintStroke = {
   lastPaintedVoxelKey: string;
   layer: number | null;
   pointerId: number;
+};
+
+type SelectedVoxelOrigin = { x: number; y: number; z: number };
+
+type MarqueeDrag = {
+  currentX: number;
+  currentY: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
 };
 
 type MazeBenchRenderer = {
@@ -94,6 +109,7 @@ type MazeBenchModules = {
 
 type TerrainLayer = {
   elevation: number;
+  genericLabel?: string;
   label: string;
   raised: true;
   type: "wall";
@@ -148,15 +164,22 @@ type CameraMotion = {
 type CanvasProps = {
   frame: Frame;
   blocks: BlockDefinition[];
+  genericBlockIds: ReadonlySet<string>;
   world: WorldSettings;
   layer: number;
+  selectedVoxelKeys?: ReadonlySet<string>;
+  selectionMode?: boolean;
   selectedBlock?: string;
   eraseMode?: boolean;
   interactive?: boolean;
+  paintable?: boolean;
   compact?: boolean;
   onPaint?: (x: number, y: number, z: number, blockId: string | null) => void;
   onPaintGestureEnd?: () => void;
   onPaintGestureStart?: () => void;
+  onCameraQuarterTurnChange?: (quarterTurns: number) => void;
+  onSelectVoxel?: (x: number, y: number, z: number, additive: boolean) => void;
+  onSelectVoxels?: (voxels: SelectedVoxelOrigin[], additive: boolean) => void;
 };
 
 declare global {
@@ -184,6 +207,8 @@ const CAMERA_TILT_MAX_SPEED = Math.PI * 0.72;
 const CAMERA_TILT_ACCEL = Math.PI * 3.4;
 const CAMERA_TILT_DECEL = Math.PI * 4.2;
 const CAMERA_YAW_DURATION_MS = 400;
+const EMPTY_VOXEL_KEYS: ReadonlySet<string> = new Set();
+const MARQUEE_CLICK_THRESHOLD_PX = 5;
 
 function easeInOutQuad(progress: number) {
   const value = Math.max(0, Math.min(1, progress));
@@ -261,8 +286,10 @@ function loadMazeBenchRuntime() {
 function frameToPlayData(
   frame: Frame,
   blocks: BlockDefinition[],
+  genericBlockIds: ReadonlySet<string>,
   world: WorldSettings,
   compact: boolean,
+  selectedVoxelKeys: ReadonlySet<string>,
 ) {
   const minLayer = frame.voxels.length
     ? Math.min(0, ...frame.voxels.map((voxel) => voxel.z))
@@ -283,12 +310,18 @@ function frameToPlayData(
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
           if (!definition) return null;
+          const selected = selectedVoxelKeys.has(`${voxel.x},${voxel.y},${voxel.z}`);
           return {
             elevation: voxel.z + layerOffset,
+            genericLabel: genericBlockIds.has(definition.id)
+              ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
+              : undefined,
             label: definition.name,
             raised: true,
             type: "wall",
-            voxelColor: definition.color,
+            voxelColor: selected
+              ? `#${new THREE.Color(definition.color).lerp(new THREE.Color("#34e7f0"), 0.48).getHexString()}`
+              : definition.color,
             voxelKey: definition.id,
           };
         })
@@ -336,19 +369,33 @@ function publishRendererState(app: MazeBenchApp, canvas: HTMLCanvasElement) {
 export default function MazeBenchCanvas({
   frame,
   blocks,
+  genericBlockIds,
   world,
+  selectedVoxelKeys = EMPTY_VOXEL_KEYS,
+  selectionMode = false,
   selectedBlock,
   eraseMode = false,
   interactive = false,
+  paintable = true,
   compact = false,
   onPaint,
   onPaintGestureEnd,
   onPaintGestureStart,
+  onCameraQuarterTurnChange,
+  onSelectVoxel,
+  onSelectVoxels,
 }: CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<RuntimeState | null>(null);
-  const currentDataRef = useRef(frameToPlayData(frame, blocks, world, compact));
+  const currentDataRef = useRef(frameToPlayData(
+    frame,
+    blocks,
+    genericBlockIds,
+    world,
+    compact,
+    selectedVoxelKeys,
+  ));
   const orbitRef = useRef<{ x: number; y: number; yaw: number; tilt: number } | null>(null);
   const cameraRef = useRef({ yaw: 0, tilt: 0.22, zoom: compact ? 0.9 : 1 });
   const cameraMotionRef = useRef<CameraMotion>({
@@ -365,10 +412,21 @@ export default function MazeBenchCanvas({
   const paintStrokeRef = useRef<PaintStroke | null>(null);
   const pendingPaintSampleRef = useRef<PaintPointerInput | null>(null);
   const paintFrameIdRef = useRef(0);
+  const publishedCameraQuarterTurnRef = useRef<number | null>(null);
+  const marqueeDragRef = useRef<MarqueeDrag | null>(null);
+  const [marqueeRect, setMarqueeRect] = useState<ReturnType<typeof marqueeRectangle> | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  const publishCameraQuarterTurn = useCallback((yaw: number) => {
+    const quarterTurns = cameraYawQuarterTurns(yaw);
+    if (publishedCameraQuarterTurnRef.current === quarterTurns) return;
+    publishedCameraQuarterTurnRef.current = quarterTurns;
+    onCameraQuarterTurnChange?.(quarterTurns);
+  }, [onCameraQuarterTurnChange]);
 
   const setCamera = useCallback((next?: Partial<typeof cameraRef.current>) => {
     if (next) cameraRef.current = { ...cameraRef.current, ...next };
+    publishCameraQuarterTurn(cameraRef.current.yaw);
     const renderer = runtimeRef.current?.app.threeRenderer;
     if (!renderer) return;
     renderer.setDebugCameraView({
@@ -376,7 +434,7 @@ export default function MazeBenchCanvas({
       mode: "perspective",
       preserveSceneCache: true,
     });
-  }, []);
+  }, [publishCameraQuarterTurn]);
 
   const runCameraFrame = useCallback((now: number) => {
     const motion = cameraMotionRef.current;
@@ -408,6 +466,8 @@ export default function MazeBenchCanvas({
         continueLoop = true;
       }
     }
+
+    publishCameraQuarterTurn(cameraRef.current.yaw);
 
     if (motion.tiltDirection || motion.tiltVelocity) {
       const targetVelocity = motion.tiltDirection * CAMERA_TILT_MAX_SPEED;
@@ -450,7 +510,7 @@ export default function MazeBenchCanvas({
     } else {
       motion.lastMs = 0;
     }
-  }, []);
+  }, [publishCameraQuarterTurn]);
 
   useEffect(() => {
     cameraFrameCallbackRef.current = runCameraFrame;
@@ -474,6 +534,21 @@ export default function MazeBenchCanvas({
       startMs: performance.now(),
       startYaw: cameraRef.current.yaw,
       targetYaw: fromYaw + direction * (Math.PI / 2),
+    };
+    scheduleCameraFrame();
+  }, [scheduleCameraFrame]);
+
+  const pointCameraNorth = useCallback(() => {
+    const renderer = runtimeRef.current?.app.threeRenderer;
+    if (!renderer) return;
+    const motion = cameraMotionRef.current;
+    const currentYaw = renderer.getDebugCameraYaw();
+    cameraRef.current.yaw = currentYaw;
+    cameraRef.current.tilt = renderer.getDebugCameraTilt();
+    motion.yawAnimation = {
+      startMs: performance.now(),
+      startYaw: currentYaw,
+      targetYaw: Math.round(currentYaw / (Math.PI * 2)) * Math.PI * 2,
     };
     scheduleCameraFrame();
   }, [scheduleCameraFrame]);
@@ -561,7 +636,7 @@ export default function MazeBenchCanvas({
   }, [setCamera]);
 
   useEffect(() => {
-    const next = frameToPlayData(frame, blocks, world, compact);
+    const next = frameToPlayData(frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys);
     currentDataRef.current = next;
     const runtime = runtimeRef.current;
     if (!runtime) return;
@@ -575,7 +650,7 @@ export default function MazeBenchCanvas({
     runtime.app.threeRenderer?.invalidateSceneCache();
     runtime.app.render();
     if (canvasRef.current) publishRendererState(runtime.app, canvasRef.current);
-  }, [blocks, compact, frame, world]);
+  }, [blocks, compact, frame, genericBlockIds, selectedVoxelKeys, world]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -614,6 +689,9 @@ export default function MazeBenchCanvas({
       } else if ((key === "a" || key === "d") && !event.repeat) {
         event.preventDefault();
         rotateCamera(key === "a" ? -1 : 1);
+      } else if (key === "n" && !event.repeat) {
+        event.preventDefault();
+        pointCameraNorth();
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -646,7 +724,16 @@ export default function MazeBenchCanvas({
       pendingPaintSampleRef.current = null;
       paintStrokeRef.current = null;
     };
-  }, [interactive, recomputeTiltDirection, rotateCamera]);
+  }, [interactive, pointCameraNorth, recomputeTiltDirection, rotateCamera]);
+
+  useEffect(() => {
+    if (paintable) return;
+    if (paintFrameIdRef.current) window.cancelAnimationFrame(paintFrameIdRef.current);
+    paintFrameIdRef.current = 0;
+    pendingPaintSampleRef.current = null;
+    paintStrokeRef.current = null;
+    onPaintGestureEnd?.();
+  }, [onPaintGestureEnd, paintable]);
 
   const pick = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
@@ -657,7 +744,7 @@ export default function MazeBenchCanvas({
 
   const paintFromPointer = (event: PaintPointerInput, initialSample = false) => {
     const runtime = runtimeRef.current;
-    if (!interactive || !onPaint || !runtime || orbitRef.current) return;
+    if (!interactive || !paintable || !onPaint || !runtime || orbitRef.current) return;
     const target = pick(event.clientX, event.clientY);
     if (!target || target.kind === "levelSwitch") return;
     const erase = eraseMode || event.button === 2 || (event.buttons & 2) === 2 || event.altKey;
@@ -735,15 +822,102 @@ export default function MazeBenchCanvas({
     });
   };
 
+  const updateMarquee = (drag: MarqueeDrag) => {
+    marqueeDragRef.current = drag;
+    const wrapperBounds = wrapperRef.current?.getBoundingClientRect();
+    if (!wrapperBounds) return;
+    const rectangle = marqueeRectangle(drag.startX, drag.startY, drag.currentX, drag.currentY);
+    setMarqueeRect({
+      ...rectangle,
+      bottom: rectangle.bottom - wrapperBounds.top,
+      left: rectangle.left - wrapperBounds.left,
+      right: rectangle.right - wrapperBounds.left,
+      top: rectangle.top - wrapperBounds.top,
+    });
+  };
+
+  const finishMarquee = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const drag = marqueeDragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return false;
+
+    const rectangle = marqueeRectangle(drag.startX, drag.startY, event.clientX, event.clientY);
+    marqueeDragRef.current = null;
+    setMarqueeRect(null);
+    runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(null);
+
+    if (
+      rectangle.width < MARQUEE_CLICK_THRESHOLD_PX &&
+      rectangle.height < MARQUEE_CLICK_THRESHOLD_PX
+    ) {
+      const target = pick(event.clientX, event.clientY);
+      const runtime = runtimeRef.current;
+      if (target && target.kind !== "levelSwitch" && runtime) {
+        onSelectVoxel?.(
+          target.sourceX,
+          target.sourceY,
+          target.sourceLayer - runtime.layerOffset,
+          true,
+        );
+      }
+      return true;
+    }
+
+    const canvasBounds = event.currentTarget.getBoundingClientRect();
+    const clipped = marqueeRectangle(
+      Math.max(canvasBounds.left, rectangle.left),
+      Math.max(canvasBounds.top, rectangle.top),
+      Math.min(canvasBounds.right - 0.5, rectangle.right),
+      Math.min(canvasBounds.bottom - 0.5, rectangle.bottom),
+    );
+    const runtime = runtimeRef.current;
+    if (clipped.width <= 0 || clipped.height <= 0 || !runtime) return true;
+
+    const origins = new Map<string, SelectedVoxelOrigin>();
+    for (const point of marqueeSamplePoints(clipped)) {
+      const target = pick(point.x, point.y);
+      if (!target || target.kind === "levelSwitch") continue;
+      const origin = {
+        x: target.sourceX,
+        y: target.sourceY,
+        z: target.sourceLayer - runtime.layerOffset,
+      };
+      origins.set(`${origin.x},${origin.y},${origin.z}`, origin);
+    }
+    onSelectVoxels?.([...origins.values()], true);
+    return true;
+  };
+
   return (
-    <div ref={wrapperRef} className={`voxel-canvas-wrap mazebench-runtime-canvas ${compact ? "compact" : ""}`}>
+    <div ref={wrapperRef} className={`voxel-canvas-wrap mazebench-runtime-canvas ${compact ? "compact" : ""} ${interactive && !paintable ? "read-only" : ""} ${selectionMode ? "selection-mode" : ""}`}>
       <canvas
         ref={canvasRef}
-        aria-label={interactive ? "Interactive MazeBench perspective polycube editor" : "MazeBench perspective polycube preview"}
+        aria-label={interactive ? paintable ? "Interactive MazeBench perspective polycube editor" : "Read-only MazeBench perspective polycube editor" : "MazeBench perspective polycube preview"}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
           if (!interactive) return;
           event.currentTarget.setPointerCapture(event.pointerId);
+          if (selectionMode && event.button === 0) {
+            if (event.shiftKey) {
+              updateMarquee({
+                currentX: event.clientX,
+                currentY: event.clientY,
+                pointerId: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+              });
+              return;
+            }
+            const target = pick(event.clientX, event.clientY);
+            const runtime = runtimeRef.current;
+            if (!target || target.kind === "levelSwitch" || !runtime) return;
+            onSelectVoxel?.(
+              target.sourceX,
+              target.sourceY,
+              target.sourceLayer - runtime.layerOffset,
+              false,
+            );
+            return;
+          }
           if (event.shiftKey || event.button === 1) {
             orbitRef.current = {
               x: event.clientX,
@@ -753,11 +927,17 @@ export default function MazeBenchCanvas({
             };
             return;
           }
+          if (!paintable) return;
           onPaintGestureStart?.();
           lastPaintRef.current = "";
           paintFromPointer(pointerSample(event), true);
         }}
         onPointerMove={(event) => {
+          const marquee = marqueeDragRef.current;
+          if (marquee && marquee.pointerId === event.pointerId) {
+            updateMarquee({ ...marquee, currentX: event.clientX, currentY: event.clientY });
+            return;
+          }
           const orbit = orbitRef.current;
           if (orbit) {
             setCamera({
@@ -768,10 +948,11 @@ export default function MazeBenchCanvas({
           }
           const target = pick(event.clientX, event.clientY);
           runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(target);
-          if ((event.buttons & 1) === 1) schedulePaintSample(event);
+          if (!selectionMode && (event.buttons & 1) === 1) schedulePaintSample(event);
         }}
         onPointerLeave={() => runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(null)}
-        onPointerUp={() => {
+        onPointerUp={(event) => {
+          finishMarquee(event);
           flushPendingPaint();
           orbitRef.current = null;
           lastPaintRef.current = "";
@@ -779,6 +960,8 @@ export default function MazeBenchCanvas({
           onPaintGestureEnd?.();
         }}
         onPointerCancel={() => {
+          marqueeDragRef.current = null;
+          setMarqueeRect(null);
           flushPendingPaint();
           orbitRef.current = null;
           lastPaintRef.current = "";
@@ -791,6 +974,18 @@ export default function MazeBenchCanvas({
           setCamera({ zoom: Math.max(0.55, Math.min(10, cameraRef.current.zoom * (event.deltaY < 0 ? 1.1 : 0.9))) });
         }}
       />
+      {marqueeRect && (
+        <div
+          aria-hidden="true"
+          className="group-selection-marquee"
+          style={{
+            height: marqueeRect.height,
+            left: marqueeRect.left,
+            top: marqueeRect.top,
+            width: marqueeRect.width,
+          }}
+        />
+      )}
       {status !== "ready" && (
         <div className={`runtime-status ${status}`} role="status">
           {status === "error" ? "MazeBench renderer failed to load" : "Loading MazeBench renderer…"}
@@ -800,19 +995,9 @@ export default function MazeBenchCanvas({
         <div className="control-pad camera-pad" aria-label="Camera controls">
           <button className="control-button dpad-button" type="button" data-camera="up" aria-label="Camera up" onPointerDown={() => { cameraMotionRef.current.pointerTiltDirection = -1; recomputeTiltDirection(); }} onPointerUp={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} onPointerLeave={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} />
           <button className="control-button dpad-button" type="button" data-camera="left" aria-label="Rotate camera left" onClick={() => rotateCamera(-1)} />
-          <span className="dpad-center" aria-hidden="true">CAM</span>
+          <button className="dpad-center compass-reset" type="button" aria-label="Point camera north" title="Point north · N" onClick={pointCameraNorth}>N</button>
           <button className="control-button dpad-button" type="button" data-camera="right" aria-label="Rotate camera right" onClick={() => rotateCamera(1)} />
           <button className="control-button dpad-button" type="button" data-camera="down" aria-label="Camera down" onPointerDown={() => { cameraMotionRef.current.pointerTiltDirection = 1; recomputeTiltDirection(); }} onPointerUp={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} onPointerLeave={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} />
-        </div>
-      )}
-      {interactive && (
-        <div className="canvas-hint">
-          <span><b>Click</b> add to face</span>
-          <span><b>E</b> erase tool</span>
-          <span><b>WASD</b> smooth camera</span>
-          <span><b>Shift + drag</b> orbit</span>
-          <span><b>Scroll</b> zoom</span>
-          <span><b>⌘Z</b> undo</span>
         </div>
       )}
     </div>

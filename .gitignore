@@ -17,6 +17,9 @@
 /.next/
 /.vinext/
 /out/
+/apps/web/.next/
+/apps/web/.vinext/
+/apps/web/out/
 
 # misc
 .DS_Store
@@ -36,5 +39,10 @@ yarn-error.log*
 
 /dist/
 /.wrangler/
+/apps/web/dist/
+/apps/web/.wrangler/
 /outputs/
 /work/
+/.zig-cache/
+/.zig-global-cache/
+/.build/
