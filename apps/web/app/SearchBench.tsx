@@ -1,0 +1,608 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import MazeBenchCanvas from "./MazeBenchCanvas";
+import { simulateCommandWithCpp } from "./physicsEngine";
+
+export type SearchDirection = "up" | "right" | "down" | "left";
+export type SearchVoxel = {
+  x: number;
+  y: number;
+  z: number;
+  blockId: string;
+  genericId?: number;
+};
+export type SearchWorld = { width: number; height: number; floorLayer: 0 };
+export type SearchLevel = {
+  id: string;
+  name: string;
+  createdAt: string;
+  world: SearchWorld;
+  layers: number;
+  voxels: SearchVoxel[];
+  solution: SearchDirection[];
+  moves: number;
+  expanded: number;
+  generated: number;
+  transpositions?: number;
+  nodesPerSecond: number;
+  optimal: boolean;
+  limitHit?: boolean;
+  seed: number;
+};
+
+type PhysicsRoleDefinition = {
+  id: string;
+  name: string;
+  description: string;
+  generic: boolean;
+};
+
+type BlockDefinition = {
+  id: string;
+  name: string;
+  color: string;
+  roleId: string;
+};
+
+type SearchBenchProps = {
+  blocks: BlockDefinition[];
+  roles: PhysicsRoleDefinition[];
+  savedLevels: SearchLevel[];
+  onSavedLevelsChange: (levels: SearchLevel[]) => void;
+  onStatus: (message: string) => void;
+};
+
+type SearchProgress = {
+  bestMoves: number;
+  evaluated: number;
+  generation: number;
+  generations: number;
+  nodesPerSecond: number;
+};
+
+type SearchOptions = {
+  width: number;
+  depth: number;
+  layers: number;
+  collectibles: number;
+  minWeightlessBoxes: number;
+  maxWeightlessBoxes: number;
+  population: number;
+  generations: number;
+  maxNodes: number;
+  seed: number;
+  evolveHoles: boolean;
+};
+
+const DEFAULT_OPTIONS: SearchOptions = {
+  width: 8,
+  depth: 8,
+  layers: 3,
+  collectibles: 1,
+  minWeightlessBoxes: 1,
+  maxWeightlessBoxes: 4,
+  population: 24,
+  generations: 100,
+  maxNodes: 50000,
+  seed: 20260812,
+  evolveHoles: true,
+};
+
+function finiteInteger(value: unknown, fallback: number) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
+}
+
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
+function formatRate(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "—";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return String(Math.round(value));
+}
+
+function normalizeDirection(value: unknown): SearchDirection | null {
+  return value === "up" || value === "right" || value === "down" || value === "left"
+    ? value
+    : null;
+}
+
+export function normalizeSearchLevels(
+  value: unknown,
+  blocks: BlockDefinition[],
+): SearchLevel[] {
+  if (!Array.isArray(value)) return [];
+  const blockIds = new Set(blocks.map((block) => block.id));
+  const floorIds = new Set(blocks.filter((block) => block.roleId === "floor").map((block) => block.id));
+  const goalIds = new Set(blocks.filter((block) => block.roleId === "goal").map((block) => block.id));
+  return value.flatMap((item, index) => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as Partial<SearchLevel>;
+    if (!Array.isArray(candidate.voxels)) return [];
+    const width = clamp(finiteInteger(candidate.world?.width, 8), 3, 32);
+    const height = clamp(finiteInteger(candidate.world?.height, 8), 3, 32);
+    const seenRigid = new Set<string>();
+    const voxels = candidate.voxels.flatMap((raw) => {
+      if (!raw || typeof raw !== "object") return [];
+      const voxel = raw as SearchVoxel;
+      const x = finiteInteger(voxel.x, -1);
+      const y = finiteInteger(voxel.y, -1);
+      const z = finiteInteger(voxel.z, 0);
+      const blockId = String(voxel.blockId ?? "");
+      const key = `${x},${y},${z}`;
+      const collectible = goalIds.has(blockId);
+      if (x < 0 || x >= width || y < 0 || y >= height || !blockIds.has(blockId) ||
+          (floorIds.has(blockId) && z !== 0) || (!collectible && seenRigid.has(key))) return [];
+      if (!collectible) seenRigid.add(key);
+      const genericId = finiteInteger(voxel.genericId, -1);
+      return [{ x, y, z, blockId, ...(genericId >= 0 ? { genericId } : {}) }];
+    });
+    const solution = Array.isArray(candidate.solution)
+      ? candidate.solution.flatMap((step) => normalizeDirection(step) ?? [])
+      : [];
+    return [{
+      id: String(candidate.id ?? `saved-search-${index}`),
+      name: String(candidate.name ?? "Saved evolved level"),
+      createdAt: String(candidate.createdAt ?? new Date(0).toISOString()),
+      world: { width, height, floorLayer: 0 },
+      layers: clamp(finiteInteger(candidate.layers, 3), 1, 16),
+      voxels,
+      solution,
+      moves: Math.max(0, finiteInteger(candidate.moves, solution.length)),
+      expanded: Math.max(0, finiteInteger(candidate.expanded, 0)),
+      generated: Math.max(0, finiteInteger(candidate.generated, 0)),
+      transpositions: Math.max(0, finiteInteger(candidate.transpositions, 0)),
+      nodesPerSecond: Math.max(0, finiteInteger(candidate.nodesPerSecond, 0)),
+      optimal: Boolean(candidate.optimal),
+      limitHit: Boolean(candidate.limitHit),
+      seed: finiteInteger(candidate.seed, 0) >>> 0,
+    }];
+  });
+}
+
+function DirectionGlyph({ direction }: { direction: SearchDirection }) {
+  return <span aria-label={direction}>{({ up: "↑", right: "→", down: "↓", left: "←" })[direction]}</span>;
+}
+
+export default function SearchBench({
+  blocks,
+  roles,
+  savedLevels,
+  onSavedLevelsChange,
+  onStatus,
+}: SearchBenchProps) {
+  const [options, setOptions] = useState(DEFAULT_OPTIONS);
+  const [enabledBlockIds, setEnabledBlockIds] = useState(() => blocks.map((block) => block.id));
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<SearchProgress>({
+    bestMoves: 0,
+    evaluated: 0,
+    generation: 0,
+    generations: DEFAULT_OPTIONS.generations,
+    nodesPerSecond: 0,
+  });
+  const [best, setBest] = useState<SearchLevel | null>(null);
+  const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"inspect" | "solution" | "play">("inspect");
+  const [solutionFrames, setSolutionFrames] = useState<Array<{ voxels: SearchVoxel[] }>>([]);
+  const [solutionFrameIndex, setSolutionFrameIndex] = useState(0);
+  const [buildingTrace, setBuildingTrace] = useState(false);
+  const [playingTrace, setPlayingTrace] = useState(false);
+  const [playFrame, setPlayFrame] = useState<{ voxels: SearchVoxel[] } | null>(null);
+  const [playMoves, setPlayMoves] = useState(0);
+  const [playBusy, setPlayBusy] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
+
+  const genericRoleIds = useMemo(
+    () => new Set(roles.filter((role) => role.generic).map((role) => role.id)),
+    [roles],
+  );
+  const genericBlockIds = useMemo(
+    () => new Set(blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id)),
+    [blocks, genericRoleIds],
+  );
+  const weightlessEnabled = blocks.some((block) =>
+    block.roleId === "weightless-pushable" && enabledBlockIds.includes(block.id));
+  const selectedSaved = savedLevels.find((level) => level.id === selectedSavedId) ?? null;
+  const activeLevel = selectedSaved ?? best;
+  const displayFrame = viewMode === "solution" && solutionFrames.length
+    ? solutionFrames[solutionFrameIndex]
+    : viewMode === "play" && playFrame
+      ? playFrame
+      : { voxels: activeLevel?.voxels ?? [] };
+  const world = activeLevel?.world ?? {
+    width: options.width,
+    height: options.depth,
+    floorLayer: 0 as const,
+  };
+
+  useEffect(() => () => workerRef.current?.terminate(), []);
+
+  useEffect(() => {
+    // A newly selected/generated level owns a fresh trace and play session.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSolutionFrames([]);
+    setSolutionFrameIndex(0);
+    setPlayingTrace(false);
+    setPlayFrame(activeLevel ? { voxels: activeLevel.voxels.map((voxel) => ({ ...voxel })) } : null);
+    setPlayMoves(0);
+  }, [activeLevel]);
+
+  useEffect(() => {
+    if (!playingTrace || solutionFrames.length <= 1) return;
+    const timer = window.setInterval(() => {
+      setSolutionFrameIndex((current) => {
+        if (current >= solutionFrames.length - 1) {
+          setPlayingTrace(false);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 320);
+    return () => window.clearInterval(timer);
+  }, [playingTrace, solutionFrames.length]);
+
+  const updateOption = (key: Exclude<keyof SearchOptions, "evolveHoles">, value: string) => {
+    const ranges: Record<Exclude<keyof SearchOptions, "evolveHoles">, [number, number]> = {
+      width: [4, 16],
+      depth: [4, 16],
+      layers: [1, 16],
+      collectibles: [1, 16],
+      minWeightlessBoxes: [0, 32],
+      maxWeightlessBoxes: [0, 32],
+      population: [4, 128],
+      generations: [1, 10000],
+      maxNodes: [100, 50000],
+      seed: [0, 0xFFFFFFFF],
+    };
+    const [minimum, maximum] = ranges[key];
+    setOptions((current) => {
+      const nextValue = clamp(finiteInteger(value, current[key]), minimum, maximum);
+      if (key === "minWeightlessBoxes") {
+        return {
+          ...current,
+          minWeightlessBoxes: nextValue,
+          maxWeightlessBoxes: Math.max(current.maxWeightlessBoxes, nextValue),
+        };
+      }
+      if (key === "maxWeightlessBoxes") {
+        return {
+          ...current,
+          maxWeightlessBoxes: nextValue,
+          minWeightlessBoxes: Math.min(current.minWeightlessBoxes, nextValue),
+        };
+      }
+      return { ...current, [key]: nextValue };
+    });
+  };
+
+  const toggleBlock = (blockId: string) => {
+    setEnabledBlockIds((current) => current.includes(blockId)
+      ? current.filter((id) => id !== blockId)
+      : [...current, blockId]);
+  };
+
+  const stopSearch = useCallback(() => {
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    setRunning(false);
+    onStatus("Evolution stopped · current best retained");
+  }, [onStatus]);
+
+  const startSearch = () => {
+    const enabledRoles = new Set(blocks
+      .filter((block) => enabledBlockIds.includes(block.id))
+      .map((block) => block.roleId));
+    const missing = ["floor", "player", "goal"].filter((role) => !enabledRoles.has(role));
+    if (missing.length) {
+      onStatus(`Enable Floor, Player, and Goal blocks before searching · missing ${missing.join(", ")}`);
+      return;
+    }
+    workerRef.current?.terminate();
+    const worker = new Worker("/search-worker.js", { type: "module" });
+    workerRef.current = worker;
+    setRunning(true);
+    setBest(null);
+    setSelectedSavedId(null);
+    setProgress({
+      bestMoves: 0,
+      evaluated: 0,
+      generation: 0,
+      generations: options.generations,
+      nodesPerSecond: 0,
+    });
+    onStatus("Starting 3D evolutionary search in the C++ exact solver…");
+    worker.onmessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message?.type === "best") {
+        setBest(message.candidate as SearchLevel);
+        onStatus(message.candidate.optimal
+          ? `New proven record · ${message.candidate.moves} commands at generation ${message.generation}`
+          : `New search-effort record · ${message.candidate.expanded} nodes explored`);
+      } else if (message?.type === "progress") {
+        setProgress(message as SearchProgress);
+      } else if (message?.type === "done") {
+        if (message.candidate) setBest(message.candidate as SearchLevel);
+        setRunning(false);
+        workerRef.current = null;
+        onStatus(message.candidate?.optimal
+          ? `Evolution complete · best proven puzzle is ${message.candidate.moves} commands`
+          : "Evolution complete · no proven solution found within the selected limits");
+      } else if (message?.type === "error") {
+        setRunning(false);
+        workerRef.current = null;
+        onStatus(message.message ?? "Search worker failed");
+      }
+    };
+    worker.onerror = (event) => {
+      setRunning(false);
+      workerRef.current = null;
+      onStatus(event.message || "Search worker crashed");
+    };
+    worker.postMessage({
+      type: "start",
+      configuration: {
+        ...options,
+        blocks,
+        roles,
+        enabledBlockIds,
+      },
+    });
+  };
+
+  const saveBest = () => {
+    if (!best) return;
+    const saved: SearchLevel = {
+      ...best,
+      id: `saved-search-${Date.now()}`,
+      name: best.optimal
+        ? `${best.moves}-command 3D puzzle`
+        : `Unproven 3D candidate`,
+      createdAt: new Date().toISOString(),
+      voxels: best.voxels.map((voxel) => ({ ...voxel })),
+      solution: [...best.solution],
+    };
+    onSavedLevelsChange([saved, ...savedLevels]);
+    setSelectedSavedId(saved.id);
+    onStatus(`${saved.name} saved into project data`);
+  };
+
+  const deleteSaved = (id: string) => {
+    onSavedLevelsChange(savedLevels.filter((level) => level.id !== id));
+    if (selectedSavedId === id) setSelectedSavedId(null);
+    onStatus("Saved search level deleted");
+  };
+
+  const buildSolutionTrace = useCallback(async () => {
+    if (!activeLevel?.solution.length) {
+      onStatus("This candidate has no proven solution trace");
+      return;
+    }
+    setBuildingTrace(true);
+    setViewMode("solution");
+    setPlayingTrace(false);
+    try {
+      let frame = { voxels: activeLevel.voxels.map((voxel) => ({ ...voxel })) };
+      const frames = [frame];
+      for (const direction of activeLevel.solution) {
+        const simulation = await simulateCommandWithCpp(
+          frame,
+          direction,
+          blocks,
+          roles,
+          activeLevel.world,
+        );
+        for (const tick of simulation.frames) {
+          frames.push({ voxels: tick.voxels.map((voxel) => ({ ...voxel })) });
+        }
+        frame = simulation.final;
+        if (!simulation.frames.length) {
+          frames.push({ voxels: frame.voxels.map((voxel) => ({ ...voxel })) });
+        }
+      }
+      setSolutionFrames(frames);
+      setSolutionFrameIndex(0);
+      onStatus(`${activeLevel.solution.length} commands expanded into ${frames.length - 1} animation frames`);
+    } catch (error) {
+      onStatus(error instanceof Error ? error.message : "Could not build the solution animation");
+    } finally {
+      setBuildingTrace(false);
+    }
+  }, [activeLevel, blocks, onStatus, roles]);
+
+  const resetPlay = useCallback(() => {
+    if (!activeLevel) return;
+    setPlayFrame({ voxels: activeLevel.voxels.map((voxel) => ({ ...voxel })) });
+    setPlayMoves(0);
+    setViewMode("play");
+    onStatus("Play reset · use arrow keys or the direction pad");
+  }, [activeLevel, onStatus]);
+
+  const playDirection = useCallback(async (direction: SearchDirection) => {
+    if (!activeLevel || !playFrame || playBusy) return;
+    setPlayBusy(true);
+    try {
+      const simulation = await simulateCommandWithCpp(
+        playFrame,
+        direction,
+        blocks,
+        roles,
+        activeLevel.world,
+      );
+      setPlayFrame(simulation.final);
+      setPlayMoves((value) => value + 1);
+      const playerIds = new Set(blocks.filter((block) => block.roleId === "player").map((block) => block.id));
+      const goalIds = new Set(blocks.filter((block) => block.roleId === "goal").map((block) => block.id));
+      const player = simulation.final.voxels.find((voxel) =>
+        playerIds.has(voxel.blockId) && voxel.x >= 0);
+      const hadCollectible = playFrame.voxels.some((voxel) =>
+        goalIds.has(voxel.blockId) && voxel.x >= 0);
+      const collectibleRemains = simulation.final.voxels.some((voxel) =>
+        goalIds.has(voxel.blockId) && voxel.x >= 0);
+      if (player && hadCollectible && !collectibleRemains) {
+        onStatus(`Solved in ${playMoves + 1} commands${activeLevel.optimal ? ` · optimum ${activeLevel.moves}` : ""}`);
+      }
+    } catch (error) {
+      onStatus(error instanceof Error ? error.message : "The C++ engine could not play that move");
+    } finally {
+      setPlayBusy(false);
+    }
+  }, [activeLevel, blocks, onStatus, playBusy, playFrame, playMoves, roles]);
+
+  useEffect(() => {
+    if (viewMode !== "play") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (["INPUT", "SELECT", "TEXTAREA"].includes((event.target as HTMLElement).tagName)) return;
+      const direction = ({
+        ArrowUp: "up",
+        ArrowRight: "right",
+        ArrowDown: "down",
+        ArrowLeft: "left",
+      } as Record<string, SearchDirection>)[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      void playDirection(direction);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [playDirection, viewMode]);
+
+  return (
+    <section className="search-layout" aria-label="Evolutionary puzzle search">
+      <aside className="search-controls">
+        <div className="search-panel-heading">
+          <span>EVOLUTION CONFIGURATION</span>
+          <h2>Grow a difficult 3D puzzle</h2>
+          <p>Every candidate is solved exactly in C++. Fitness maximizes the shortest proven command sequence.</p>
+        </div>
+        <div className="search-dimensions">
+          <label className="field"><span>Width</span><input type="number" min="4" max="16" value={options.width} disabled={running} onChange={(event) => updateOption("width", event.target.value)} /></label>
+          <label className="field"><span>Depth</span><input type="number" min="4" max="16" value={options.depth} disabled={running} onChange={(event) => updateOption("depth", event.target.value)} /></label>
+          <label className="field"><span>Rows above floor</span><input type="number" min="1" max="16" value={options.layers} disabled={running} onChange={(event) => updateOption("layers", event.target.value)} /></label>
+        </div>
+        <div className="search-dimensions">
+          <label className="field"><span>Population</span><input type="number" min="4" max="128" value={options.population} disabled={running} onChange={(event) => updateOption("population", event.target.value)} /></label>
+          <label className="field"><span>Generations</span><input type="number" min="1" max="10000" value={options.generations} disabled={running} onChange={(event) => updateOption("generations", event.target.value)} /></label>
+          <label className="field"><span>States / candidate</span><input type="number" min="100" max="50000" step="100" value={options.maxNodes} disabled={running} onChange={(event) => updateOption("maxNodes", event.target.value)} /></label>
+        </div>
+        <div className="search-dimensions search-dimensions--two">
+          <label className="field"><span>Collectibles</span><input type="number" min="1" max="16" value={options.collectibles} disabled={running} onChange={(event) => updateOption("collectibles", event.target.value)} /></label>
+          <label className="field"><span>Deterministic seed</span><input type="number" min="0" max="4294967295" value={options.seed} disabled={running} onChange={(event) => updateOption("seed", event.target.value)} /></label>
+        </div>
+        {weightlessEnabled && (
+          <div className="search-weightless-options">
+            <div className="search-dimensions search-dimensions--two">
+              <label className="field"><span>Min distinct box IDs</span><input type="number" min="0" max="32" value={options.minWeightlessBoxes} disabled={running} onChange={(event) => updateOption("minWeightlessBoxes", event.target.value)} /></label>
+              <label className="field"><span>Max distinct box IDs</span><input type="number" min="0" max="32" value={options.maxWeightlessBoxes} disabled={running} onChange={(event) => updateOption("maxWeightlessBoxes", event.target.value)} /></label>
+            </div>
+            <small>Counts separate numbered polycubes. Cubes per polycube: uncapped within the selected volume.</small>
+          </div>
+        )}
+        <label className="search-hole-toggle" htmlFor="search-evolve-holes" aria-label="Evolve holes in the floor">
+          <input id="search-evolve-holes" type="checkbox" checked={options.evolveHoles} disabled={running} onChange={(event) => setOptions((current) => ({ ...current, evolveHoles: event.target.checked }))} />
+          <span><b>Evolve holes in the floor</b><small>Empty Row-0 cells become bottomless voids; this terrain gets equal mutation opportunity.</small></span>
+        </label>
+        <div className="search-blocks">
+          <div><strong>Blocks allowed in evolution</strong><small>Floor is enforced at Row 0; other enabled blocks may populate the 3D volume.</small></div>
+          {blocks.map((block) => (
+            <label key={block.id} className="search-block-toggle" htmlFor={`search-block-${block.id}`} aria-label={`Allow ${block.name} in evolution`}>
+              <input id={`search-block-${block.id}`} type="checkbox" checked={enabledBlockIds.includes(block.id)} disabled={running} onChange={() => toggleBlock(block.id)} />
+              <span className="search-block-swatch" style={{ background: block.color }} />
+              <span><b>{block.name}</b><small>{roles.find((role) => role.id === block.roleId)?.name ?? block.roleId}</small></span>
+            </label>
+          ))}
+        </div>
+        <div className="search-primary-actions">
+          {running
+            ? <button className="tool-button search-stop" onClick={stopSearch}>Stop evolution</button>
+            : <button className="tool-button tool-button--primary" onClick={startSearch}>Start evolution</button>}
+          <button className="tool-button" disabled={!best} onClick={saveBest}>Save current best</button>
+        </div>
+      </aside>
+
+      <section className="search-main">
+        <div className="search-metrics">
+          <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
+          <article><span>Evaluated</span><strong>{progress.evaluated.toLocaleString()}</strong></article>
+          <article><span>Best optimum</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
+          <article><span>Complete search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec</small></strong></article>
+        </div>
+
+        <section className="search-stage">
+          <div className="search-stage-toolbar">
+            <div>
+              <span>{selectedSaved ? "SAVED LEVEL" : running ? "LIVE INCUMBENT" : "CURRENT BEST"}</span>
+              <strong>{activeLevel?.name ?? "Waiting for the first candidate"}</strong>
+            </div>
+            {activeLevel && <div className="search-view-tabs">
+              <button className={viewMode === "inspect" ? "active" : ""} onClick={() => setViewMode("inspect")}>Inspect</button>
+              <button className={viewMode === "solution" ? "active" : ""} disabled={!activeLevel.solution.length} onClick={() => solutionFrames.length ? setViewMode("solution") : void buildSolutionTrace()}>Solution</button>
+              <button className={viewMode === "play" ? "active" : ""} onClick={resetPlay}>Play</button>
+            </div>}
+          </div>
+          {activeLevel ? (
+            <MazeBenchCanvas
+              frame={displayFrame}
+              blocks={blocks}
+              genericBlockIds={genericBlockIds}
+              world={world}
+              layer={1}
+              interactive
+              paintable={false}
+            />
+          ) : (
+            <div className="search-empty-stage"><span>◇</span><strong>No candidate yet</strong><p>Choose the 3D volume and allowed blocks, then start evolution.</p></div>
+          )}
+          {viewMode === "solution" && activeLevel && (
+            <div className="solution-controls">
+              <button onClick={() => setSolutionFrameIndex((value) => Math.max(0, value - 1))} disabled={!solutionFrames.length || solutionFrameIndex === 0}>←</button>
+              <button className="solution-play" disabled={buildingTrace || !solutionFrames.length} onClick={() => setPlayingTrace((value) => !value)}>{buildingTrace ? "Building…" : playingTrace ? "Pause" : "Play solution"}</button>
+              <span>{solutionFrames.length ? `${solutionFrameIndex + 1} / ${solutionFrames.length}` : "No frames"}</span>
+              <button onClick={() => setSolutionFrameIndex((value) => Math.min(solutionFrames.length - 1, value + 1))} disabled={!solutionFrames.length || solutionFrameIndex >= solutionFrames.length - 1}>→</button>
+            </div>
+          )}
+          {viewMode === "play" && activeLevel && (
+            <div className="play-controls">
+              <span>{playMoves} commands</span>
+              <div className="direction-pad">
+                <button onClick={() => void playDirection("up")}><DirectionGlyph direction="up" /></button>
+                <button onClick={() => void playDirection("left")}><DirectionGlyph direction="left" /></button>
+                <button onClick={() => void playDirection("down")}><DirectionGlyph direction="down" /></button>
+                <button onClick={() => void playDirection("right")}><DirectionGlyph direction="right" /></button>
+              </div>
+              <button className="tool-button" onClick={resetPlay}>Reset play</button>
+            </div>
+          )}
+        </section>
+
+        {activeLevel && (
+          <section className="search-record-detail">
+            <div><span>Proof</span><strong>{activeLevel.optimal ? "Shortest path proven" : activeLevel.limitHit ? "State limit reached" : "Not solved"}</strong></div>
+            <div><span>Expanded</span><strong>{activeLevel.expanded.toLocaleString()}</strong></div>
+            <div><span>Generated</span><strong>{activeLevel.generated.toLocaleString()}</strong></div>
+            <div><span>Solution</span><strong className="solution-sequence">{activeLevel.solution.length ? activeLevel.solution.map((direction, index) => <DirectionGlyph key={`${index}-${direction}`} direction={direction} />) : "—"}</strong></div>
+          </section>
+        )}
+      </section>
+
+      <aside className="saved-searches">
+        <div className="saved-searches-heading"><span>PROJECT LIBRARY</span><strong>Saved searches</strong><em>{savedLevels.length}</em></div>
+        <div className="saved-search-list">
+          {savedLevels.length ? savedLevels.map((level) => (
+            <article key={level.id} className={selectedSavedId === level.id ? "active" : ""}>
+              <button className="saved-search-select" onClick={() => { setSelectedSavedId(level.id); setViewMode("inspect"); }}>
+                <span className="saved-search-score">{level.optimal ? level.moves : "?"}</span>
+                <span><strong>{level.name}</strong><small>{level.world.width}×{level.world.height}×{level.layers} · {level.expanded.toLocaleString()} expanded</small></span>
+              </button>
+              <button className="saved-search-delete" aria-label={`Delete ${level.name}`} onClick={() => deleteSaved(level.id)}>×</button>
+            </article>
+          )) : <p>No evolved levels saved yet. Records saved here are written into the repo-backed project JSON.</p>}
+        </div>
+      </aside>
+    </section>
+  );
+}

@@ -9,6 +9,7 @@ constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole = HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kIceRole = HashRoleLiteral("ice");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
+constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 
 constexpr int32_t kHashCapacity = 131072;
 constexpr int32_t kHashMask = kHashCapacity - 1;
@@ -176,7 +177,8 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
   for (int32_t index = 0; index < count; ++index) {
     g_next_column_voxel[index] = -1;
     const Voxel& voxel = voxels[index];
-    if (!IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+    if (voxel.role == kGoalRole ||
+        !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
     HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
     if (g_dense_columns) {
       const int32_t cell = voxel.y * width + voxel.x;
@@ -196,7 +198,8 @@ int32_t FindVoxelAt(
   if (!IsInsideRoom(x, y, width, height)) return -1;
   if (g_linear_spatial) {
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
-      if (voxels[index].x == x && voxels[index].y == y &&
+      if (voxels[index].role != kGoalRole &&
+          voxels[index].x == x && voxels[index].y == y &&
           voxels[index].z == z) {
         return index;
       }

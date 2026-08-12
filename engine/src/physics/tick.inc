@@ -55,6 +55,9 @@ TickResult step_tick(
   auto store_and_finish = [&](int32_t phase, bool advanced) {
     state->phase = phase;
     if (advanced) ++state->tick;
+    if (phase == kMotionComplete) {
+      CollectGoalsAtPlayer(voxels, count, state->player_index);
+    }
     StoreObjectMotion(state, count);
     if (phase == kMotionComplete) {
       ActiveWorkspace().continuation_state = nullptr;
@@ -228,6 +231,11 @@ TickResult step_tick(
     const bool gravity_continues =
         state->player_falling != 0 ||
         ObjectsNeedGravityTick(voxels, width, height);
+    if (!gravity_continues && state->reserved[0] == kResumeCommand) {
+      state->reserved[0] = kResumeNothing;
+      return store_and_finish(
+          kMotionReady, objects_advanced || player_advanced);
+    }
     if (!gravity_continues && state->reserved[0] == kResumeObjectIce) {
       state->reserved[0] = kResumeNothing;
       return store_and_finish(
@@ -354,6 +362,24 @@ TickResult step_tick(
     const int32_t object = g_voxel_object[target_index];
     if (automatic_ice_motion || object < 0) {
       return store_and_finish(kMotionComplete, records_initial_tick);
+    }
+    const int32_t target_support = player.z == INT32_MIN ? -1 : FindVoxelAt(
+        voxels, target_x, target_y, player.z - 1, width, height);
+    const bool target_support_stays = target_support >= 0 &&
+        g_voxel_object[target_support] != object;
+    if (!target_support_stays) {
+      const int32_t current_support = player.z == INT32_MIN ? -1 : FindVoxelAt(
+          voxels, player.x, player.y, player.z - 1, width, height);
+      const bool may_leave_support = started_on_ice ||
+          (current_support >= 0 &&
+           (voxels[current_support].role == kFloorRole ||
+            g_voxel_object[current_support] == object));
+      if (!may_leave_support) {
+        // Pushing a body must not bypass the normal ledge rule. Floor is the
+        // deliberate walk-off surface; a player standing on a wall or another
+        // non-Ice support cannot push into the body's unsupported old cell.
+        return store_and_finish(kMotionComplete, records_initial_tick);
+      }
     }
     rider = CapturePlayerRider(voxels, player_index, width, height);
     ClearMovingObjects();

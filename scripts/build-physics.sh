@@ -28,10 +28,20 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=step_command_tick \
   -Wl,--export=command_tick \
   -Wl,--export=simulate_turn \
+  -Wl,--export=search_node_capacity \
+  -Wl,--export=search_voxel_capacity \
+  -Wl,--export=search_solve \
+  -Wl,--export=search_moves \
+  -Wl,--export=search_expanded \
+  -Wl,--export=search_generated \
+  -Wl,--export=search_transpositions \
+  -Wl,--export=search_solution_length \
+  -Wl,--export=search_solution_step \
   -Wl,--export-memory \
-  -Wl,--initial-memory=8388608 \
-  -Wl,--max-memory=8388608 \
+  -Wl,--initial-memory=67108864 \
+  -Wl,--max-memory=67108864 \
   -o "$output_dir/voxel_physics.wasm" \
   -I"$project_root/engine/include" \
   "$project_root/engine/src/physics.cpp" \
+  "$project_root/engine/src/search.cpp" \
   "$project_root/engine/src/wasm_api.cpp"

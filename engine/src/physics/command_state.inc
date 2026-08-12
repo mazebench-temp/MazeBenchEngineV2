@@ -6,6 +6,7 @@ constexpr int32_t kMotionComplete = 4;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;
+constexpr uint8_t kResumeCommand = 3;
 
 void ClearMotionFlags(MotionState* state, int32_t count) {
   for (int32_t index = 0; index < count; ++index) {
@@ -163,31 +164,51 @@ void InitializeMotion(
   state->player_index = player_index;
   state->player_gravity_armed = 0;
   state->player_falling = 0;
+  state->reserved[0] = kResumeNothing;
+  state->reserved[1] = 0;
   ClearMotionFlags(state, count);
+  bool needs_initial_gravity = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (ObjectHasDirectSupport(voxels, object, width, height)) {
       g_object_gravity_armed[object] = 1;
       continue;
     }
-    for (int32_t member = g_object_head[object]; member >= 0;
-         member = g_next_object_voxel[member]) {
-      const Voxel& voxel = voxels[member];
-      if (FindNearestVoxelBelow(
-              voxels, count, voxel.x, voxel.y, voxel.z, object, width) >= 0) {
-        g_object_gravity_armed[object] = 1;
-        break;
-      }
+    if (ObjectIsActive(voxels, object, width, height)) {
+      // Dynamic bodies are never allowed to begin a command suspended in the
+      // editor volume. Arm them even over the abyss so they settle or leave
+      // the world before the requested horizontal input is evaluated.
+      g_object_gravity_armed[object] = 1;
+      g_object_falling[object] = 1;
+      needs_initial_gravity = true;
     }
   }
-  state->player_gravity_armed = FindNearestVoxelBelow(
-                                    voxels,
-                                    count,
-                                    voxels[player_index].x,
-                                    voxels[player_index].y,
-                                    voxels[player_index].z,
-                                    -1,
-                                    width) >= 0;
+  const Voxel& player = voxels[player_index];
+  const bool player_active =
+      IsInsideRoom(player.x, player.y, width, height) &&
+      player.z != INT32_MIN;
+  const bool player_supported = player_active && FindVoxelAt(
+      voxels, player.x, player.y, player.z - 1, width, height) >= 0;
+  state->player_gravity_armed = player_active ? 1 : 0;
+  if (player_active && !player_supported) {
+    state->player_falling = 1;
+    needs_initial_gravity = true;
+  }
+  if (needs_initial_gravity) {
+    state->phase = kMotionGravity;
+    state->reserved[0] = kResumeCommand;
+  }
   StoreObjectMotion(state, count);
+}
+
+void CollectGoalsAtPlayer(Voxel* voxels, int32_t count, int32_t player_index) {
+  if (player_index < 0 || player_index >= count) return;
+  const Voxel& player = voxels[player_index];
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kGoalRole && voxels[index].x == player.x &&
+        voxels[index].y == player.y && voxels[index].z == player.z) {
+      voxels[index].x = -1;
+    }
+  }
 }
 
 template <bool kEntitiesFirst, int32_t kDirection = -1>
@@ -224,6 +245,7 @@ template <bool kEntitiesFirst, int32_t kDirection = -1>
   uint64_t other_supports = 0;
   bool vacated_support_found = false;
   bool vacated_support_is_ice = false;
+  bool player_support_found = false;
   bool lower_vacated_voxel = false;
   bool lower_player_voxel = false;
   constexpr int32_t kFirstVoxel = kEntitiesFirst ? 2 : 0;
@@ -232,6 +254,7 @@ template <bool kEntitiesFirst, int32_t kDirection = -1>
       if (index == pushable_index) continue;
     }
     const Voxel& voxel = voxels[index];
+    if (voxel.role == kGoalRole) continue;
     if constexpr (kEntitiesFirst) {
       if (voxel.role == kPlayerRole || voxel.role == kPushableRole ||
           voxel.role == kWeightlessPushableRole) {
@@ -248,7 +271,8 @@ template <bool kEntitiesFirst, int32_t kDirection = -1>
     }
     if (voxel.x == player.x && voxel.y == player.y &&
         voxel.z < player.z) {
-      lower_player_voxel = true;
+      if (voxel.z == player.z - 1) player_support_found = true;
+      else lower_player_voxel = true;
     }
 
     const bool in_lane = dx != 0
@@ -290,6 +314,10 @@ template <bool kEntitiesFirst, int32_t kDirection = -1>
     // A missing support begins a fall, whose timing belongs to step_tick.
     return false;
   }
+
+  // The optimized lane is only valid for already-settled entities. Floating
+  // inputs must enter the tick engine's initial gravity phase first.
+  if (!vacated_support_found || !player_support_found) return false;
 
   if (vacated_support_found) {
     // A player entering an Ice-supported vacated cell gains its own momentum

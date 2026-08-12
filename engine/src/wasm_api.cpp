@@ -1,10 +1,13 @@
 #include "voxelbench/physics.hpp"
+#include "voxelbench/search.hpp"
 
 namespace {
 
 voxelbench::Voxel g_voxels[voxelbench::kVoxelCapacity];
 voxelbench::PhysicsWorkspace g_workspace;
 voxelbench::MotionState g_motion_state;
+voxelbench::SearchWorkspace g_search_workspace;
+voxelbench::SearchResult g_search_result;
 uint8_t g_role_buffer[voxelbench::kRoleBufferCapacity];
 bool g_initialized = false;
 
@@ -91,6 +94,56 @@ int32_t simulate_turn(
   EnsureInitialized();
   return voxelbench::simulate_turn(
       &g_workspace, g_voxels, count, width, height, direction);
+}
+
+int32_t search_node_capacity() {
+  return voxelbench::kSearchNodeCapacity;
+}
+
+int32_t search_voxel_capacity() {
+  return voxelbench::kSearchVoxelCapacity;
+}
+
+int32_t search_solve(
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t maximum_nodes) {
+  EnsureInitialized();
+  g_search_result = voxelbench::search_shortest(
+      &g_search_workspace,
+      &g_workspace,
+      g_voxels,
+      count,
+      width,
+      height,
+      maximum_nodes);
+  return static_cast<int32_t>(g_search_result.status);
+}
+
+int32_t search_moves() {
+  return g_search_result.moves;
+}
+
+int32_t search_expanded() {
+  return g_search_result.expanded;
+}
+
+int32_t search_generated() {
+  return g_search_result.generated;
+}
+
+int32_t search_transpositions() {
+  return g_search_result.transpositions;
+}
+
+int32_t search_solution_length() {
+  return g_search_result.solution_length;
+}
+
+int32_t search_solution_step(int32_t index) {
+  if (index < 0 || index >= g_search_result.solution_length) return -1;
+  return g_search_result.solution[index];
 }
 
 }  // extern "C"

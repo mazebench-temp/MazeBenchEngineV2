@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import MazeBenchCanvas from "./MazeBenchCanvas";
+import SearchBench, { normalizeSearchLevels, type SearchLevel } from "./SearchBench";
 import { cameraRelativeDirection } from "./cameraNavigation.mjs";
 import { simulateCommandWithCpp } from "./physicsEngine";
 import {
@@ -31,6 +32,7 @@ import {
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
 import { deleteTestCase } from "./testSuite.mjs";
+import { enforceFloorLayer, selectionContainsFloor } from "./floorLayer.mjs";
 import {
   shouldShowResultComparison,
   traceFrameLabel,
@@ -160,7 +162,7 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "crate", name: "Amber crate", color: "#E9963A", roleId: "pushable" },
   { id: "player", name: "Player", color: "#5A67D8", roleId: "player" },
   { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice" },
-  { id: "goal", name: "Goal tile", color: "#48A985", roleId: "goal" },
+  { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal" },
 ];
 
 const DEFAULT_FOLDERS: TestFolder[] = [
@@ -224,9 +226,10 @@ function normalizeGenericIds(
 ): Frame {
   const genericRoleIds = new Set(roles.filter((role) => role.generic).map((role) => role.id));
   const blocksById = new Map(blocks.map((block) => [block.id, block]));
+  const floorBlockIds = new Set(blocks.filter((block) => block.roleId === "floor").map((block) => block.id));
   const legacyIds = new Map(legacyBlocks.map((block) => [block.id, block.genericId]));
   return {
-    voxels: frame.voxels.map((voxel) => {
+    voxels: enforceFloorLayer(frame.voxels, floorBlockIds).map((voxel) => {
       const block = blocksById.get(voxel.blockId);
       if (block && genericRoleIds.has(block.roleId)) {
         const value = Number(voxel.genericId ?? legacyIds.get(voxel.blockId) ?? 0);
@@ -252,6 +255,17 @@ function setGenericModeForBlocks(
         ? { ...voxel, genericId: Math.max(0, Math.floor(Number(voxel.genericId) || 0)) }
         : { x: voxel.x, y: voxel.y, z: voxel.z, blockId: voxel.blockId };
     }),
+  };
+}
+
+function enforceFloorModeForBlocks(
+  frame: Frame,
+  blockIds: ReadonlySet<string>,
+  floor: boolean,
+): Frame {
+  if (!floor) return frame;
+  return {
+    voxels: frame.voxels.filter((voxel) => !blockIds.has(voxel.blockId) || voxel.z === 0),
   };
 }
 
@@ -567,6 +581,8 @@ function FailureTraceComparison({
       result.checks.findIndex((check) => check.rotation === result.rotation),
     );
     const nextCheck = result.checks[nextCheckIndex];
+    // A different engine result starts at its representative mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCheckIndex(nextCheckIndex);
     setTraceIndex(nextCheck.firstMismatchFrame ?? nextCheck.trace.length - 1);
   }, [result]);
@@ -750,10 +766,12 @@ function TimelineSnapshotStrip({
 }
 
 export default function VoxelBench() {
+  const [activeWorkspace, setActiveWorkspace] = useState<"tests" | "search">("tests");
   const [roles, setRoles] = useState<PhysicsRoleDefinition[]>(DEFAULT_ROLES);
   const [blocks, setBlocks] = useState<BlockDefinition[]>(DEFAULT_BLOCKS);
   const [folders, setFolders] = useState<TestFolder[]>(DEFAULT_FOLDERS);
   const [tests, setTests] = useState<TestCase[]>(DEFAULT_TESTS);
+  const [savedSearchLevels, setSavedSearchLevels] = useState<SearchLevel[]>([]);
   const [activeId, setActiveId] = useState(DEFAULT_TESTS[0].id);
   const [frameKind, setFrameKind] = useState<FrameKind>("start");
   const [intermediateIndex, setIntermediateIndex] = useState<number | null>(null);
@@ -822,6 +840,10 @@ export default function VoxelBench() {
     () => new Set(blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id)),
     [blocks, genericRoleIds],
   );
+  const floorBlockIds = useMemo(
+    () => new Set(blocks.filter((block) => block.roleId === "floor").map((block) => block.id)),
+    [blocks],
+  );
   const selectedDefinition = selectedBlock === DELETE_TOOL_ID
     ? undefined
     : blocks.find((block) => block.id === selectedBlock) ?? blocks[0];
@@ -860,6 +882,7 @@ export default function VoxelBench() {
           blocks: StoredBlockDefinition[];
           folders?: StoredTestFolder[];
           roles?: PhysicsRoleDefinition[];
+          searches?: unknown;
           tests: StoredTestCase[];
           world?: WorldSettings;
           };
@@ -888,6 +911,7 @@ export default function VoxelBench() {
           );
           setFolders(restoredFolders);
           setTests(restoredTests);
+          setSavedSearchLevels(normalizeSearchLevels(parsed.searches, restoredBlocks));
           setActiveId(restoredTests[0].id);
           restored = true;
           break;
@@ -915,11 +939,12 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 8,
+        schemaVersion: 9,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
         folders,
+        searches: savedSearchLevels,
         tests: cropTestsToWorld(tests).map((test) => ({
           ...test,
           start: { voxels: sortVoxels(test.start.voxels) },
@@ -947,7 +972,7 @@ export default function VoxelBench() {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [blocks, folders, projectLoaded, roles, tests]);
+  }, [blocks, folders, projectLoaded, roles, savedSearchLevels, tests]);
 
   const runTest = useCallback(async (test: TestCase) => {
     setToast(`Running ${test.name} through the C++ engine…`);
@@ -1342,6 +1367,14 @@ export default function VoxelBench() {
       left: { dx: -1, dy: 0 },
     }[worldDirection] : { dx: 0, dy: 0 };
     const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
+    if (verticalDelta !== 0 && selectionContainsFloor(
+      currentFrame.voxels,
+      activeGroupSelection.keys,
+      floorBlockIds,
+    )) {
+      setToast("Floor tiles are fixed to Row 0 and cannot be raised or lowered");
+      return;
+    }
     const movement = moveVoxelGroup(
       currentFrame.voxels,
       activeGroupSelection.keys,
@@ -1389,7 +1422,7 @@ export default function VoxelBench() {
         ? "lowered one layer"
         : `moved ${direction} relative to camera`;
     setToast(`${movement.selectedKeys.length} ${movement.selectedKeys.length === 1 ? "cube" : "cubes"} ${movementLabel}`);
-  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, frameKind, intermediateIndex, pushHistory, syncHistoryState]);
+  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, floorBlockIds, frameKind, intermediateIndex, pushHistory, syncHistoryState]);
 
   const deleteSelectedGroup = useCallback(() => {
     if (!activeTest || !activeGroupSelection || !groupToolPinned) return;
@@ -1539,6 +1572,10 @@ export default function VoxelBench() {
 
   const paint = (x: number, y: number, z: number, blockId: string | null) => {
     if (!activeTest || activeTestLocked) return;
+    if (blockId && z !== 0 && blocks.find((block) => block.id === blockId)?.roleId === "floor") {
+      setToast("Floor tiles may only be painted on Row 0");
+      return;
+    }
     const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
     const currentVoxel = currentFrame.voxels.find((voxel) => keyOf(voxel) === `${x},${y},${z}`);
     const genericId = blockId && genericBlockIds.has(blockId)
@@ -1948,6 +1985,32 @@ export default function VoxelBench() {
     setToast(isGeneric ? `${name} created · choose its generic object ID` : `${name} block created`);
   };
 
+  const updateBlockRole = (block: BlockDefinition, roleId: string) => {
+    const generic = roles.find((role) => role.id === roleId)?.generic === true;
+    const affected = new Set([block.id]);
+    const normalizeFrame = (frame: Frame) => enforceFloorModeForBlocks(
+      setGenericModeForBlocks(frame, affected, generic),
+      affected,
+      roleId === "floor",
+    );
+    setBlocks((current) => current.map((item) =>
+      item.id === block.id ? { ...item, roleId } : item));
+    setTests((current) => current.map((test) => isTestLocked(test) ? test : {
+      ...test,
+      start: normalizeFrame(test.start),
+      intermediate: test.intermediate.map(normalizeFrame),
+      expected: normalizeFrame(test.expected),
+    }));
+    if (roleId === "floor") {
+      setSavedSearchLevels((current) => current.map((level) => ({
+        ...level,
+        voxels: level.voxels.filter((voxel) => voxel.blockId !== block.id || voxel.z === 0),
+      })));
+    }
+    setSelectedRoleId(roleId);
+    setResults({});
+  };
+
   const addRole = () => {
     const name = newRole.name.trim();
     if (!name) return;
@@ -1981,11 +2044,12 @@ export default function VoxelBench() {
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
     const payload = JSON.stringify({
-      schemaVersion: 8,
+      schemaVersion: 9,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
       folders,
+      searches: savedSearchLevels,
       tests: boundedTests.map((test) => ({
         ...test,
         start: { voxels: sortVoxels(test.start.voxels) },
@@ -2013,6 +2077,7 @@ export default function VoxelBench() {
           blocks: StoredBlockDefinition[];
           folders?: StoredTestFolder[];
           roles?: PhysicsRoleDefinition[];
+          searches?: unknown;
           tests: StoredTestCase[];
           world?: WorldSettings;
         };
@@ -2039,6 +2104,7 @@ export default function VoxelBench() {
             : importedRoles[0].id,
         }));
         setTests(importedTests);
+        setSavedSearchLevels(normalizeSearchLevels(parsed.searches, importedBlocks));
         setActiveId(importedTests[0].id);
         setFrameKind("start");
         setIntermediateIndex(null);
@@ -2072,23 +2138,34 @@ export default function VoxelBench() {
               <img src="/favicon.svg" alt="" />Maze Bench
             </span>
             <span className="nav-link">Build</span>
-            <span className="nav-link is-active">Tests</span>
+            <button className={`nav-link ${activeWorkspace === "tests" ? "is-active" : ""}`} onClick={() => setActiveWorkspace("tests")}>Tests</button>
+            <button className={`nav-link ${activeWorkspace === "search" ? "is-active" : ""}`} onClick={() => setActiveWorkspace("search")}>Search</button>
           </nav>
           <div className="author-title">
-            <span>PHYSICS WORKBENCH</span>
-            <h1>Voxel Test Lab</h1>
+            <span>{activeWorkspace === "tests" ? "PHYSICS WORKBENCH" : "EVOLUTIONARY LAB"}</span>
+            <h1>{activeWorkspace === "tests" ? "Voxel Test Lab" : "3D Puzzle Search"}</h1>
           </div>
           <div className="author-actions">
             <button className="tool-button" onClick={() => importRef.current?.click()}>Import</button>
             <button className="tool-button" onClick={exportProject}>Export</button>
-            <button className="tool-button tool-button--primary" onClick={runSuite}>Run suite</button>
+            {activeWorkspace === "tests" && <button className="tool-button tool-button--primary" onClick={runSuite}>Run suite</button>}
           </div>
           <input ref={importRef} type="file" accept="application/json" hidden onChange={importProject} />
           {toast && <p className="author-status" role="status"><span />{toast}</p>}
         </div>
       </header>
 
-      <section className="author-layout">
+      {activeWorkspace === "search" && (
+        <SearchBench
+          blocks={blocks}
+          roles={roles}
+          savedLevels={savedSearchLevels}
+          onSavedLevelsChange={setSavedSearchLevels}
+          onStatus={setToast}
+        />
+      )}
+
+      {activeWorkspace === "tests" && <section className="author-layout">
         <section className="author-workspace">
           <section className="author-stage" aria-label="Voxel frame editor">
             <div className="stage-chrome stage-chrome--left">
@@ -2267,7 +2344,7 @@ export default function VoxelBench() {
                 <div className="definition-form">
                   <div className="selected-block-title"><span className={`swatch-cube large ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties} /><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
-                  <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => { const roleId = event.target.value; const generic = roles.find((role) => role.id === roleId)?.generic === true; const affected = new Set([selectedDefinition.id]); setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, roleId } : block)); setTests((current) => current.map((test) => isTestLocked(test) ? test : { ...test, start: setGenericModeForBlocks(test.start, affected, generic), intermediate: test.intermediate.map((frame) => setGenericModeForBlocks(frame, affected, generic)), expected: setGenericModeForBlocks(test.expected, affected, generic) })); setSelectedRoleId(roleId); setResults({}); }}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
+                  <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                 </div>
               ) : null}
             </div>
@@ -2303,7 +2380,7 @@ export default function VoxelBench() {
             </div>
           </details>
         </aside>
-      </section>
+      </section>}
     </main>
   );
 }

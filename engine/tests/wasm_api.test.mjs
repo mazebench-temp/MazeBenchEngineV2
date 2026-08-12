@@ -37,9 +37,12 @@ test("the C++ engine pushes a pushable role and preserves negative Z", async () 
   const result = simulate(engine, [
     { x: 2, y: 2, z: -7, roleId: "player" },
     { x: 2, y: 1, z: -7, roleId: "pushable" },
+    { x: 2, y: 2, z: -8, roleId: "floor" },
+    { x: 2, y: 1, z: -8, roleId: "floor" },
+    { x: 2, y: 0, z: -8, roleId: "floor" },
   ], 0);
 
-  assert.deepEqual(result, [
+  assert.deepEqual(result.slice(0, 2), [
     { x: 2, y: 1, z: -7, roleId: "player" },
     { x: 2, y: 0, z: -7, roleId: "pushable" },
   ]);
@@ -53,8 +56,9 @@ test("custom roles are stable engine keys and block movement until C++ implement
   const result = simulate(engine, [
     { x: 1, y: 2, z: 1, roleId: "player" },
     { x: 1, y: 1, z: 1, roleId: "ice" },
+    { x: 1, y: 2, z: 0, roleId: "floor" },
   ], 0);
-  assert.deepEqual(result.map(({ x, y, z }) => ({ x, y, z })), [
+  assert.deepEqual(result.slice(0, 2).map(({ x, y, z }) => ({ x, y, z })), [
     { x: 1, y: 2, z: 1 },
     { x: 1, y: 1, z: 1 },
   ]);
@@ -69,7 +73,11 @@ test("the C++ engine enforces room boundaries in every direction", async () => {
     [{ x: 0, y: 2, z: 1, roleId: "player" }, 3],
   ];
   for (const [player, direction] of cases) {
-    assert.deepEqual(simulate(engine, [player], direction), [player]);
+    const result = simulate(engine, [
+      player,
+      { x: player.x, y: player.y, z: 0, roleId: "floor" },
+    ], direction);
+    assert.deepEqual(result[0], player);
   }
 });
 
@@ -77,6 +85,7 @@ test("the C++ WebAssembly engine executes MazeBench-style Ice slides", async () 
   const engine = await loadEngine();
   const result = simulate(engine, [
     { x: 2, y: 4, z: 1, roleId: "player" },
+    { x: 2, y: 4, z: 0, roleId: "floor" },
     { x: 2, y: 3, z: 0, roleId: "ice" },
     { x: 2, y: 2, z: 0, roleId: "ice" },
     { x: 2, y: 1, z: 0, roleId: "ice" },
@@ -89,6 +98,7 @@ test("WebAssembly exposes one resumable frame per C++ tick", async () => {
   const engine = await loadEngine();
   const voxels = [
     { x: 2, y: 4, z: 1, roleId: "player" },
+    { x: 2, y: 4, z: 0, roleId: "floor" },
     { x: 2, y: 3, z: 0, roleId: "ice" },
     { x: 2, y: 2, z: 0, roleId: "ice" },
     { x: 2, y: 1, z: 0, roleId: "ice" },
@@ -111,4 +121,55 @@ test("WebAssembly exposes one resumable frame per C++ tick", async () => {
     assert.equal(status, 1);
   }
   assert.deepEqual(playerRows, [3, 2, 1, 0]);
+});
+
+test("WebAssembly settles airborne entities before applying the command", async () => {
+  const engine = await loadEngine();
+  const voxels = [
+    { x: 1, y: 2, z: 3, roleId: "player" },
+    { x: 1, y: 2, z: 0, roleId: "floor" },
+    { x: 1, y: 1, z: 0, roleId: "floor" },
+  ];
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(engine.memory.buffer, engine.voxel_buffer(), voxels.length * stride);
+  voxels.forEach((voxel, index) => buffer.set([
+    voxel.x, voxel.y, voxel.z, roleCode(engine, voxel.roleId), -1,
+  ], index * stride));
+
+  engine.reset_command();
+  const frames = [];
+  for (;;) {
+    const status = engine.step_command_tick(voxels.length, 3, 3, 0);
+    frames.push({ y: buffer[1], z: buffer[2] });
+    if (status === 0) break;
+    assert.equal(status, 1);
+  }
+  assert.deepEqual(frames, [
+    { y: 2, z: 2 },
+    { y: 2, z: 1 },
+    { y: 1, z: 1 },
+  ]);
+});
+
+test("WebAssembly exact search targets collection of a literal gem", async () => {
+  const engine = await loadEngine();
+  const voxels = [
+    { x: 1, y: 2, z: 1, roleId: "player" },
+    { x: 1, y: 2, z: 0, roleId: "floor" },
+    { x: 1, y: 1, z: 0, roleId: "floor" },
+    { x: 1, y: 0, z: 0, roleId: "floor" },
+    { x: 1, y: 0, z: 1, roleId: "goal" },
+  ];
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(engine.memory.buffer, engine.voxel_buffer(), voxels.length * stride);
+  voxels.forEach((voxel, index) => buffer.set([
+    voxel.x, voxel.y, voxel.z, roleCode(engine, voxel.roleId), -1,
+  ], index * stride));
+
+  assert.ok(engine.search_node_capacity() >= 1000);
+  assert.ok(engine.search_voxel_capacity() >= 4096);
+  assert.equal(engine.search_solve(voxels.length, 3, 3, 1000), 1);
+  assert.equal(engine.search_moves(), 2);
+  assert.equal(engine.search_solution_length(), 2);
+  assert.deepEqual([engine.search_solution_step(0), engine.search_solution_step(1)], [0, 0]);
 });

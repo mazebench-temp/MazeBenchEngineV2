@@ -15,12 +15,14 @@ uint32_t Role(const char* value) {
 }  // namespace
 
 int main() {
-  // Compact Sokoban search workload: clone six voxels, push one box through a
+  // Compact Sokoban search workload: clone eight voxels, push one box through a
   // flat Ice lane, and consume the resulting player/box coordinates.
   constexpr std::uint64_t kIterations = 100000000;
   voxelbench::Voxel template_voxels[] = {
       {1, 6, 1, Role("player"), -1},
       {1, 5, 1, Role("pushable"), 0},
+      {1, 6, 0, Role("floor"), -1},
+      {1, 5, 0, Role("floor"), -1},
       {1, 4, 0, Role("ice"), -1},
       {1, 3, 0, Role("ice"), -1},
       {1, 2, 0, Role("ice"), -1},
@@ -29,9 +31,9 @@ int main() {
   volatile std::int64_t checksum = 0;
   const auto started = std::chrono::steady_clock::now();
   for (std::uint64_t iteration = 0; iteration < kIterations; ++iteration) {
-    voxelbench::Voxel voxels[6];
-    for (int index = 0; index < 6; ++index) voxels[index] = template_voxels[index];
-    voxelbench::simulate_turn(voxels, 6, 8, 8, 0);
+    voxelbench::Voxel voxels[8];
+    for (int index = 0; index < 8; ++index) voxels[index] = template_voxels[index];
+    voxelbench::simulate_turn(voxels, 8, 8, 8, 0);
     checksum = checksum + voxels[0].y + voxels[1].y;
   }
   const auto elapsed = std::chrono::duration<double>(

@@ -34,6 +34,11 @@ int32_t simulate_turn(
     int32_t direction) {
   if (workspace != nullptr && TrySimulateFlatSingleCubePush(
           voxels, count, width, height, direction)) {
+    int32_t player_index = -1;
+    for (int32_t index = 0; index < count; ++index) {
+      if (voxels[index].role == kPlayerRole) player_index = index;
+    }
+    CollectGoalsAtPlayer(voxels, count, player_index);
     return 0;
   }
   MotionState state;
@@ -49,6 +54,11 @@ int32_t simulate_turn(
     int32_t direction) {
   if (TrySimulateFlatSingleCubePush(
           voxels, count, width, height, direction)) {
+    int32_t player_index = -1;
+    for (int32_t index = 0; index < count; ++index) {
+      if (voxels[index].role == kPlayerRole) player_index = index;
+    }
+    CollectGoalsAtPlayer(voxels, count, player_index);
     return 0;
   }
   static thread_local PhysicsWorkspace workspace;

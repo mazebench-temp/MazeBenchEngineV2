@@ -2,21 +2,19 @@
 set -eu
 
 project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-build_dir="$project_root/.build/physics"
+build_dir="$project_root/.build/search"
 mkdir -p "$build_dir"
 
 clang++ \
   -std=c++20 \
   -O3 \
-  -Wall \
-  -Wextra \
-  -Wpedantic \
-  -Wconversion \
-  -Wshadow \
+  -DNDEBUG \
+  -flto \
+  -march=native \
   -I"$project_root/engine/include" \
   "$project_root/engine/src/physics.cpp" \
   "$project_root/engine/src/search.cpp" \
-  "$project_root/engine/tests/physics_tests.cpp" \
-  -o "$build_dir/physics_tests"
+  "$project_root/engine/benchmarks/search_benchmark.cpp" \
+  -o "$build_dir/search_benchmark"
 
-"$build_dir/physics_tests"
+"$build_dir/search_benchmark"

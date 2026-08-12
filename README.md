@@ -52,6 +52,16 @@ Roles may be marked as a **generic numbered family**. Blocks using that role car
 
 Generic IDs belong to painted voxels, not block definitions. Generic tools show `N` in the bottom toolbar; select one, type the desired ID in the prompt, and press Enter. Its toolbar cube shows that number while selected and returns to `N` when another tool is chosen. Every exposed face of the painted polycube displays its ID.
 
+Dynamic entities cannot begin a command in midair. The tick engine first settles unsupported players and pushable cubes or polycubes one row per tick, then applies the requested horizontal input. A body above the bottomless void continues through the normal visible-fall and disappearance rules.
+
+The built-in `goal` role is a literal non-rigid collectible gem. It occupies the same voxel space as moving bodies, does not support or block them, and is removed only when the player finishes an entire command on its exact coordinate. A box may overlap the gem without collecting it, and sliding across it mid-command leaves it in place.
+
+## Evolutionary search
+
+The Search workspace runs a deterministic, MazeBenchEngine3-inspired entity-first evolutionary loop in a Web Worker. Choose a 3D volume of up to 16 rows above the floor, collectible count (one gem by default), population, generation budget, state limit, seed, allowed block definitions, and whether Row-0 holes can evolve. When a weightless-pushable block is enabled, minimum and maximum settings control how many distinct polycube objects—with different numeric IDs—each candidate contains. Their cube counts have no configured cap: growth is limited only by the selected finite search volume and engine scene capacity. Candidates begin with maze-like random-walk holes plus several independent Ice clusters rooted on Row 0 and several independent wall/structure clusters rooted on Row 1. Ice, walls, and weightless polycubes can all gain or lose cubes while remaining connected; whole numbered pushbox polycubes can also be added or removed within the selected distinct-ID bounds. Static clusters, holes, the player, every collectible, and each box receive equal mutation opportunity. Generated players and boxes begin supported, while the C++ engine still settles imported or hand-authored airborne states defensively.
+
+Each candidate is evaluated by the C++ exact shortest-command solver. The current implementation is a compact breadth-first search—equivalent to A* with `h = 0` for uniform command costs—which stores only moving voxel coordinates while sharing immutable terrain. Solved candidates are ranked by the length of their proven optimum. Search records can be saved into the repo-backed project JSON, inspected in 3D, expanded into the engine's per-tick animation, and played with the arrow keys.
+
 ## Repository layout
 
 - `engine/`: shared platform-independent C++ library, tests, WebAssembly API, and benchmarks
@@ -70,4 +80,7 @@ Every physics change must finish with a clean `npm test`. Record a performance b
 
 ```bash
 npm run benchmark:physics
+npm run benchmark:search
 ```
+
+`benchmark:physics` measures a specialized flat-Ice turn workload. `benchmark:search` separately reports complete expanded nodes and generated successors for an exact 8 × 8 3D search; the two rates are intentionally not presented as interchangeable.

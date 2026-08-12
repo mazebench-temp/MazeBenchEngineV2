@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "coordinateSystem": {
     "horizontalAxes": [
       "x",
@@ -85,7 +85,7 @@
     },
     {
       "id": "goal",
-      "name": "Goal tile",
+      "name": "Gem collectible",
       "color": "#2f8c98",
       "roleId": "goal"
     },
@@ -104,9 +104,9 @@
   ],
   "folders": [
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "general",
-      "locked": true,
+      "locked": false,
       "name": "Movement"
     },
     {
@@ -122,9 +122,9 @@
       "name": "Ice Movement"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "weightless-box",
-      "locked": true,
+      "locked": false,
       "name": "Weightless Box"
     },
     {
@@ -140,7 +140,7 @@
       "name": "3D Boxes"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "3d-box-hole",
       "locked": false,
       "name": "3D Box + Hole"
@@ -158,6 +158,7 @@
       "name": "3D Box + Ice"
     }
   ],
+  "searches": [],
   "tests": [
     {
       "id": "push-one",
@@ -607219,6 +607220,2639 @@
             "z": 4,
             "blockId": "weightless-pushbox-1826",
             "genericId": 3
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "world": {
+        "width": 6,
+        "height": 6,
+        "floorLayer": 0
+      }
+    },
+    {
+      "description": "",
+      "folderId": "weightless-box",
+      "id": "test-131",
+      "locked": false,
+      "name": "Untitled test 131",
+      "input": "up",
+      "intermediate": [],
+      "start": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 1,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 2,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 2,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 2,
+            "blockId": "player"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "expected": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 1,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 2,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 2,
+            "blockId": "weightless-pushbox-1826",
+            "genericId": 0
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 2,
+            "blockId": "player"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "world": {
+        "width": 6,
+        "height": 6,
+        "floorLayer": 0
+      }
+    },
+    {
+      "description": "",
+      "folderId": "general",
+      "id": "test-132",
+      "locked": true,
+      "name": "Collect gem",
+      "input": "up",
+      "intermediate": [],
+      "start": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 1,
+            "blockId": "goal"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 1,
+            "blockId": "player"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "expected": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 1,
+            "blockId": "player"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "world": {
+        "width": 6,
+        "height": 6,
+        "floorLayer": 0
+      }
+    },
+    {
+      "description": "",
+      "folderId": "general",
+      "id": "test-132-copy",
+      "locked": true,
+      "name": "Fall onto gem",
+      "input": "up",
+      "intermediate": [
+        {
+          "voxels": [
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 1,
+              "blockId": "goal"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 3,
+              "blockId": "player"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 1,
+              "blockId": "wall"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 2,
+              "blockId": "wall"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            }
+          ]
+        },
+        {
+          "voxels": [
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 1,
+              "blockId": "goal"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 3,
+              "blockId": "player"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 1,
+              "blockId": "wall"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 2,
+              "blockId": "wall"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            }
+          ]
+        },
+        {
+          "voxels": [
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 1,
+              "blockId": "goal"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 3,
+              "blockId": "player"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 1,
+              "blockId": "wall"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 2,
+              "blockId": "wall"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            }
+          ]
+        },
+        {
+          "voxels": [
+            {
+              "x": 0,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 1,
+              "blockId": "goal"
+            },
+            {
+              "x": 0,
+              "y": 2,
+              "z": 2,
+              "blockId": "player"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 3,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 1,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 4,
+              "z": 2,
+              "blockId": "ice-9679"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 1,
+              "blockId": "wall"
+            },
+            {
+              "x": 0,
+              "y": 5,
+              "z": 2,
+              "blockId": "wall"
+            },
+            {
+              "x": 1,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 1,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 2,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 3,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 4,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 0,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 1,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 2,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 3,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 4,
+              "z": 0,
+              "blockId": "floor"
+            },
+            {
+              "x": 5,
+              "y": 5,
+              "z": 0,
+              "blockId": "floor"
+            }
+          ]
+        }
+      ],
+      "start": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 1,
+            "blockId": "goal"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 1,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 2,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 1,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 2,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 2,
+            "blockId": "wall"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 3,
+            "blockId": "player"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 5,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          }
+        ]
+      },
+      "expected": {
+        "voxels": [
+          {
+            "x": 0,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 2,
+            "z": 1,
+            "blockId": "player"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 1,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 3,
+            "z": 2,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 1,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 4,
+            "z": 2,
+            "blockId": "ice-9679"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 1,
+            "blockId": "wall"
+          },
+          {
+            "x": 0,
+            "y": 5,
+            "z": 2,
+            "blockId": "wall"
+          },
+          {
+            "x": 1,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 1,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 2,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 3,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 4,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 3,
+            "y": 5,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 0,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 1,
+            "z": 0,
+            "blockId": "floor"
+          },
+          {
+            "x": 4,
+            "y": 2,
+            "z": 0,
+            "blockId": "floor"
           },
           {
             "x": 4,

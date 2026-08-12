@@ -58,7 +58,8 @@ int32_t FindNearestVoxelBelow(
     const int32_t cell = y * width + x;
     for (int32_t index = g_column_heads[cell]; index >= 0;
          index = g_next_column_voxel[index]) {
-      if (index == g_ignored_support_voxel) continue;
+      if (index == g_ignored_support_voxel ||
+          voxels[index].role == kGoalRole) continue;
       if (excluded_object >= 0 && g_voxel_object[index] == excluded_object) continue;
       const int32_t candidate_z = voxels[index].z;
       if (candidate_z < z && candidate_z > best_z) {
@@ -70,7 +71,8 @@ int32_t FindNearestVoxelBelow(
   }
 
   for (int32_t index = 0; index < count; ++index) {
-    if (index == g_ignored_support_voxel) continue;
+    if (index == g_ignored_support_voxel ||
+        voxels[index].role == kGoalRole) continue;
     if ((excluded_object >= 0 && g_voxel_object[index] == excluded_object) ||
         voxels[index].x != x ||
         voxels[index].y != y) {
@@ -97,7 +99,8 @@ int32_t FindNearestVoxelBelowComponent(
   if (g_dense_columns) {
     for (int32_t index = g_column_heads[y * width + x]; index >= 0;
          index = g_next_column_voxel[index]) {
-      if (index == g_ignored_support_voxel) continue;
+      if (index == g_ignored_support_voxel ||
+          voxels[index].role == kGoalRole) continue;
       const int32_t object = g_voxel_object[index];
       if (object >= 0 && g_component_objects[object] != 0) continue;
       const int32_t candidate_z = voxels[index].z;
@@ -110,7 +113,8 @@ int32_t FindNearestVoxelBelowComponent(
   }
 
   for (int32_t index = 0; index < count; ++index) {
-    if (index == g_ignored_support_voxel || voxels[index].x != x ||
+    if (index == g_ignored_support_voxel ||
+        voxels[index].role == kGoalRole || voxels[index].x != x ||
         voxels[index].y != y) {
       continue;
     }
@@ -209,7 +213,8 @@ int32_t LowestOtherActiveZ(
   int32_t lowest = INT32_MAX;
   for (int32_t index = 0; index < count; ++index) {
     const Voxel& voxel = voxels[index];
-    if (index == excluded_voxel || voxel.z == INT32_MIN ||
+    if (index == excluded_voxel || voxel.role == kGoalRole ||
+        voxel.z == INT32_MIN ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) {
       continue;
     }
