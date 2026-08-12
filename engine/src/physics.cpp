@@ -359,6 +359,27 @@ bool ObjectHasDirectSupport(
   return false;
 }
 
+bool ObjectHasStableDirectSupport(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const Voxel& voxel = voxels[member];
+    if (voxel.z == INT32_MIN) continue;
+    const int32_t support = FindVoxelAt(
+        voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+    if (support < 0 || support == g_ignored_support_voxel) continue;
+    const int32_t support_object = g_voxel_object[support];
+    if (support_object != object &&
+        (support_object < 0 || g_object_falling[support_object] == 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool ObjectIsFullyOnIce(
     Voxel* voxels,
     int32_t object,
@@ -382,6 +403,15 @@ bool ObjectIsFullyOnIce(
   return found_bottom;
 }
 
+int32_t ObjectHighestZ(Voxel* voxels, int32_t object) {
+  int32_t highest = INT32_MIN;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    if (voxels[member].z > highest) highest = voxels[member].z;
+  }
+  return highest;
+}
+
 bool SettleObject(
     Voxel* voxels,
     int32_t count,
@@ -392,6 +422,7 @@ bool SettleObject(
       ObjectHasDirectSupport(voxels, object, width, height)) {
     if (ObjectIsActive(voxels, object, width, height)) {
       g_object_gravity_armed[object] = 1;
+      g_object_falling[object] = 0;
     }
     return false;
   }
@@ -413,21 +444,25 @@ bool SettleObject(
     // it to fall toward; merely loading a floating body does not delete it.
     return false;
   }
-  if (drop == INT64_MAX) {
-    for (int32_t member = g_object_head[object]; member >= 0;
-         member = g_next_object_voxel[member]) {
-      voxels[member].x = -1;
-    }
-    return true;
-  }
-  if (drop <= 0) return false;
   g_moving_objects_fell = true;
   g_fell_objects[object] = 1;
   g_object_gravity_armed[object] = 1;
+  if (drop == INT64_MAX) {
+    const bool disappears = ObjectHighestZ(voxels, object) < 0;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].z != INT32_MIN) --voxels[member].z;
+      if (disappears) voxels[member].x = -1;
+    }
+    g_object_falling[object] = disappears ? 0 : 1;
+    return true;
+  }
+  if (drop <= 0) return false;
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
-    voxels[member].z = static_cast<int32_t>(static_cast<int64_t>(voxels[member].z) - drop);
+    --voxels[member].z;
   }
+  g_object_falling[object] = 1;
   return true;
 }
 
@@ -553,13 +588,24 @@ bool SettleSupportComponent(
   }
 
   if (drop == INT64_MAX) {
+    int32_t highest = INT32_MIN;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
+      const int32_t object_highest = ObjectHighestZ(voxels, object);
+      if (object_highest > highest) highest = object_highest;
+    }
+    const bool disappears = highest < 0;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_component_objects[object] == 0) continue;
+      g_fell_objects[object] = 1;
+      g_object_falling[object] = disappears ? 0 : 1;
       for (int32_t member = g_object_head[object]; member >= 0;
            member = g_next_object_voxel[member]) {
-        voxels[member].x = -1;
+        if (voxels[member].z != INT32_MIN) --voxels[member].z;
+        if (disappears) voxels[member].x = -1;
       }
     }
+    g_moving_objects_fell = true;
     return true;
   }
   if (drop <= 0) return false;
@@ -567,10 +613,10 @@ bool SettleSupportComponent(
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_component_objects[object] == 0) continue;
     g_fell_objects[object] = 1;
+    g_object_falling[object] = 1;
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
-      voxels[member].z =
-          static_cast<int32_t>(static_cast<int64_t>(voxels[member].z) - drop);
+      --voxels[member].z;
     }
   }
   return true;
@@ -587,6 +633,7 @@ void SettleFlaggedObjects(
     bool changed = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_moving_objects[object] == 0 ||
+          g_fell_objects[object] != 0 ||
           g_weightless_object_count <= 1 ||
           g_object_kind[object] != kWeightlessObject ||
           !ObjectIsActive(voxels, object, width, height)) {
@@ -598,7 +645,10 @@ void SettleFlaggedObjects(
       }
     }
     for (int32_t object = 0; object < g_object_count; ++object) {
-      if (g_moving_objects[object] == 0 || g_carried_objects[object] != 0) continue;
+      if (g_moving_objects[object] == 0 || g_fell_objects[object] != 0 ||
+          g_carried_objects[object] != 0) {
+        continue;
+      }
       if (SettleObject(voxels, count, object, width, height)) {
         changed = true;
         BuildSpatialIndex(voxels, count, width, height);
@@ -767,7 +817,9 @@ void AdvanceUnmovedGravityOneStep(
   bool found_pending = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_pending_fall[object] = 0;
-    if (g_moving_objects[object] != 0 || g_carrier_parent[object] == -2 ||
+    if (g_moving_objects[object] != 0 ||
+        (g_carrier_parent[object] == -2 &&
+         g_rejected_carriers[object] == 0) ||
         !ObjectIsActive(voxels, object, width, height) ||
         g_object_gravity_armed[object] == 0) {
       continue;
@@ -828,10 +880,29 @@ void AdvanceUnmovedGravityOneStep(
   bool moved = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_pending_fall[object] == 0) continue;
+    bool has_lower_support = false;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (FindNearestVoxelBelow(
+              voxels,
+              count,
+              voxels[member].x,
+              voxels[member].y,
+              voxels[member].z,
+              object,
+              width) >= 0) {
+        has_lower_support = true;
+        break;
+      }
+    }
+    const bool disappears =
+        !has_lower_support && ObjectHighestZ(voxels, object) < 0;
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       --voxels[member].z;
+      if (disappears) voxels[member].x = -1;
     }
+    if (disappears) g_object_falling[object] = 0;
     moved = true;
   }
   if (!moved) return;
@@ -841,6 +912,69 @@ void AdvanceUnmovedGravityOneStep(
         ObjectHasDirectSupport(voxels, object, width, height)) {
       g_object_falling[object] = 0;
     }
+  }
+}
+
+void MarkObjectsForDeferredGravity(
+    Voxel* voxels,
+    int32_t width,
+    int32_t height,
+    bool moving_only) {
+  // Horizontal translation and gravity are separate ticks. First find which
+  // translated bodies are connected to stationary support, including through
+  // another translated body. Unsupported cycles remain ungrounded.
+  auto eligible = [&](int32_t object) {
+    return ObjectIsActive(voxels, object, width, height) &&
+        g_object_gravity_armed[object] != 0 &&
+        (!moving_only || g_moving_objects[object] != 0);
+  };
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_component_objects[object] = 0;
+    if (!eligible(object)) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const Voxel& voxel = voxels[member];
+      if (voxel.z == INT32_MIN) continue;
+      const int32_t support = FindVoxelAt(
+          voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+      if (support < 0 || support == g_ignored_support_voxel) continue;
+      const int32_t support_object = g_voxel_object[support];
+      if (support_object != object &&
+          (support_object < 0 || !eligible(support_object))) {
+        g_component_objects[object] = 1;
+        break;
+      }
+    }
+  }
+
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (!eligible(object) || g_component_objects[object] != 0) {
+        continue;
+      }
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const Voxel& voxel = voxels[member];
+        if (voxel.z == INT32_MIN) continue;
+        const int32_t support = FindVoxelAt(
+            voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+        if (support < 0 || support == g_ignored_support_voxel) continue;
+        const int32_t support_object = g_voxel_object[support];
+        if (support_object >= 0 && support_object != object &&
+            g_component_objects[support_object] != 0) {
+          g_component_objects[object] = 1;
+          changed = true;
+          break;
+        }
+      }
+    }
+  }
+
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (!eligible(object)) continue;
+    g_object_falling[object] = g_component_objects[object] == 0 ? 1 : 0;
   }
 }
 
@@ -947,7 +1081,10 @@ bool TranslateMovingObjects(
   for (int32_t object = 0; object < g_object_count; ++object) {
     found_moving |= g_moving_objects[object] != 0;
   }
-  if (!found_moving) return true;
+  if (!found_moving) {
+    AdvanceUnmovedGravityOneStep(voxels, count, width, height);
+    return true;
+  }
 
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_moving_objects[object] == 0) continue;
@@ -958,7 +1095,7 @@ bool TranslateMovingObjects(
     }
   }
   BuildSpatialIndex(voxels, count, width, height);
-  SettleFlaggedObjects(voxels, count, width, height);
+  MarkObjectsForDeferredGravity(voxels, width, height, true);
 
   bool changed = true;
   while (changed) {
@@ -982,16 +1119,15 @@ bool TranslateMovingObjects(
         }
       }
       g_carried_objects[object] = 0;
+      g_moving_objects[object] = g_mandatory_objects[object];
       BuildSpatialIndex(voxels, count, width, height);
-      if (SettleObject(voxels, count, object, width, height)) {
-        BuildSpatialIndex(voxels, count, width, height);
-      }
       changed = true;
     }
   }
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_fell_objects[object] != 0) g_mandatory_objects[object] = 0;
   }
+  MarkObjectsForDeferredGravity(voxels, width, height, true);
   AdvanceUnmovedGravityOneStep(voxels, count, width, height);
   return true;
 }
@@ -1064,10 +1200,50 @@ void SettleAllObjects(
   SettleFlaggedObjects(voxels, count, width, height);
 }
 
+bool ObjectsNeedGravityTick(
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
+  bool needs_tick = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (!ObjectIsActive(voxels, object, width, height)) continue;
+    // A vertically interlocked component can give every member apparent
+    // direct support even while the entire component is falling. The settle
+    // pass owns the decision to clear this flag when the component lands.
+    if (g_object_gravity_armed[object] != 0 &&
+        g_object_falling[object] != 0) {
+      if (ObjectHasStableDirectSupport(
+              voxels, object, width, height)) {
+        g_object_falling[object] = 0;
+        continue;
+      }
+      needs_tick = true;
+      continue;
+    }
+    if (ObjectHasDirectSupport(voxels, object, width, height)) {
+      g_object_falling[object] = 0;
+      g_object_gravity_armed[object] = 1;
+      continue;
+    }
+  }
+  return needs_tick;
+}
+
+bool ObjectsAdvancedThisTick() {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_fell_objects[object] != 0) return true;
+  }
+  return false;
+}
+
 constexpr int32_t kMotionReady = 0;
 constexpr int32_t kMotionPlayerIce = 1;
 constexpr int32_t kMotionObjectIce = 2;
-constexpr int32_t kMotionComplete = 3;
+constexpr int32_t kMotionGravity = 3;
+constexpr int32_t kMotionComplete = 4;
+constexpr uint8_t kResumeNothing = 0;
+constexpr uint8_t kResumePlayerIce = 1;
+constexpr uint8_t kResumeObjectIce = 2;
 
 void ClearMotionFlags(MotionState* state, int32_t count) {
   for (int32_t index = 0; index < count; ++index) {
@@ -1132,6 +1308,29 @@ void StoreMandatoryMomentum(
       state->horizontal_momentum[member] = 1;
     }
   }
+}
+
+bool StoreSupportedMandatoryMomentum(
+    MotionState* state,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  ClearHorizontalMomentum(state, count);
+  bool stored = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0 ||
+        !ObjectIsActive(voxels, object, width, height) ||
+        !ObjectIsFullyOnIce(voxels, object, width, height)) {
+      continue;
+    }
+    stored = true;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      state->horizontal_momentum[member] = 1;
+    }
+  }
+  return stored;
 }
 
 void RestoreMandatoryMomentum(const MotionState* state) {
@@ -1348,8 +1547,13 @@ TickResult step_tick(
                                     bool started_on_ice,
                                     bool pushed) {
     Voxel& player = voxels[player_index];
-    if (player.z == INT32_MIN ||
+    if (!IsInsideRoom(player.x, player.y, width, height)) {
+      state->player_falling = 0;
+      return false;
+    }
+    if (player.z != INT32_MIN &&
         FindVoxelAt(voxels, player.x, player.y, player.z - 1, width, height) >= 0) {
+      state->player_gravity_armed = 1;
       state->player_falling = 0;
       return false;
     }
@@ -1357,19 +1561,121 @@ TickResult step_tick(
         voxels, count, player.x, player.y, player.z, -1, width);
     if (lower_support < 0) {
       if (!state->player_gravity_armed) return false;
+    } else if (!automatic_ice_motion && !started_on_ice && !pushed &&
+               !state->player_falling) {
+      return false;
+    }
+
+    const int32_t previous_z = player.z;
+    state->player_gravity_armed = 1;
+    state->player_falling = 1;
+    if (player.z == INT32_MIN) {
       player.x = -1;
       state->player_falling = 0;
-      BuildSpatialIndex(voxels, count, width, height);
-      return true;
+    } else {
+      --player.z;
+      if (lower_support < 0 && previous_z < 0) {
+        // Preserve row 0 and row -1 as visible animation frames. On the
+        // following unsupported step, advance once more and remove the body.
+        player.x = -1;
+        state->player_falling = 0;
+      }
     }
-    if (!automatic_ice_motion && !started_on_ice && !pushed) return false;
-    state->player_gravity_armed = 1;
-    player.z = voxels[lower_support].z + 1;
-    state->player_falling = 0;
     BuildSpatialIndex(voxels, count, width, height);
-    SettleAllObjects(voxels, count, width, height);
+    if (IsInsideRoom(player.x, player.y, width, height) &&
+        player.z != INT32_MIN &&
+        FindVoxelAt(voxels, player.x, player.y, player.z - 1, width, height) >= 0) {
+      state->player_falling = 0;
+    }
     return true;
   };
+
+  auto defer_player_gravity = [&](bool automatic_ice_motion,
+                                  bool started_on_ice,
+                                  bool pushed) {
+    const Voxel& player = voxels[player_index];
+    if (!IsInsideRoom(player.x, player.y, width, height)) {
+      state->player_falling = 0;
+      return false;
+    }
+    if (player.z != INT32_MIN &&
+        FindVoxelAt(
+            voxels, player.x, player.y, player.z - 1, width, height) >= 0) {
+      state->player_gravity_armed = 1;
+      state->player_falling = 0;
+      return false;
+    }
+    const int32_t lower_support = FindNearestVoxelBelow(
+        voxels, count, player.x, player.y, player.z, -1, width);
+    if (lower_support < 0) {
+      if (!state->player_gravity_armed) return false;
+    } else if (!automatic_ice_motion && !started_on_ice && !pushed &&
+               state->player_falling == 0) {
+      return false;
+    }
+    state->player_gravity_armed = 1;
+    state->player_falling = 1;
+    return true;
+  };
+
+  if (state->phase == kMotionGravity) {
+    int32_t object_supported_by_player = -1;
+    const Voxel& player_before_gravity = voxels[player_index];
+    if (player_before_gravity.z != INT32_MAX) {
+      const int32_t above_player = FindVoxelAt(
+          voxels,
+          player_before_gravity.x,
+          player_before_gravity.y,
+          player_before_gravity.z + 1,
+          width,
+          height);
+      if (above_player >= 0) {
+        object_supported_by_player = g_voxel_object[above_player];
+      }
+    }
+    const RiderSnapshot rider =
+        CapturePlayerRider(voxels, player_index, width, height);
+    if (rider.object >= 0) g_ignored_support_voxel = player_index;
+    SettleAllObjects(voxels, count, width, height);
+    g_ignored_support_voxel = -1;
+    const bool objects_advanced = ObjectsAdvancedThisTick();
+    const bool rode_falling_object =
+        rider.object >= 0 && g_fell_objects[rider.object] != 0;
+    bool player_rode_falling_object = false;
+    if (rode_falling_object) {
+      player_rode_falling_object = MovePlayerWithRider(
+          voxels, player_index, rider, width, height);
+      BuildSpatialIndex(voxels, count, width, height);
+    }
+    const bool player_fell = resolve_player_gravity(true, false, false);
+    const bool player_advanced = player_rode_falling_object || player_fell;
+    if (player_fell && object_supported_by_player >= 0 &&
+        ObjectIsActive(
+            voxels, object_supported_by_player, width, height) &&
+        !ObjectHasDirectSupport(
+            voxels, object_supported_by_player, width, height)) {
+      g_object_gravity_armed[object_supported_by_player] = 1;
+      g_object_falling[object_supported_by_player] = 1;
+    }
+    const bool gravity_continues =
+        state->player_falling != 0 ||
+        ObjectsNeedGravityTick(voxels, width, height);
+    if (!gravity_continues && state->reserved[0] == kResumeObjectIce) {
+      state->reserved[0] = kResumeNothing;
+      return store_and_finish(
+          kMotionObjectIce, objects_advanced || player_advanced);
+    }
+    if (!gravity_continues && state->reserved[0] == kResumePlayerIce &&
+        IsSupportedByIce(voxels, voxels[player_index], width, height)) {
+      state->reserved[0] = kResumeNothing;
+      return store_and_finish(
+          kMotionPlayerIce, objects_advanced || player_advanced);
+    }
+    if (!gravity_continues) state->reserved[0] = kResumeNothing;
+    return store_and_finish(
+        gravity_continues ? kMotionGravity : kMotionComplete,
+        objects_advanced || player_advanced);
+  }
 
   if (state->phase == kMotionObjectIce) {
     RestoreMandatoryMomentum(state);
@@ -1380,14 +1686,25 @@ TickResult step_tick(
         voxels, count, player_index, dx, dy, width, height, false);
     g_ignored_support_voxel = -1;
     if (!translated) {
-      SettleAllObjects(voxels, count, width, height);
-      const bool fell = resolve_player_gravity(false, false, true);
-      if (!fell && IsSupportedByIce(
-                       voxels, voxels[player_index], width, height)) {
+      MarkObjectsForDeferredGravity(voxels, width, height, false);
+      const bool gravity_pending = defer_player_gravity(false, false, true);
+      const bool gravity_continues =
+          state->player_falling != 0 ||
+          ObjectsNeedGravityTick(voxels, width, height);
+      if (gravity_continues) {
+        state->reserved[0] = IsSupportedByIce(
+            voxels, voxels[player_index], width, height)
+            ? kResumePlayerIce
+            : kResumeNothing;
+      }
+      if (!gravity_continues && !gravity_pending && IsSupportedByIce(
+              voxels, voxels[player_index], width, height)) {
         ClearHorizontalMomentum(state, count);
         return store_and_finish(kMotionPlayerIce, false);
       }
-      return store_and_finish(kMotionComplete, false);
+      return store_and_finish(
+          gravity_continues ? kMotionGravity : kMotionComplete,
+          ObjectsAdvancedThisTick());
     }
 
     MovePlayerWithRider(voxels, player_index, rider, width, height);
@@ -1397,14 +1714,30 @@ TickResult step_tick(
       return store_and_finish(kMotionObjectIce, true);
     }
 
-    ClearHorizontalMomentum(state, count);
-    SettleAllObjects(voxels, count, width, height);
-    const bool fell = resolve_player_gravity(false, false, true);
-    if (!fell &&
+    const bool object_momentum_remains = StoreSupportedMandatoryMomentum(
+        state, voxels, count, width, height);
+    MarkObjectsForDeferredGravity(voxels, width, height, false);
+    const bool gravity_pending = defer_player_gravity(false, false, true);
+    const bool gravity_continues =
+        state->player_falling != 0 ||
+        ObjectsNeedGravityTick(voxels, width, height);
+    if (gravity_continues) {
+      state->reserved[0] = object_momentum_remains
+          ? kResumeObjectIce
+          : IsSupportedByIce(voxels, voxels[player_index], width, height)
+              ? kResumePlayerIce
+              : kResumeNothing;
+    }
+    if (!gravity_continues && object_momentum_remains) {
+      return store_and_finish(kMotionObjectIce, true);
+    }
+    if (!gravity_continues && !gravity_pending &&
         IsSupportedByIce(voxels, voxels[player_index], width, height)) {
       return store_and_finish(kMotionPlayerIce, true);
     }
-    return store_and_finish(kMotionComplete, true);
+    return store_and_finish(
+        gravity_continues ? kMotionGravity : kMotionComplete,
+        true);
   }
 
   const bool automatic_ice_motion = state->phase == kMotionPlayerIce;
@@ -1485,22 +1818,28 @@ TickResult step_tick(
     (void)player_from_z;
   }
   BuildSpatialIndex(voxels, count, width, height);
-
-  if (!object_keeps_sliding) {
-    const bool pushed_only_object_already_settled =
-        pushed && g_object_count == 1 && g_moving_objects[0] != 0;
-    if (!pushed_only_object_already_settled) {
-      SettleAllObjects(voxels, count, width, height);
-    }
-  }
+  if (pushed) g_ignored_support_voxel = player_index;
+  MarkObjectsForDeferredGravity(voxels, width, height, false);
+  g_ignored_support_voxel = -1;
 
   if (object_keeps_sliding) {
     return store_and_finish(kMotionObjectIce, true);
   }
 
-  const bool player_fell =
-      resolve_player_gravity(automatic_ice_motion, started_on_ice, pushed);
-  if (player_fell) return store_and_finish(kMotionComplete, true);
+  const bool player_gravity_pending =
+      defer_player_gravity(automatic_ice_motion, started_on_ice, pushed);
+  if (player_gravity_pending) {
+    const bool gravity_continues =
+        state->player_falling != 0 ||
+        ObjectsNeedGravityTick(voxels, width, height);
+    state->reserved[0] =
+        pushed && IsSupportedByIce(voxels, player, width, height)
+        ? kResumePlayerIce
+        : kResumeNothing;
+    return store_and_finish(
+        gravity_continues ? kMotionGravity : kMotionComplete,
+        true);
+  }
 
   if (IsSupportedByIce(voxels, player, width, height)) {
     return store_and_finish(kMotionPlayerIce, true);
@@ -1517,7 +1856,14 @@ TickResult step_tick(
       }
     }
   }
-  return store_and_finish(kMotionComplete, true);
+  const bool gravity_continues = ObjectsNeedGravityTick(voxels, width, height);
+  state->reserved[0] = gravity_continues &&
+      IsSupportedByIce(voxels, player, width, height)
+      ? kResumePlayerIce
+      : kResumeNothing;
+  return store_and_finish(
+      gravity_continues ? kMotionGravity : kMotionComplete,
+      true);
 }
 
 int32_t simulate_command(

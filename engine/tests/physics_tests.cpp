@@ -138,6 +138,147 @@ void TestTickTraceAndWorkspaceIsolation() {
         "motion state should carry its serializable format version");
 }
 
+void TestPlayerGetsVisibleRowZeroVoidFrame() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 2, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "walking off Floor should begin a visible void fall");
+  Check(state.tick == 1 && voxels[0].x == 1 && voxels[0].y == 0 &&
+            voxels[0].z == 1,
+        "the first void frame should contain only the horizontal step");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 2, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the first gravity tick should retain the player on row zero");
+  Check(state.tick == 2 && voxels[0].x == 1 && voxels[0].z == 0,
+        "the first downward frame should place the player on row zero");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 2, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the first row below zero should remain a visible tick");
+  Check(state.tick == 3 && voxels[0].x == 1 && voxels[0].z == -1,
+        "the player should remain visible at row minus one");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 2, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the next unsupported fall should complete the command");
+  Check(state.tick == 4 && voxels[0].x == -1 && voxels[0].z == -2,
+        "the player should disappear after its visible row-minus-one tick");
+}
+
+void TestPushableGetsVisibleRowZeroVoidFrame() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("pushable"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "a pushable leaving support should continue through gravity ticks");
+  Check(state.tick == 1 && voxels[1].x == 1 && voxels[1].y == 0 &&
+            voxels[1].z == 1,
+        "the pushed body's horizontal tick should not also change Z");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the first pushable gravity tick should reach row zero");
+  Check(state.tick == 2 && voxels[1].x == 1 && voxels[1].z == 0,
+        "the pushed body should remain visible on row zero");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the unsupported pushable should remain visible below row zero");
+  Check(state.tick == 3 && voxels[1].x == 1 && voxels[1].z == -1,
+        "the pushed body should have a visible row-minus-one frame");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the pushable should disappear on the following unsupported fall");
+  Check(state.tick == 4 && voxels[1].x == -1 && voxels[1].z == -2,
+        "the pushed body should disappear after its row-minus-one frame");
+}
+
+void TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("weightless-pushable"), 0},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the tall polycube push should start a gravity trace");
+  Check(voxels[1].y == 0 && voxels[1].z == 1 && voxels[2].z == 2,
+        "the horizontal polycube tick should preserve both heights");
+  for (int32_t tick = 0; tick < 3; ++tick) {
+    Check(voxelbench::step_tick(
+              &workspace, &state, voxels, 5, 3, 3, 0) ==
+              voxelbench::TickResult::kMore,
+          "the tall polycube should remain visible while any cube reaches row zero");
+  }
+  Check(voxels[1].x == 1 && voxels[1].z == -2 &&
+            voxels[2].x == 1 && voxels[2].z == -1,
+        "the whole polycube should still be visible with its top at row minus one");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the tall polycube should disappear on its following unsupported tick");
+  Check(voxels[1].x == -1 && voxels[2].x == -1,
+        "all members of the tall polycube should disappear together");
+}
+
+void TestObjectAboveDescendingPlayerFollowsOnNextTick() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {1, 1, 0, Role("ice"), -1},
+      {1, 0, -1, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the player and its passenger should first move horizontally together");
+  Check(voxels[0].y == 0 && voxels[0].z == 1 &&
+            voxels[1].y == 0 && voxels[1].z == 2,
+        "horizontal passenger motion should not also change height");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the player's landing should schedule its passenger's fall");
+  Check(voxels[0].z == 0 && voxels[1].z == 2,
+        "the passenger should wait until the next gravity tick");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the passenger should then land above the player");
+  Check(voxels[0].z == 0 && voxels[1].z == 1,
+        "the passenger should remain directly above the landed player");
+}
+
 }  // namespace
 
 int main() {
@@ -148,10 +289,14 @@ int main() {
   TestUnknownRoleBlocks();
   TestEveryBoundary();
   TestTickTraceAndWorkspaceIsolation();
+  TestPlayerGetsVisibleRowZeroVoidFrame();
+  TestPushableGetsVisibleRowZeroVoidFrame();
+  TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero();
+  TestObjectAboveDescendingPlayerFollowsOnNextTick();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 7 C++ physics tests passed\n";
+  std::cout << "all 11 C++ physics tests passed\n";
   return EXIT_SUCCESS;
 }

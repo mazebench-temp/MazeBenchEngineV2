@@ -31,6 +31,11 @@ import {
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
 import { deleteTestCase } from "./testSuite.mjs";
+import {
+  insertIntermediateFrame,
+  offsetTimelineSelection,
+  previousExpectedFrame,
+} from "./timelineFrames.mjs";
 
 type Direction = "up" | "down" | "left" | "right";
 type FrameKind = "start" | "expected";
@@ -557,6 +562,73 @@ function TestWorldEditor({
   );
 }
 
+function TimelineSnapshotStrip({
+  blocks,
+  final,
+  frames,
+  genericBlockIds,
+  layer,
+  start,
+  world,
+}: {
+  blocks: BlockDefinition[];
+  final: Frame;
+  frames: Frame[];
+  genericBlockIds: ReadonlySet<string>;
+  layer: number;
+  start: Frame;
+  world: WorldSettings;
+}) {
+  const items = frames.length
+    ? [{ frame: start, label: "START" }, ...frames.map((frame, index) => ({
+      frame,
+      label: `TICK ${index + 1}`,
+    }))]
+    : [{ frame: start, label: "START" }, { frame: final, label: "FINAL" }];
+  const [snapshots, setSnapshots] = useState<Array<string | undefined>>([]);
+  const [captureIndex, setCaptureIndex] = useState(0);
+  const capture = items[captureIndex];
+  const acceptSnapshot = useCallback((dataUrl: string) => {
+    setSnapshots((current) => {
+      const next = [...current];
+      next[captureIndex] = dataUrl;
+      return next;
+    });
+    setCaptureIndex((current) => current + 1);
+  }, [captureIndex]);
+
+  return (
+    <div className="timeline-review__strip">
+      {items.map((item, index) => (
+        <article className="timeline-review__card" key={item.label}>
+          <small>{item.label}</small>
+          {snapshots[index] ? (
+            // Data URLs are generated locally from the shared sequential
+            // WebGL capture; an image optimizer cannot improve this source.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img alt={`${item.label.toLowerCase()} voxel preview`} draggable={false} src={snapshots[index]} />
+          ) : captureIndex === index && capture ? (
+            <MazeBenchCanvas
+              key={`capture-${index}`}
+              frame={capture.frame}
+              blocks={blocks}
+              genericBlockIds={genericBlockIds}
+              world={world}
+              layer={layer}
+              compact
+              onSnapshot={acceptSnapshot}
+            />
+          ) : (
+            <span className={`timeline-review__snapshot-status ${snapshots[index] === "" ? "failed" : ""}`}>
+              {snapshots[index] === "" ? "Preview unavailable" : "Rendering…"}
+            </span>
+          )}
+        </article>
+      ))}
+    </div>
+  );
+}
+
 export default function VoxelBench() {
   const [roles, setRoles] = useState<PhysicsRoleDefinition[]>(DEFAULT_ROLES);
   const [blocks, setBlocks] = useState<BlockDefinition[]>(DEFAULT_BLOCKS);
@@ -568,6 +640,7 @@ export default function VoxelBench() {
   const [generatedTimeline, setGeneratedTimeline] = useState<{
     final: Frame;
     frames: Frame[];
+    generationId: number;
     testId: string;
   } | null>(null);
   const [selectedBlock, setSelectedBlock] = useState("crate");
@@ -802,6 +875,7 @@ export default function VoxelBench() {
         final: cropFrameToWorld(simulation.final, activeTest.world),
         frames: simulation.frames.map((frame) =>
           cropFrameToWorld(frame, activeTest.world)),
+        generationId: Date.now(),
         testId: activeTest.id,
       });
       setToast(`${simulation.frames.length} C++ tick ${simulation.frames.length === 1 ? "frame" : "frames"} generated · review before accepting`);
@@ -1236,6 +1310,23 @@ export default function VoxelBench() {
     setToast(`${deletion.removedCount} ${deletion.removedCount === 1 ? "cube" : "cubes"} deleted · undo to restore`);
   }, [activeGroupSelection, activeTest, activeTestLocked, frameKind, groupToolPinned, intermediateIndex, pushHistory, syncHistoryState]);
 
+  const selectTimelineRelative = useCallback((offset: -1 | 1) => {
+    if (!activeTest) return;
+    const selection = offsetTimelineSelection(
+      frameKind,
+      intermediateIndex,
+      activeTest.intermediate.length,
+      offset,
+    );
+    setFrameKind(selection.frameKind as FrameKind);
+    setIntermediateIndex(selection.intermediateIndex);
+    setGroupSelection(null);
+    const label = selection.intermediateIndex === null
+      ? selection.frameKind === "start" ? "Start" : "Expected"
+      : `Tick ${selection.intermediateIndex + 1}`;
+    setToast(`${label} frame selected`);
+  }, [activeTest, frameKind, intermediateIndex]);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
@@ -1265,6 +1356,17 @@ export default function VoxelBench() {
         arrowdown: "down",
         arrowleft: "left",
       }[key] as Direction | undefined;
+      if (
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        event.shiftKey &&
+        (key === "arrowleft" || key === "arrowright")
+      ) {
+        event.preventDefault();
+        if (!event.repeat) selectTimelineRelative(key === "arrowleft" ? -1 : 1);
+        return;
+      }
       if (!event.metaKey && !event.ctrlKey && !event.altKey && groupDirection && activeGroupSelection) {
         event.preventDefault();
         const verticalDelta = event.shiftKey && (groupDirection === "up" || groupDirection === "down")
@@ -1313,7 +1415,7 @@ export default function VoxelBench() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activateGroupTool, activeGroupSelection, activeTest, blocks, deleteSelectedGroup, groupToolPinned, handleHorizontalToolbarKey, moveSelectedGroup, redoPaint, requestBlockSelection, runTest, undoPaint]);
+  }, [activateGroupTool, activeGroupSelection, activeTest, blocks, deleteSelectedGroup, groupToolPinned, handleHorizontalToolbarKey, moveSelectedGroup, redoPaint, requestBlockSelection, runTest, selectTimelineRelative, undoPaint]);
 
   const paint = (x: number, y: number, z: number, blockId: string | null) => {
     if (!activeTest || activeTestLocked) return;
@@ -1581,6 +1683,61 @@ export default function VoxelBench() {
     setToast("Start frame copied to expected");
   };
 
+  const addIntermediateFrame = () => {
+    if (!activeTest || activeTestLocked) {
+      setToast("This test is locked");
+      return;
+    }
+    const insertion = insertIntermediateFrame(activeTest, frameKind, intermediateIndex);
+    setTests((current) => current.map((test) =>
+      test.id === activeTest.id ? insertion.test : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setGeneratedTimeline(null);
+    setGroupSelection(null);
+    setFrameKind("expected");
+    setIntermediateIndex(insertion.insertionIndex);
+    setShowResult(false);
+    clearHistory();
+    setToast(`Tick ${insertion.insertionIndex + 1} added as a copy of the previous frame`);
+  };
+
+  const copyPreviousFrame = () => {
+    if (!activeTest || activeTestLocked) {
+      setToast("This test is locked");
+      return;
+    }
+    const source = previousExpectedFrame(activeTest, frameKind, intermediateIndex);
+    if (!source) {
+      setToast("The Start frame has no previous frame");
+      return;
+    }
+    pushHistory(undoStackRef, {
+      testId: activeTest.id,
+      frameKind,
+      intermediateIndex,
+      frame: editableFrame(activeTest, frameKind, intermediateIndex),
+    });
+    redoStackRef.current = [];
+    syncHistoryState();
+    setTests((current) => current.map((test) =>
+      test.id === activeTest.id
+        ? replaceEditableFrame(test, frameKind, intermediateIndex, cloneFrame(source))
+        : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setGeneratedTimeline(null);
+    setGroupSelection(null);
+    setShowResult(false);
+    setToast(`${intermediateIndex === null ? "Expected" : `Tick ${intermediateIndex + 1}`} copied from its previous frame`);
+  };
+
   const deleteIntermediateFrame = () => {
     if (!activeTest || intermediateIndex === null || activeTestLocked) {
       setToast(activeTestLocked ? "This test is locked" : "Select an intermediate tick first");
@@ -1827,6 +1984,8 @@ export default function VoxelBench() {
                 <button type="button" aria-label="Redo paint" title="Redo paint · ⇧⌘Z" disabled={activeTestLocked || !historyState.canRedo} onClick={redoPaint}>↷</button>
               </div>
               {frameKind === "expected" && intermediateIndex === null && <button type="button" className="copy-start-button" title="Replace expected room with a copy of the start room" disabled={activeTestLocked} onClick={duplicateFrame}>Copy from start room</button>}
+              <button type="button" className="add-tick-button" title="Insert an expected tick after the selected frame" disabled={activeTestLocked} onClick={addIntermediateFrame}>Add tick</button>
+              {frameKind === "expected" && <button type="button" className="copy-previous-button" title="Replace this frame with a copy of the frame immediately before it" disabled={activeTestLocked} onClick={copyPreviousFrame}>Copy previous</button>}
               {intermediateIndex !== null && <button type="button" className="delete-tick-button" title={`Remove expected tick ${intermediateIndex + 1}`} disabled={activeTestLocked} onClick={deleteIntermediateFrame}>Delete tick</button>}
               <button type="button" className="generate-timeline-button" disabled={activeTestLocked} onClick={generateTimeline}>Auto-generate frames</button>
               <button type="button" className="reset-room-button" disabled={activeTestLocked} onClick={resetRoom}>Reset room</button>
@@ -1839,11 +1998,16 @@ export default function VoxelBench() {
             {generatedTimeline?.testId === activeTest.id && (
               <section className="timeline-review" aria-label="Generated C++ timeline review">
                 <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.frames.length} tick {generatedTimeline.frames.length === 1 ? "frame" : "frames"}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>
-                <div className="timeline-review__strip">
-                  <button type="button" onClick={() => { setFrameKind("start"); setIntermediateIndex(null); }}><small>START</small><MazeBenchCanvas frame={activeTest.start} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>
-                  {generatedTimeline.frames.map((frame, index) => <button type="button" key={index}><small>TICK {index + 1}</small><MazeBenchCanvas frame={frame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>)}
-                  {!generatedTimeline.frames.length && <button type="button"><small>FINAL</small><MazeBenchCanvas frame={generatedTimeline.final} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>}
-                </div>
+                <TimelineSnapshotStrip
+                  key={generatedTimeline.generationId}
+                  blocks={blocks}
+                  final={generatedTimeline.final}
+                  frames={generatedTimeline.frames}
+                  genericBlockIds={genericBlockIds}
+                  layer={layer}
+                  start={activeTest.start}
+                  world={activeWorld}
+                />
               </section>
             )}
             <div className="author-hotbar" aria-label="Block palette · Left and right arrows choose tools">

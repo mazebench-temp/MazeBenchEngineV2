@@ -174,6 +174,7 @@ type CanvasProps = {
   interactive?: boolean;
   paintable?: boolean;
   compact?: boolean;
+  onSnapshot?: (dataUrl: string) => void;
   onPaint?: (x: number, y: number, z: number, blockId: string | null) => void;
   onPaintGestureEnd?: () => void;
   onPaintGestureStart?: () => void;
@@ -378,6 +379,7 @@ export default function MazeBenchCanvas({
   interactive = false,
   paintable = true,
   compact = false,
+  onSnapshot,
   onPaint,
   onPaintGestureEnd,
   onPaintGestureStart,
@@ -388,6 +390,8 @@ export default function MazeBenchCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<RuntimeState | null>(null);
+  const onSnapshotRef = useRef(onSnapshot);
+  const snapshotCapturedRef = useRef(false);
   const currentDataRef = useRef(frameToPlayData(
     frame,
     blocks,
@@ -416,6 +420,36 @@ export default function MazeBenchCanvas({
   const marqueeDragRef = useRef<MarqueeDrag | null>(null);
   const [marqueeRect, setMarqueeRect] = useState<ReturnType<typeof marqueeRectangle> | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    onSnapshotRef.current = onSnapshot;
+  }, [onSnapshot]);
+
+  const captureSnapshot = useCallback((app: MazeBenchApp, canvas: HTMLCanvasElement) => {
+    if (!onSnapshotRef.current || snapshotCapturedRef.current) return;
+    window.requestAnimationFrame(() => {
+      if (runtimeRef.current?.app !== app || snapshotCapturedRef.current) return;
+      try {
+        // Capture while the WebGL drawing buffer is current, then immediately
+        // let the parent unmount this renderer before it creates the next one.
+        // A small 2D copy keeps timeline memory bounded and avoids retaining a
+        // WebGL context for every generated tick.
+        app.render();
+        const thumbnail = document.createElement("canvas");
+        thumbnail.width = 256;
+        thumbnail.height = 256;
+        const context = thumbnail.getContext("2d");
+        if (!context) throw new Error("Timeline snapshot canvas is unavailable");
+        context.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
+        snapshotCapturedRef.current = true;
+        onSnapshotRef.current?.(thumbnail.toDataURL("image/png"));
+      } catch (error) {
+        console.error(error);
+        snapshotCapturedRef.current = true;
+        onSnapshotRef.current?.("");
+      }
+    });
+  }, []);
 
   const publishCameraQuarterTurn = useCallback((yaw: number) => {
     const quarterTurns = cameraYawQuarterTurns(yaw);
@@ -620,6 +654,7 @@ export default function MazeBenchCanvas({
           app.render();
           publishRendererState(app, canvas);
           setStatus("ready");
+          captureSnapshot(app, canvas);
         });
       })
       .catch((error: unknown) => {
@@ -633,7 +668,7 @@ export default function MazeBenchCanvas({
       runtimeRef.current = null;
       runtime?.app.threeRenderer?.dispose();
     };
-  }, [setCamera]);
+  }, [captureSnapshot, setCamera]);
 
   useEffect(() => {
     const next = frameToPlayData(frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys);
