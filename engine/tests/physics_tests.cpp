@@ -275,6 +275,103 @@ void TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero() {
         "all members of the tall polycube should disappear together");
 }
 
+void TestPolycubeAbyssUsesLowestOtherWorldGeometry() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("weightless-pushable"), 0},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {0, 2, -5, Role("solid"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "the deep-world polycube push should start a gravity trace");
+  for (int32_t tick = 0; tick < 8; ++tick) {
+    Check(voxelbench::step_tick(
+              &workspace, &state, voxels, 6, 3, 3, 0) ==
+              voxelbench::TickResult::kMore,
+          "negative world geometry should extend the visible abyss trace");
+  }
+  Check(voxels[1].x == 1 && voxels[1].z == -7 &&
+            voxels[2].x == 1 && voxels[2].z == -6,
+        "the polycube should remain visible after its top passes row minus five");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the next unsupported fall should remove the deep-world polycube");
+  Check(voxels[1].x == -1 && voxels[2].x == -1,
+        "the deep-world polycube should disappear as one rigid body");
+}
+
+void TestPlayerAbyssUsesLowestOtherWorldGeometry() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {0, 1, -3, Role("solid"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 3, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "walking into a deep world void should start a gravity trace");
+  for (int32_t tick = 0; tick < 5; ++tick) {
+    Check(voxelbench::step_tick(
+              &workspace, &state, voxels, 3, 3, 3, 0) ==
+              voxelbench::TickResult::kMore,
+          "the player should remain visible through the world's lowest row");
+  }
+  Check(voxels[0].x == 1 && voxels[0].z == -4,
+        "the player should have a visible frame below row minus three");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 3, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the player should disappear on the following unsupported fall");
+  Check(voxels[0].x == -1 && voxels[0].z == -5,
+        "the player should be removed below all other world geometry");
+}
+
+void TestFallingRiderDoesNotExtendItsCarriersAbyss() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 2, Role("player"), -1},
+      {1, 2, 1, Role("weightless-pushable"), 0},
+      {1, 1, 1, Role("weightless-pushable"), 0},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {1, 2, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "pushing a ridden polycube off support should start its fall");
+  for (int32_t tick = 0; tick < 3; ++tick) {
+    Check(voxelbench::step_tick(
+              &workspace, &state, voxels, 5, 3, 3, 0) ==
+              voxelbench::TickResult::kMore,
+          "a ridden polycube should retain its visible void frames");
+  }
+  Check(voxels[0].x == 1 && voxels[0].z == -1 && voxels[3].z == -1,
+        "the player and carrier should descend together below row zero");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the falling rider must not keep its carrier alive forever");
+  Check(voxels[0].x < 0 && voxels[1].x < 0 && voxels[2].x < 0 &&
+            voxels[3].x < 0,
+        "the rider and its carrier should leave the room together");
+}
+
 void TestObjectAboveDescendingPlayerFallsInSameTick() {
   static voxelbench::PhysicsWorkspace workspace;
   static voxelbench::MotionState state;
@@ -315,11 +412,14 @@ int main() {
   TestPlayerGetsVisibleRowZeroVoidFrame();
   TestPushableGetsVisibleRowZeroVoidFrame();
   TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero();
+  TestPolycubeAbyssUsesLowestOtherWorldGeometry();
+  TestPlayerAbyssUsesLowestOtherWorldGeometry();
+  TestFallingRiderDoesNotExtendItsCarriersAbyss();
   TestObjectAboveDescendingPlayerFallsInSameTick();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 12 C++ physics tests passed\n";
+  std::cout << "all 15 C++ physics tests passed\n";
   return EXIT_SUCCESS;
 }

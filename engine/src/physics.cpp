@@ -412,6 +412,64 @@ int32_t ObjectHighestZ(Voxel* voxels, int32_t object) {
   return highest;
 }
 
+int32_t LowestOtherActiveZ(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t excluded_object,
+    int32_t excluded_voxel,
+    bool exclude_component,
+    bool exclude_falling_objects) {
+  int32_t lowest = INT32_MAX;
+  for (int32_t index = 0; index < count; ++index) {
+    const Voxel& voxel = voxels[index];
+    if (index == excluded_voxel || voxel.z == INT32_MIN ||
+        !IsInsideRoom(voxel.x, voxel.y, width, height)) {
+      continue;
+    }
+    const int32_t object = g_voxel_object[index];
+    if (voxel.role == kPlayerRole && voxel.z != INT32_MIN) {
+      const int32_t support = FindVoxelAt(
+          voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+      const int32_t support_object =
+          support >= 0 ? g_voxel_object[support] : -1;
+      if (support_object >= 0 &&
+          ((excluded_object >= 0 && support_object == excluded_object) ||
+           (exclude_component &&
+            g_component_objects[support_object] != 0) ||
+           (exclude_falling_objects &&
+            g_object_falling[support_object] != 0))) {
+        // A rider descends as part of its supporting body's fall cohort and
+        // must not make that body's abyss boundary recede forever.
+        continue;
+      }
+    }
+    if ((excluded_object >= 0 && object == excluded_object) ||
+        (exclude_component && object >= 0 &&
+         g_component_objects[object] != 0) ||
+        (exclude_falling_objects && object >= 0 &&
+         g_object_falling[object] != 0)) {
+      continue;
+    }
+    if (voxel.z < lowest) lowest = voxel.z;
+  }
+  // Preserve the historical row-zero abyss when a body is literally the
+  // room's only remaining geometry. Otherwise the authored room determines
+  // its own abyss depth, including geometry on negative rows.
+  return lowest == INT32_MAX ? 0 : lowest;
+}
+
+bool ObjectHasPassedEverythingElse(
+    Voxel* voxels,
+    int32_t count,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  return ObjectHighestZ(voxels, object) < LowestOtherActiveZ(
+      voxels, count, width, height, object, -1, false, true);
+}
+
 bool SettleObject(
     Voxel* voxels,
     int32_t count,
@@ -448,7 +506,8 @@ bool SettleObject(
   g_fell_objects[object] = 1;
   g_object_gravity_armed[object] = 1;
   if (drop == INT64_MAX) {
-    const bool disappears = ObjectHighestZ(voxels, object) < 0;
+    const bool disappears = ObjectHasPassedEverythingElse(
+        voxels, count, object, width, height);
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       if (voxels[member].z != INT32_MIN) --voxels[member].z;
@@ -594,7 +653,8 @@ bool SettleSupportComponent(
       const int32_t object_highest = ObjectHighestZ(voxels, object);
       if (object_highest > highest) highest = object_highest;
     }
-    const bool disappears = highest < 0;
+    const bool disappears = highest < LowestOtherActiveZ(
+        voxels, count, width, height, -1, -1, true, true);
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
       g_fell_objects[object] = 1;
@@ -982,8 +1042,8 @@ void AdvanceUnmovedGravityOneStep(
         break;
       }
     }
-    const bool disappears =
-        !has_lower_support && ObjectHighestZ(voxels, object) < 0;
+    const bool disappears = !has_lower_support &&
+        ObjectHasPassedEverythingElse(voxels, count, object, width, height);
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       --voxels[member].z;
@@ -1744,9 +1804,11 @@ TickResult step_tick(
       state->player_falling = 0;
     } else {
       --player.z;
-      if (lower_support < 0 && previous_z < 0) {
-        // Preserve row 0 and row -1 as visible animation frames. On the
-        // following unsupported step, advance once more and remove the body.
+      if (lower_support < 0 && previous_z < LowestOtherActiveZ(
+              voxels, count, width, height, -1, player_index, false, true)) {
+        // Keep the player visible until its top has passed below every other
+        // active voxel. On the following unsupported step, advance once more
+        // and remove it from the room.
         player.x = -1;
         state->player_falling = 0;
       }
