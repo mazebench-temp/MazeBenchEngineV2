@@ -32,6 +32,10 @@ import {
 } from "./toolbarNavigation.mjs";
 import { deleteTestCase } from "./testSuite.mjs";
 import {
+  shouldShowResultComparison,
+  traceFrameLabel,
+} from "./resultTrace.mjs";
+import {
   insertIntermediateFrame,
   offsetTimelineSelection,
   previousExpectedFrame,
@@ -98,8 +102,14 @@ type FrameComparison = {
 type RotationDegrees = 0 | 90 | 180 | 270;
 type RotationCheck = FrameComparison & {
   expected: Frame;
+  firstMismatchFrame: number | null;
   input: Direction;
   rotation: RotationDegrees;
+  trace: Array<FrameComparison & {
+    actualPresent: boolean;
+    expected: Frame;
+    expectedPresent: boolean;
+  }>;
   tick?: number;
   world: WorldSettings;
 };
@@ -475,31 +485,43 @@ async function runRotationalTest(
     };
     const simulation = await simulateCommandWithCpp(
       rotatedTest.start, input, definitions, roles, rotatedWorld);
-    let comparison: FrameComparison = compareFrames(
-      rotatedTest.expected, simulation.final, rotatedWorld);
-    let tick: number | undefined;
-    for (let index = 0; index < rotatedTest.intermediate.length; index += 1) {
-      const expectedTick = rotatedTest.intermediate[index];
-      const actualTick = simulation.frames[index];
-      if (!actualTick) {
-        comparison = compareFrames(expectedTick, simulation.final, rotatedWorld);
-        tick = index + 1;
-        break;
-      }
-      const tickComparison = compareFrames(expectedTick, actualTick, rotatedWorld);
-      if (!tickComparison.pass) {
-        comparison = tickComparison;
-        tick = index + 1;
-        break;
-      }
-    }
+    const expectedFrames = [
+      rotatedTest.start,
+      ...rotatedTest.intermediate,
+      rotatedTest.expected,
+    ];
+    const actualFrames = [rotatedTest.start, ...simulation.frames];
+    const trace = Array.from(
+      { length: Math.max(expectedFrames.length, actualFrames.length) },
+      (_, index) => {
+        const expectedPresent = index < expectedFrames.length;
+        const actualPresent = index < actualFrames.length;
+        const expectedFrame = expectedFrames[index] ?? { voxels: [] };
+        const actualFrame = actualFrames[index] ?? { voxels: [] };
+        const comparison = compareFrames(
+          expectedFrame, actualFrame, rotatedWorld);
+        return {
+          ...comparison,
+          actualPresent,
+          expected: cropFrameToWorld(expectedFrame, rotatedWorld),
+          expectedPresent,
+          pass: expectedPresent && actualPresent && comparison.pass,
+        };
+      },
+    );
+    const firstMismatchFrame = trace.findIndex((frame) => !frame.pass);
+    const selectedFrame = firstMismatchFrame >= 0
+      ? trace[firstMismatchFrame]
+      : trace.at(-1)!;
+    const tick = firstMismatchFrame > 0 ? firstMismatchFrame : undefined;
     checks.push({
-      ...comparison,
-      expected: tick === undefined
-        ? rotatedTest.expected
-        : rotatedTest.intermediate[tick - 1],
+      ...selectedFrame,
+      expected: selectedFrame.expected,
+      firstMismatchFrame: firstMismatchFrame >= 0 ? firstMismatchFrame : null,
       input,
+      pass: firstMismatchFrame < 0,
       rotation: degrees,
+      trace,
       tick,
       world: rotatedWorld,
     });
@@ -514,6 +536,104 @@ async function runRotationalTest(
 
 function DirectionIcon({ direction }: { direction: Direction }) {
   return <span aria-hidden="true">{{ up: "↑", down: "↓", left: "←", right: "→" }[direction]}</span>;
+}
+
+function FailureTraceComparison({
+  blocks,
+  genericBlockIds,
+  layer,
+  onClose,
+  result,
+}: {
+  blocks: BlockDefinition[];
+  genericBlockIds: Set<string>;
+  layer: number;
+  onClose: () => void;
+  result: TestResult;
+}) {
+  const representativeIndex = Math.max(
+    0,
+    result.checks.findIndex((check) => check.rotation === result.rotation),
+  );
+  const [checkIndex, setCheckIndex] = useState(representativeIndex);
+  const [traceIndex, setTraceIndex] = useState(
+    result.checks[representativeIndex].firstMismatchFrame ??
+      result.checks[representativeIndex].trace.length - 1,
+  );
+
+  useEffect(() => {
+    const nextCheckIndex = Math.max(
+      0,
+      result.checks.findIndex((check) => check.rotation === result.rotation),
+    );
+    const nextCheck = result.checks[nextCheckIndex];
+    setCheckIndex(nextCheckIndex);
+    setTraceIndex(nextCheck.firstMismatchFrame ?? nextCheck.trace.length - 1);
+  }, [result]);
+
+  const check = result.checks[checkIndex];
+  const frameIndex = Math.min(traceIndex, check.trace.length - 1);
+  const frame = check.trace[frameIndex];
+  const mismatchFrames = check.trace.flatMap((entry, index) => entry.pass ? [] : [index]);
+  const expectedCount = check.trace.filter((entry) => entry.expectedPresent).length;
+  const differenceCount = frame.missing.length + frame.unexpected.length;
+  const label = traceFrameLabel(frameIndex, expectedCount);
+
+  const chooseRotation = (index: number) => {
+    const nextCheck = result.checks[index];
+    setCheckIndex(index);
+    setTraceIndex(nextCheck.firstMismatchFrame ?? nextCheck.trace.length - 1);
+  };
+
+  const jumpToNextMismatch = () => {
+    if (!mismatchFrames.length) return;
+    setTraceIndex(
+      mismatchFrames.find((index) => index > frameIndex) ?? mismatchFrames[0],
+    );
+  };
+
+  return (
+    <div className="result-console result-console--trace failed" role="dialog" aria-label="C++ engine trace differences">
+      <div className="result-heading">
+        <div className="result-mark">!</div>
+        <div>
+          <span>C++ ENGINE TRACE · {check.rotation}° · {check.input.toUpperCase()}</span>
+          <h3>{frame.pass ? "This frame matches" : `${differenceCount} voxel difference${differenceCount === 1 ? "" : "s"}`} · {label}</h3>
+        </div>
+        <button aria-label="Close comparison" onClick={onClose}>×</button>
+      </div>
+      <div className="trace-navigation">
+        <div className="trace-rotations" role="group" aria-label="Rotation trace">
+          {result.checks.map((rotationCheck, index) => (
+            <button
+              className={`${index === checkIndex ? "active" : ""} ${rotationCheck.pass ? "passed" : "failed"}`}
+              key={rotationCheck.rotation}
+              onClick={() => chooseRotation(index)}
+              type="button"
+            >
+              {rotationCheck.rotation}° <span>{rotationCheck.pass ? "✓" : "!"}</span>
+            </button>
+          ))}
+        </div>
+        <div className="trace-pager">
+          <button type="button" aria-label="Previous comparison frame" disabled={frameIndex === 0} onClick={() => setTraceIndex(frameIndex - 1)}>←</button>
+          <strong>{label}<span>{frameIndex + 1} / {check.trace.length}</span></strong>
+          <button type="button" aria-label="Next comparison frame" disabled={frameIndex === check.trace.length - 1} onClick={() => setTraceIndex(frameIndex + 1)}>→</button>
+        </div>
+        {mismatchFrames.length > 1 && <button className="next-mismatch-button" type="button" onClick={jumpToNextMismatch}>Next difference</button>}
+      </div>
+      <div className="compare-grid">
+        <div className={`compare-card ${frame.expectedPresent ? "" : "missing-frame"}`}>
+          <div><strong>EXPECTED · {label.toUpperCase()} · {check.rotation}°</strong><span>{!frame.expectedPresent ? "no authored frame" : frame.missing.length ? `${frame.missing.length} missing` : "match"}</span></div>
+          <MazeBenchCanvas frame={frame.expected} blocks={blocks} genericBlockIds={genericBlockIds} world={check.world} layer={layer} compact />
+        </div>
+        <div className={`compare-card ${frame.actualPresent ? "" : "missing-frame"}`}>
+          <div><strong>ENGINE OUTPUT · {frameIndex === 0 ? "START" : `TICK ${frameIndex}`} · <DirectionIcon direction={check.input} /></strong><span>{!frame.actualPresent ? "engine stopped" : frame.unexpected.length ? `${frame.unexpected.length} unexpected` : "match"}</span></div>
+          <MazeBenchCanvas frame={frame.actual} blocks={blocks} genericBlockIds={genericBlockIds} world={check.world} layer={layer} compact />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TestWorldEditor({
@@ -834,7 +954,7 @@ export default function VoxelBench() {
     try {
       const result = await runRotationalTest(test, blocks, roles);
       setResults((current) => ({ ...current, [test.id]: result }));
-      if (test.id === activeId) setShowResult(true);
+      if (test.id === activeId) setShowResult(shouldShowResultComparison(result));
       const failedRotations = result.checks.filter((check) => !check.pass).length;
       setToast(result.pass
         ? `${test.name} passed all 4 rotations in C++`
@@ -853,12 +973,12 @@ export default function VoxelBench() {
       for (const test of tests) nextResults[test.id] = await runRotationalTest(test, blocks, roles);
       setResults(nextResults);
       const passed = Object.values(nextResults).filter((result) => result.pass).length;
-      setShowResult(true);
+      setShowResult(shouldShowResultComparison(nextResults[activeId]));
       setToast(`${passed} of ${tests.length} tests passed in C++`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "The C++ physics engine could not run");
     }
-  }, [blocks, roles, tests]);
+  }, [activeId, blocks, roles, tests]);
 
   const generateTimeline = useCallback(async () => {
     if (!activeTest) return;
@@ -2054,18 +2174,14 @@ export default function VoxelBench() {
                 </section>
               </div>
             )}
-            {showResult && activeResult && (
-              <div className={`result-console ${activeResult.pass ? "passed" : "failed"}`}>
-                <div className="result-heading">
-                  <div className="result-mark">{activeResult.pass ? "✓" : "!"}</div>
-                  <div><span>C++ ENGINE RESULT · {activeResult.pass ? "4/4 ROTATIONS" : `${activeResult.rotation}° · ${activeResult.input.toUpperCase()}${activeResult.tick === undefined ? "" : ` · TICK ${activeResult.tick}`}`}</span><h3>{activeResult.pass ? "All 4 rotations match" : `${activeResult.missing.length + activeResult.unexpected.length} voxel differences${activeResult.tick === undefined ? "" : ` on tick ${activeResult.tick}`}`}</h3></div>
-                  <button aria-label="Close comparison" onClick={() => setShowResult(false)}>×</button>
-                </div>
-                <div className="compare-grid">
-                  <div className="compare-card"><div><strong>EXPECTED{activeResult.tick === undefined ? "" : ` TICK ${activeResult.tick}`} · {activeResult.rotation}°</strong><span>{activeResult.missing.length ? `${activeResult.missing.length} missing` : "reference"}</span></div><MazeBenchCanvas frame={activeResult.expected} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
-                  <div className="compare-card"><div><strong>ENGINE OUTPUT{activeResult.tick === undefined ? "" : ` TICK ${activeResult.tick}`} · <DirectionIcon direction={activeResult.input} /></strong><span>{activeResult.unexpected.length ? `${activeResult.unexpected.length} unexpected` : "exact"}</span></div><MazeBenchCanvas frame={activeResult.actual} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
-                </div>
-              </div>
+            {showResult && activeResult && !activeResult.pass && (
+              <FailureTraceComparison
+                blocks={blocks}
+                genericBlockIds={genericBlockIds}
+                layer={layer}
+                onClose={() => setShowResult(false)}
+                result={activeResult}
+              />
             )}
           </section>
         </section>
@@ -2110,7 +2226,7 @@ export default function VoxelBench() {
                           const nextLocked = folderTests[folderIndex + 1]?.locked === true;
                           return (
                             <div className={`test-card-row ${locked ? "locked" : ""}`} key={test.id}>
-                              <button className={`test-card ${test.id === activeId ? "active" : ""}`} onClick={() => { setActiveId(test.id); setFrameKind("start"); setIntermediateIndex(null); setGeneratedTimeline(null); setGroupSelection(null); setShowResult(Boolean(results[test.id])); }}>
+                              <button className={`test-card ${test.id === activeId ? "active" : ""}`} onClick={() => { setActiveId(test.id); setFrameKind("start"); setIntermediateIndex(null); setGeneratedTimeline(null); setGroupSelection(null); setShowResult(shouldShowResultComparison(results[test.id])); }}>
                                 <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? folderIndex + 1 : result.pass ? "✓" : "!"}</span>
                                 <span className="test-copy"><strong>{test.name}</strong><span className="test-copy__description">{test.description || "No description yet"}</span><small><DirectionIcon direction="up" /> up · {result ? `${passedRotations}/4 rotations` : "4 rotations"} · {test.world.width}×{test.world.height} · {cropFrameToWorld(test.start, test.world).voxels.length} voxels</small></span>
                               </button>
