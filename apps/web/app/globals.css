@@ -229,9 +229,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .dpad-button[data-camera="down"] { border-radius: 0 0 8px 8px; border-top: 0; grid-column: 2; grid-row: 3; }
 .dpad-button[data-camera="down"]::before { border-left: 9px solid transparent; border-right: 9px solid transparent; border-top: 14px solid #e7eaff; }
 .stage-chrome { display: flex; position: absolute; top: 16px; z-index: 6; }
-.stage-chrome--left { gap: 8px; left: 16px; }
+.stage-chrome--left { gap: 8px; left: 16px; max-width: calc(100% - 32px); }
 .stage-chrome--right { align-items: center; gap: 7px; right: 16px; }
-.frame-switch { background: rgba(5, 8, 18, .86); border: 1px solid rgba(var(--cyan-rgb), .34); border-radius: 10px; box-shadow: 0 0 18px rgba(0,0,0,.35); display: flex; padding: 4px; }
+.frame-switch { background: rgba(5, 8, 18, .86); border: 1px solid rgba(var(--cyan-rgb), .34); border-radius: 10px; box-shadow: 0 0 18px rgba(0,0,0,.35); display: flex; max-width: min(720px, 52vw); overflow-x: auto; padding: 4px; }
+.frame-switch button { flex: 0 0 auto; }
 .frame-switch button { background: transparent; border: 1px solid transparent; border-radius: 7px; color: var(--muted); cursor: pointer; font: 700 10px var(--font-mono); letter-spacing: .08em; min-height: 34px; padding: 0 12px; text-transform: uppercase; }
 .frame-switch button span { color: rgba(var(--cyan-rgb), .55); margin-right: 6px; }
 .frame-switch button.active { background: rgba(var(--cyan-rgb), .12); border-color: rgba(var(--cyan-rgb), .72); box-shadow: 0 0 13px rgba(var(--cyan-rgb), .2); color: var(--cyan); }
@@ -241,9 +242,24 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .stage-history button:disabled { color: rgba(150,159,190,.28); cursor: default; }
 .copy-start-button { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--cyan-rgb),.46); border-radius: 10px; color: var(--cyan); cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
 .copy-start-button:hover { background: rgba(var(--cyan-rgb),.12); border-color: rgba(var(--cyan-rgb),.8); box-shadow: 0 0 12px rgba(var(--cyan-rgb),.18); }
-.copy-start-button:disabled, .reset-room-button:disabled { box-shadow: none; cursor: not-allowed; opacity: .38; }
+.copy-start-button:disabled, .delete-tick-button:disabled, .reset-room-button:disabled { box-shadow: none; cursor: not-allowed; opacity: .38; }
+.delete-tick-button { background: rgba(5,8,18,.86); border: 1px solid rgba(255,105,105,.5); border-radius: 10px; color: #ff8585; cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
+.delete-tick-button:hover { background: rgba(255,105,105,.12); border-color: rgba(255,105,105,.85); box-shadow: 0 0 12px rgba(255,105,105,.18); }
 .reset-room-button { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--amber-rgb),.46); border-radius: 10px; color: var(--amber); cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
 .reset-room-button:hover { background: rgba(var(--amber-rgb),.12); border-color: rgba(var(--amber-rgb),.8); box-shadow: 0 0 12px rgba(var(--amber-rgb),.18); }
+.generate-timeline-button { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--green-rgb),.5); border-radius: 10px; color: var(--green); cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
+.generate-timeline-button:hover { background: rgba(var(--green-rgb),.12); border-color: rgba(var(--green-rgb),.85); box-shadow: 0 0 12px rgba(var(--green-rgb),.18); }
+.generate-timeline-button:disabled { cursor: not-allowed; opacity: .38; }
+.timeline-review { background: rgba(5,8,18,.96); border: 1px solid rgba(var(--green-rgb),.58); border-radius: 13px; bottom: 112px; box-shadow: 0 16px 48px rgba(0,0,0,.62), 0 0 20px rgba(var(--green-rgb),.12); left: 50%; max-height: 290px; overflow: hidden; position: absolute; transform: translateX(-50%); width: min(920px, calc(100% - 48px)); z-index: 18; }
+.timeline-review__heading { align-items: center; border-bottom: 1px dashed var(--line-strong); display: flex; justify-content: space-between; min-height: 48px; padding: 8px 10px; }
+.timeline-review__heading > div { display: flex; gap: 8px; }
+.timeline-review__heading > div:first-child { align-items: flex-start; flex-direction: column; gap: 2px; }
+.timeline-review__heading span { color: var(--green); font: 700 7px var(--font-mono); letter-spacing: .16em; }
+.timeline-review__heading strong { font: 700 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; }
+.timeline-review__strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px; }
+.timeline-review__strip > button { background: rgba(12,18,31,.9); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text); cursor: pointer; flex: 0 0 160px; overflow: hidden; padding: 0; }
+.timeline-review__strip > button small { display: block; font: 700 8px var(--font-mono); letter-spacing: .12em; padding: 7px; text-align: left; }
+.timeline-review__strip canvas { height: 130px !important; }
 .coordinate-pill { background: rgba(5, 8, 18, .78); border: 1px solid var(--line); border-radius: 5px; color: var(--cyan); font: 700 9px var(--font-mono); letter-spacing: .1em; padding: 6px 8px; }
 .lock-pill { align-items: center; background: rgba(var(--amber-rgb),.1); border: 1px solid rgba(var(--amber-rgb),.48); border-radius: 5px; color: var(--amber); display: inline-flex; font: 800 8px var(--font-mono); gap: 6px; letter-spacing: .1em; padding: 5px 8px; text-transform: uppercase; }
 .lock-glyph { border: 1.5px solid currentColor; border-radius: 2px; display: block; height: 8px; position: relative; width: 9px; }
@@ -454,6 +470,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .stage-chrome--right { display: none; }
   .copy-start-button { font-size: 0; padding: 0; width: 38px; }
   .copy-start-button::before { content: "⇢"; font-size: 19px; }
+  .delete-tick-button { font-size: 0; padding: 0; width: 38px; }
+  .delete-tick-button::before { content: "−"; font-size: 19px; }
   .reset-room-button { font-size: 0; padding: 0; width: 38px; }
   .reset-room-button::before { content: "↺"; font-size: 19px; }
   .author-hotbar { max-width: calc(100% - 24px); overflow-x: auto; }

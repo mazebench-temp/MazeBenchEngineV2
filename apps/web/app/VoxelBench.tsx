@@ -11,7 +11,7 @@ import {
 } from "react";
 import MazeBenchCanvas from "./MazeBenchCanvas";
 import { cameraRelativeDirection } from "./cameraNavigation.mjs";
-import { simulateTurnWithCpp } from "./physicsEngine";
+import { simulateCommandWithCpp } from "./physicsEngine";
 import {
   applyWorldToTest,
   cropVoxelsToWorld,
@@ -70,13 +70,15 @@ type TestCase = {
   locked: boolean;
   name: string;
   input: Direction;
+  intermediate: Frame[];
   start: Frame;
   expected: Frame;
   world: WorldSettings;
 };
-type StoredTestCase = Omit<TestCase, "description" | "folderId" | "locked" | "world"> & {
+type StoredTestCase = Omit<TestCase, "description" | "folderId" | "intermediate" | "locked" | "world"> & {
   description?: string;
   folderId?: string;
+  intermediate?: Frame[];
   locked?: boolean;
   world?: WorldSettings;
 };
@@ -93,6 +95,7 @@ type RotationCheck = FrameComparison & {
   expected: Frame;
   input: Direction;
   rotation: RotationDegrees;
+  tick?: number;
   world: WorldSettings;
 };
 type TestResult = RotationCheck & { checks: RotationCheck[] };
@@ -100,11 +103,13 @@ type TestResult = RotationCheck & { checks: RotationCheck[] };
 type EditSnapshot = {
   frame: Frame;
   frameKind: FrameKind;
+  intermediateIndex: number | null;
   testId: string;
 };
 
 type GroupSelection = {
   frameKind: FrameKind;
+  intermediateIndex: number | null;
   keys: string[];
   testId: string;
 };
@@ -128,13 +133,14 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "solid", name: "Solid", description: "Occupies space and blocks movement.", generic: false },
   { id: "player", name: "Player", description: "The actor moved by the canonical directional input.", generic: false },
   { id: "pushable", name: "Pushable", description: "Moves when pushed and slides while supported by Ice.", generic: false },
+  { id: "floor", name: "Floor", description: "Solid support whose edge the player may deliberately walk off.", generic: false },
   { id: "ice", name: "Ice", description: "A support tile that continues movement until normal floor or an obstacle.", generic: false },
   { id: "goal", name: "Goal / floor", description: "A floor marker with no movement behavior of its own.", generic: false },
   { id: "decor", name: "Decoration", description: "A visible object with no special movement behavior.", generic: false },
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
-  { id: "floor", name: "Limestone", color: "#D8CFC0", roleId: "solid" },
+  { id: "floor", name: "Limestone", color: "#D8CFC0", roleId: "floor" },
   { id: "wall", name: "Basalt wall", color: "#424957", roleId: "solid" },
   { id: "crate", name: "Amber crate", color: "#E9963A", roleId: "pushable" },
   { id: "player", name: "Player", color: "#5A67D8", roleId: "player" },
@@ -251,6 +257,8 @@ function normalizeTests(
       description: String(test.description ?? ""),
       folderId: test.folderId && folderIds.has(test.folderId) ? test.folderId : fallbackFolderId,
       locked: Boolean(test.locked),
+      intermediate: (test.intermediate ?? []).map((frame) =>
+        normalizeGenericIds(frame, blocks, roles, legacyBlocks)),
       start: normalizeGenericIds(test.start, blocks, roles, legacyBlocks),
       expected: normalizeGenericIds(test.expected, blocks, roles, legacyBlocks),
       world,
@@ -305,6 +313,7 @@ const DEFAULT_TESTS: TestCase[] = [
     locked: false,
     name: "Push crate onto goal",
     input: "up",
+    intermediate: [],
     world: { ...DEFAULT_WORLD },
     start: withActors([
       { x: 5, y: 5, z: 1, blockId: "player" },
@@ -322,6 +331,7 @@ const DEFAULT_TESTS: TestCase[] = [
     locked: false,
     name: "Wall blocks movement",
     input: "up",
+    intermediate: [],
     world: { ...DEFAULT_WORLD },
     start: withActors([
       { x: 2, y: 3, z: 1, blockId: "player" },
@@ -339,6 +349,7 @@ const DEFAULT_TESTS: TestCase[] = [
     locked: false,
     name: "Two crates cannot be pushed",
     input: "up",
+    intermediate: [],
     world: { ...DEFAULT_WORLD },
     start: withActors([
       { x: 4, y: 5, z: 1, blockId: "player" },
@@ -358,6 +369,7 @@ const DEFAULT_TESTS: TestCase[] = [
     locked: false,
     name: "Ice continues one command",
     input: "up",
+    intermediate: [],
     world: { ...DEFAULT_WORLD },
     start: withIceStrip([{ x: 2, y: 4, z: 1, blockId: "player" }]),
     expected: withIceStrip([{ x: 2, y: 0, z: 1, blockId: "player" }]),
@@ -366,6 +378,28 @@ const DEFAULT_TESTS: TestCase[] = [
 
 function cloneFrame(frame: Frame): Frame {
   return { voxels: frame.voxels.map((voxel) => ({ ...voxel })) };
+}
+
+function editableFrame(
+  test: TestCase,
+  frameKind: FrameKind,
+  intermediateIndex: number | null,
+) {
+  return intermediateIndex === null
+    ? test[frameKind]
+    : test.intermediate[intermediateIndex] ?? test.expected;
+}
+
+function replaceEditableFrame(
+  test: TestCase,
+  frameKind: FrameKind,
+  intermediateIndex: number | null,
+  frame: Frame,
+): TestCase {
+  if (intermediateIndex === null) return { ...test, [frameKind]: frame };
+  const intermediate = [...test.intermediate];
+  intermediate[intermediateIndex] = frame;
+  return { ...test, intermediate };
 }
 
 function sortVoxels(voxels: Voxel[]) {
@@ -431,17 +465,37 @@ async function runRotationalTest(
       world: rotatedWorld,
       start: rotateFrame(canonicalTest.start, world, quarterTurns),
       expected: rotateFrame(canonicalTest.expected, world, quarterTurns),
+      intermediate: canonicalTest.intermediate.map((frame) =>
+        rotateFrame(frame, world, quarterTurns)),
     };
-    const comparison = compareFrames(
-      rotatedTest.expected,
-      await simulateTurnWithCpp(rotatedTest.start, input, definitions, roles, rotatedWorld),
-      rotatedWorld,
-    );
+    const simulation = await simulateCommandWithCpp(
+      rotatedTest.start, input, definitions, roles, rotatedWorld);
+    let comparison: FrameComparison = compareFrames(
+      rotatedTest.expected, simulation.final, rotatedWorld);
+    let tick: number | undefined;
+    for (let index = 0; index < rotatedTest.intermediate.length; index += 1) {
+      const expectedTick = rotatedTest.intermediate[index];
+      const actualTick = simulation.frames[index];
+      if (!actualTick) {
+        comparison = compareFrames(expectedTick, simulation.final, rotatedWorld);
+        tick = index + 1;
+        break;
+      }
+      const tickComparison = compareFrames(expectedTick, actualTick, rotatedWorld);
+      if (!tickComparison.pass) {
+        comparison = tickComparison;
+        tick = index + 1;
+        break;
+      }
+    }
     checks.push({
       ...comparison,
-      expected: rotatedTest.expected,
+      expected: tick === undefined
+        ? rotatedTest.expected
+        : rotatedTest.intermediate[tick - 1],
       input,
       rotation: degrees,
+      tick,
       world: rotatedWorld,
     });
   }
@@ -510,6 +564,12 @@ export default function VoxelBench() {
   const [tests, setTests] = useState<TestCase[]>(DEFAULT_TESTS);
   const [activeId, setActiveId] = useState(DEFAULT_TESTS[0].id);
   const [frameKind, setFrameKind] = useState<FrameKind>("start");
+  const [intermediateIndex, setIntermediateIndex] = useState<number | null>(null);
+  const [generatedTimeline, setGeneratedTimeline] = useState<{
+    final: Frame;
+    frames: Frame[];
+    testId: string;
+  } | null>(null);
   const [selectedBlock, setSelectedBlock] = useState("crate");
   const [groupToolPinned, setGroupToolPinned] = useState(false);
   const [groupSelection, setGroupSelection] = useState<GroupSelection | null>(null);
@@ -546,10 +606,13 @@ export default function VoxelBench() {
   );
   const activeTestLocked = activeTest ? isTestLocked(activeTest) : false;
   const activeWorld = activeTest?.world ?? DEFAULT_WORLD;
-  const activeFrame = activeTest ? cropFrameToWorld(activeTest[frameKind], activeWorld) : { voxels: [] };
+  const activeFrame = activeTest
+    ? cropFrameToWorld(editableFrame(activeTest, frameKind, intermediateIndex), activeWorld)
+    : { voxels: [] };
   const activeGroupSelection = groupSelection &&
     groupSelection.testId === activeTest?.id &&
-    groupSelection.frameKind === frameKind
+    groupSelection.frameKind === frameKind &&
+    groupSelection.intermediateIndex === intermediateIndex
     ? groupSelection
     : null;
   const selectedVoxelKeys = useMemo(
@@ -659,7 +722,7 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 7,
+        schemaVersion: 8,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
@@ -667,6 +730,9 @@ export default function VoxelBench() {
         tests: cropTestsToWorld(tests).map((test) => ({
           ...test,
           start: { voxels: sortVoxels(test.start.voxels) },
+          intermediate: test.intermediate.map((frame) => ({
+            voxels: sortVoxels(frame.voxels),
+          })),
           expected: { voxels: sortVoxels(test.expected.voxels) },
         })),
       };
@@ -699,7 +765,7 @@ export default function VoxelBench() {
       const failedRotations = result.checks.filter((check) => !check.pass).length;
       setToast(result.pass
         ? `${test.name} passed all 4 rotations in C++`
-        : `${test.name} failed ${failedRotations} of 4 rotations · first at ${result.rotation}° ${result.input}`);
+        : `${test.name} failed ${failedRotations} of 4 rotations · first at ${result.rotation}° ${result.input}${result.tick === undefined ? "" : ` · tick ${result.tick}`}`);
       return result;
     } catch (error) {
       setToast(error instanceof Error ? error.message : "The C++ physics engine could not run");
@@ -721,6 +787,29 @@ export default function VoxelBench() {
     }
   }, [blocks, roles, tests]);
 
+  const generateTimeline = useCallback(async () => {
+    if (!activeTest) return;
+    setToast(`Generating ${activeTest.name} tick frames in C++…`);
+    try {
+      const simulation = await simulateCommandWithCpp(
+        cropFrameToWorld(activeTest.start, activeTest.world),
+        "up",
+        blocks,
+        roles,
+        activeTest.world,
+      );
+      setGeneratedTimeline({
+        final: cropFrameToWorld(simulation.final, activeTest.world),
+        frames: simulation.frames.map((frame) =>
+          cropFrameToWorld(frame, activeTest.world)),
+        testId: activeTest.id,
+      });
+      setToast(`${simulation.frames.length} C++ tick ${simulation.frames.length === 1 ? "frame" : "frames"} generated · review before accepting`);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "The C++ timeline could not be generated");
+    }
+  }, [activeTest, blocks, roles]);
+
   const syncHistoryState = useCallback(() => {
     setHistoryState({
       canRedo: redoStackRef.current.length > 0,
@@ -740,6 +829,38 @@ export default function VoxelBench() {
     paintGestureRef.current = { active: false, snapshotSaved: false };
     syncHistoryState();
   }, [syncHistoryState]);
+
+  const acceptGeneratedTimeline = useCallback(() => {
+    if (!activeTest || !generatedTimeline || generatedTimeline.testId !== activeTest.id) return;
+    if (activeTestLocked) {
+      setToast("This test is locked");
+      return;
+    }
+    const frames = generatedTimeline.frames;
+    const final = generatedTimeline.final;
+    const intermediate = frames.length && compareFrames(
+      frames[frames.length - 1], final, activeTest.world).pass
+      ? frames.slice(0, -1)
+      : frames;
+    setTests((current) => current.map((test) => test.id === activeTest.id
+      ? {
+        ...test,
+        intermediate: intermediate.map(cloneFrame),
+        expected: cloneFrame(final),
+      }
+      : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setGeneratedTimeline(null);
+    setFrameKind("expected");
+    setIntermediateIndex(null);
+    setShowResult(false);
+    clearHistory();
+    setToast(`${intermediate.length} intermediate ${intermediate.length === 1 ? "frame" : "frames"} and the final frame accepted`);
+  }, [activeTest, activeTestLocked, clearHistory, generatedTimeline]);
 
   const activateGroupTool = useCallback(() => {
     setGenericPrompt(null);
@@ -860,8 +981,12 @@ export default function VoxelBench() {
     }
 
     const boundedTest = cropTestToWorld(activeTest, nextWorld);
-    const previousVoxelCount = activeTest.start.voxels.length + activeTest.expected.voxels.length;
-    const nextVoxelCount = boundedTest.start.voxels.length + boundedTest.expected.voxels.length;
+    const previousVoxelCount = activeTest.start.voxels.length +
+      activeTest.intermediate.reduce((sum, frame) => sum + frame.voxels.length, 0) +
+      activeTest.expected.voxels.length;
+    const nextVoxelCount = boundedTest.start.voxels.length +
+      boundedTest.intermediate.reduce((sum, frame) => sum + frame.voxels.length, 0) +
+      boundedTest.expected.voxels.length;
     const removedVoxelCount = previousVoxelCount - nextVoxelCount;
 
     setTests((current) => current.map((test) => test.id === activeTest.id ? boundedTest : test));
@@ -884,15 +1009,23 @@ export default function VoxelBench() {
     pushHistory(oppositeStack, {
       testId: snapshot.testId,
       frameKind: snapshot.frameKind,
-      frame: currentTest[snapshot.frameKind],
+      intermediateIndex: snapshot.intermediateIndex,
+      frame: editableFrame(
+        currentTest, snapshot.frameKind, snapshot.intermediateIndex),
     });
     setTests((current) => current.map((test) =>
       test.id === snapshot.testId
-        ? { ...test, [snapshot.frameKind]: cloneFrame(snapshot.frame) }
+        ? replaceEditableFrame(
+          test,
+          snapshot.frameKind,
+          snapshot.intermediateIndex,
+          cloneFrame(snapshot.frame),
+        )
         : test,
     ));
     setActiveId(snapshot.testId);
     setFrameKind(snapshot.frameKind);
+    setIntermediateIndex(snapshot.intermediateIndex);
     setGroupSelection(null);
     setShowResult(false);
     setResults((current) => {
@@ -955,21 +1088,21 @@ export default function VoxelBench() {
     const selection = toggleVoxelGroupSelection(currentKeys, keys, additive);
     if (selection.deselected) {
       setGroupSelection(selection.keys.length
-        ? { frameKind, keys: selection.keys, testId: activeTest.id }
+        ? { frameKind, intermediateIndex, keys: selection.keys, testId: activeTest.id }
         : null);
       setToast(`${keys.length} ${keys.length === 1 ? "cube" : "cubes"} deselected`);
       return;
     }
     const previousKeys = additive ? currentKeys : [];
     const combinedKeys = selection.keys;
-    setGroupSelection({ frameKind, keys: combinedKeys, testId: activeTest.id });
+    setGroupSelection({ frameKind, intermediateIndex, keys: combinedKeys, testId: activeTest.id });
     const addedCount = combinedKeys.length - previousKeys.length;
     setToast(additive
       ? addedCount > 0
         ? `${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added · ${combinedKeys.length} selected`
         : "That group is already selected"
       : `${keys.length} touching ${keys.length === 1 ? "cube" : "cubes"} selected · click again to deselect`);
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex]);
 
   const selectVoxelGroups = useCallback((origins: Array<{ x: number; y: number; z: number }>, additive: boolean) => {
     if (!activeTest) return;
@@ -992,12 +1125,12 @@ export default function VoxelBench() {
 
     const previousKeys = additive ? activeGroupSelection?.keys ?? [] : [];
     const combinedKeys = [...new Set([...previousKeys, ...selectedKeys])];
-    setGroupSelection({ frameKind, keys: combinedKeys, testId: activeTest.id });
+    setGroupSelection({ frameKind, intermediateIndex, keys: combinedKeys, testId: activeTest.id });
     const addedCount = combinedKeys.length - previousKeys.length;
     setToast(addedCount > 0
       ? `${groupCount} ${groupCount === 1 ? "group" : "groups"} boxed · ${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added`
       : "Every group in that rectangle is already selected");
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex]);
 
   const moveSelectedGroup = useCallback((direction: Direction, verticalDelta = 0) => {
     if (!activeTest || !activeGroupSelection) return;
@@ -1014,7 +1147,7 @@ export default function VoxelBench() {
       down: { dx: 0, dy: 1 },
       left: { dx: -1, dy: 0 },
     }[worldDirection] : { dx: 0, dy: 0 };
-    const currentFrame = activeTest[frameKind];
+    const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
     const movement = moveVoxelGroup(
       currentFrame.voxels,
       activeGroupSelection.keys,
@@ -1033,18 +1166,21 @@ export default function VoxelBench() {
     pushHistory(undoStackRef, {
       testId: activeTest.id,
       frameKind,
+      intermediateIndex,
       frame: currentFrame,
     });
     redoStackRef.current = [];
     syncHistoryState();
     setTests((current) => current.map((test) =>
       test.id === activeTest.id
-        ? { ...test, [frameKind]: { voxels: movement.voxels } }
+        ? replaceEditableFrame(
+          test, frameKind, intermediateIndex, { voxels: movement.voxels })
         : test,
     ));
     setGroupSelection({
       testId: activeTest.id,
       frameKind,
+      intermediateIndex,
       keys: movement.selectedKeys,
     });
     setResults((current) => {
@@ -1059,7 +1195,7 @@ export default function VoxelBench() {
         ? "lowered one layer"
         : `moved ${direction} relative to camera`;
     setToast(`${movement.selectedKeys.length} ${movement.selectedKeys.length === 1 ? "cube" : "cubes"} ${movementLabel}`);
-  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, frameKind, pushHistory, syncHistoryState]);
+  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, frameKind, intermediateIndex, pushHistory, syncHistoryState]);
 
   const deleteSelectedGroup = useCallback(() => {
     if (!activeTest || !activeGroupSelection || !groupToolPinned) return;
@@ -1068,7 +1204,7 @@ export default function VoxelBench() {
       return;
     }
 
-    const currentFrame = activeTest[frameKind];
+    const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
     const deletion = removeSelectedVoxels(currentFrame.voxels, activeGroupSelection.keys);
     if (!deletion.removedCount) {
       setGroupSelection(null);
@@ -1079,13 +1215,15 @@ export default function VoxelBench() {
     pushHistory(undoStackRef, {
       testId: activeTest.id,
       frameKind,
+      intermediateIndex,
       frame: currentFrame,
     });
     redoStackRef.current = [];
     syncHistoryState();
     setTests((current) => current.map((test) =>
       test.id === activeTest.id
-        ? { ...test, [frameKind]: { voxels: deletion.voxels } }
+        ? replaceEditableFrame(
+          test, frameKind, intermediateIndex, { voxels: deletion.voxels })
         : test,
     ));
     setGroupSelection(null);
@@ -1096,7 +1234,7 @@ export default function VoxelBench() {
     });
     setShowResult(false);
     setToast(`${deletion.removedCount} ${deletion.removedCount === 1 ? "cube" : "cubes"} deleted · undo to restore`);
-  }, [activeGroupSelection, activeTest, activeTestLocked, frameKind, groupToolPinned, pushHistory, syncHistoryState]);
+  }, [activeGroupSelection, activeTest, activeTestLocked, frameKind, groupToolPinned, intermediateIndex, pushHistory, syncHistoryState]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -1179,7 +1317,7 @@ export default function VoxelBench() {
 
   const paint = (x: number, y: number, z: number, blockId: string | null) => {
     if (!activeTest || activeTestLocked) return;
-    const currentFrame = activeTest[frameKind];
+    const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
     const currentVoxel = currentFrame.voxels.find((voxel) => keyOf(voxel) === `${x},${y},${z}`);
     const genericId = blockId && genericBlockIds.has(blockId)
       ? selectedGenericIds[blockId] ?? 0
@@ -1193,6 +1331,7 @@ export default function VoxelBench() {
       pushHistory(undoStackRef, {
         testId: activeTest.id,
         frameKind,
+        intermediateIndex,
         frame: currentFrame,
       });
       redoStackRef.current = [];
@@ -1201,14 +1340,14 @@ export default function VoxelBench() {
     }
     setTests((current) => current.map((test) => {
       if (test.id !== activeTest.id) return test;
-      const frame = cloneFrame(test[frameKind]);
+      const frame = cloneFrame(editableFrame(test, frameKind, intermediateIndex));
       frame.voxels = frame.voxels.filter((voxel) => keyOf(voxel) !== `${x},${y},${z}`);
       if (blockId) {
         frame.voxels.push(genericId === undefined
           ? { x, y, z, blockId }
           : { x, y, z, blockId, genericId });
       }
-      return { ...test, [frameKind]: frame };
+      return replaceEditableFrame(test, frameKind, intermediateIndex, frame);
     }));
     setResults((current) => {
       const next = { ...current };
@@ -1303,6 +1442,7 @@ export default function VoxelBench() {
       locked: false,
       name: `Untitled test ${tests.length + 1}`,
       input: "up",
+      intermediate: [],
       start: cloneFrame(source),
       expected: cloneFrame(source),
       world: testWorld,
@@ -1310,6 +1450,7 @@ export default function VoxelBench() {
     setTests((current) => [...current, test]);
     setActiveId(id);
     setFrameKind("start");
+    setIntermediateIndex(null);
     setShowResult(false);
     setToast(`New test created in ${folders.find((folder) => folder.id === folderId)?.name ?? "test folder"}`);
   };
@@ -1355,6 +1496,7 @@ export default function VoxelBench() {
     const duplicate: TestCase = {
       ...source,
       expected: cloneFrame(source.expected),
+      intermediate: source.intermediate.map(cloneFrame),
       id,
       locked: false,
       name: `${source.name} copy`,
@@ -1369,6 +1511,7 @@ export default function VoxelBench() {
     });
     setActiveId(id);
     setFrameKind("start");
+    setIntermediateIndex(null);
     setShowResult(false);
     setToast(`${source.name} duplicated`);
   };
@@ -1398,6 +1541,7 @@ export default function VoxelBench() {
     });
     if (activeId === testId) {
       setFrameKind("start");
+      setIntermediateIndex(null);
       setShowResult(false);
     }
     setGroupSelection((current) => current?.testId === testId ? null : current);
@@ -1416,6 +1560,7 @@ export default function VoxelBench() {
     pushHistory(undoStackRef, {
       testId: activeTest.id,
       frameKind: "expected",
+      intermediateIndex: null,
       frame: activeTest.expected,
     });
     redoStackRef.current = [];
@@ -1431,8 +1576,41 @@ export default function VoxelBench() {
       return next;
     });
     setFrameKind("expected");
+    setIntermediateIndex(null);
     setShowResult(false);
     setToast("Start frame copied to expected");
+  };
+
+  const deleteIntermediateFrame = () => {
+    if (!activeTest || intermediateIndex === null || activeTestLocked) {
+      setToast(activeTestLocked ? "This test is locked" : "Select an intermediate tick first");
+      return;
+    }
+    const removedTick = intermediateIndex + 1;
+    const remainingCount = activeTest.intermediate.length - 1;
+    setTests((current) => current.map((test) => {
+      if (test.id !== activeTest.id) return test;
+      return {
+        ...test,
+        intermediate: test.intermediate.filter((_, index) => index !== intermediateIndex),
+      };
+    }));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setGeneratedTimeline(null);
+    setGroupSelection(null);
+    setShowResult(false);
+    clearHistory();
+    if (remainingCount === 0) {
+      setFrameKind("expected");
+      setIntermediateIndex(null);
+    } else {
+      setIntermediateIndex(Math.min(intermediateIndex, remainingCount - 1));
+    }
+    setToast(`Tick ${removedTick} removed from the expected timeline`);
   };
 
   const resetRoom = () => {
@@ -1443,13 +1621,19 @@ export default function VoxelBench() {
     pushHistory(undoStackRef, {
       testId: activeTest.id,
       frameKind,
-      frame: activeTest[frameKind],
+      intermediateIndex,
+      frame: editableFrame(activeTest, frameKind, intermediateIndex),
     });
     redoStackRef.current = [];
     syncHistoryState();
     setTests((current) => current.map((test) =>
       test.id === activeTest.id
-        ? { ...test, [frameKind]: defaultRoomFloor(test.world.width, test.world.height) }
+        ? replaceEditableFrame(
+          test,
+          frameKind,
+          intermediateIndex,
+          defaultRoomFloor(test.world.width, test.world.height),
+        )
         : test,
     ));
     setResults((current) => {
@@ -1458,7 +1642,9 @@ export default function VoxelBench() {
       return next;
     });
     setShowResult(false);
-    setToast(`${frameKind === "start" ? "Start" : "Expected"} room reset to floor tiles`);
+    setToast(`${intermediateIndex === null
+      ? frameKind === "start" ? "Start" : "Expected"
+      : `Tick ${intermediateIndex + 1}`} room reset to floor tiles`);
   };
 
   const addBlock = () => {
@@ -1518,12 +1704,19 @@ export default function VoxelBench() {
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
     const payload = JSON.stringify({
-      schemaVersion: 7,
+      schemaVersion: 8,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
       folders,
-      tests: boundedTests.map((test) => ({ ...test, start: { voxels: sortVoxels(test.start.voxels) }, expected: { voxels: sortVoxels(test.expected.voxels) } })),
+      tests: boundedTests.map((test) => ({
+        ...test,
+        start: { voxels: sortVoxels(test.start.voxels) },
+        intermediate: test.intermediate.map((frame) => ({
+          voxels: sortVoxels(frame.voxels),
+        })),
+        expected: { voxels: sortVoxels(test.expected.voxels) },
+      })),
     }, null, 2);
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const anchor = document.createElement("a");
@@ -1570,6 +1763,9 @@ export default function VoxelBench() {
         }));
         setTests(importedTests);
         setActiveId(importedTests[0].id);
+        setFrameKind("start");
+        setIntermediateIndex(null);
+        setGeneratedTimeline(null);
         setResults({});
         clearHistory();
         setSelectedRoleId(importedRoles[0].id);
@@ -1620,14 +1816,19 @@ export default function VoxelBench() {
           <section className="author-stage" aria-label="Voxel frame editor">
             <div className="stage-chrome stage-chrome--left">
               <div className="frame-switch" role="group" aria-label="Frame to edit">
-                <button className={frameKind === "start" ? "active" : ""} onClick={() => setFrameKind("start")}><span>01</span> Start</button>
-                <button className={frameKind === "expected" ? "active" : ""} onClick={() => setFrameKind("expected")}><span>02</span> Expected</button>
+                <button className={frameKind === "start" && intermediateIndex === null ? "active" : ""} onClick={() => { setFrameKind("start"); setIntermediateIndex(null); setGroupSelection(null); }}><span>01</span> Start</button>
+                {activeTest.intermediate.map((_, index) => (
+                  <button key={index} className={intermediateIndex === index ? "active" : ""} onClick={() => { setFrameKind("expected"); setIntermediateIndex(index); setGroupSelection(null); }}><span>{String(index + 2).padStart(2, "0")}</span> Tick {index + 1}</button>
+                ))}
+                <button className={frameKind === "expected" && intermediateIndex === null ? "active" : ""} onClick={() => { setFrameKind("expected"); setIntermediateIndex(null); setGroupSelection(null); }}><span>{String(activeTest.intermediate.length + 2).padStart(2, "0")}</span> Expected</button>
               </div>
               <div className="stage-history" role="group" aria-label="Paint history">
                 <button type="button" aria-label="Undo paint" title="Undo paint · ⌘Z" disabled={activeTestLocked || !historyState.canUndo} onClick={undoPaint}>↶</button>
                 <button type="button" aria-label="Redo paint" title="Redo paint · ⇧⌘Z" disabled={activeTestLocked || !historyState.canRedo} onClick={redoPaint}>↷</button>
               </div>
-              {frameKind === "expected" && <button type="button" className="copy-start-button" title="Replace expected room with a copy of the start room" disabled={activeTestLocked} onClick={duplicateFrame}>Copy from start room</button>}
+              {frameKind === "expected" && intermediateIndex === null && <button type="button" className="copy-start-button" title="Replace expected room with a copy of the start room" disabled={activeTestLocked} onClick={duplicateFrame}>Copy from start room</button>}
+              {intermediateIndex !== null && <button type="button" className="delete-tick-button" title={`Remove expected tick ${intermediateIndex + 1}`} disabled={activeTestLocked} onClick={deleteIntermediateFrame}>Delete tick</button>}
+              <button type="button" className="generate-timeline-button" disabled={activeTestLocked} onClick={generateTimeline}>Auto-generate frames</button>
               <button type="button" className="reset-room-button" disabled={activeTestLocked} onClick={resetRoom}>Reset room</button>
             </div>
             <div className="stage-chrome stage-chrome--right">
@@ -1635,6 +1836,16 @@ export default function VoxelBench() {
               <span className="coordinate-pill">{activeWorld.width} × {activeWorld.height} × ∞</span>
             </div>
             <MazeBenchCanvas frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
+            {generatedTimeline?.testId === activeTest.id && (
+              <section className="timeline-review" aria-label="Generated C++ timeline review">
+                <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.frames.length} tick {generatedTimeline.frames.length === 1 ? "frame" : "frames"}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>
+                <div className="timeline-review__strip">
+                  <button type="button" onClick={() => { setFrameKind("start"); setIntermediateIndex(null); }}><small>START</small><MazeBenchCanvas frame={activeTest.start} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>
+                  {generatedTimeline.frames.map((frame, index) => <button type="button" key={index}><small>TICK {index + 1}</small><MazeBenchCanvas frame={frame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>)}
+                  {!generatedTimeline.frames.length && <button type="button"><small>FINAL</small><MazeBenchCanvas frame={generatedTimeline.final} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} compact /></button>}
+                </div>
+              </section>
+            )}
             <div className="author-hotbar" aria-label="Block palette · Left and right arrows choose tools">
               <span className="author-hotbar__toolname is-visible">{selectedToolName}</span>
               <div className="author-hotbar__slots">
@@ -1683,12 +1894,12 @@ export default function VoxelBench() {
               <div className={`result-console ${activeResult.pass ? "passed" : "failed"}`}>
                 <div className="result-heading">
                   <div className="result-mark">{activeResult.pass ? "✓" : "!"}</div>
-                  <div><span>C++ ENGINE RESULT · {activeResult.pass ? "4/4 ROTATIONS" : `${activeResult.rotation}° · ${activeResult.input.toUpperCase()}`}</span><h3>{activeResult.pass ? "All 4 rotations match" : `${activeResult.missing.length + activeResult.unexpected.length} voxel differences`}</h3></div>
+                  <div><span>C++ ENGINE RESULT · {activeResult.pass ? "4/4 ROTATIONS" : `${activeResult.rotation}° · ${activeResult.input.toUpperCase()}${activeResult.tick === undefined ? "" : ` · TICK ${activeResult.tick}`}`}</span><h3>{activeResult.pass ? "All 4 rotations match" : `${activeResult.missing.length + activeResult.unexpected.length} voxel differences${activeResult.tick === undefined ? "" : ` on tick ${activeResult.tick}`}`}</h3></div>
                   <button aria-label="Close comparison" onClick={() => setShowResult(false)}>×</button>
                 </div>
                 <div className="compare-grid">
-                  <div className="compare-card"><div><strong>EXPECTED · {activeResult.rotation}°</strong><span>{activeResult.missing.length ? `${activeResult.missing.length} missing` : "reference"}</span></div><MazeBenchCanvas frame={activeResult.expected} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
-                  <div className="compare-card"><div><strong>ENGINE OUTPUT · <DirectionIcon direction={activeResult.input} /></strong><span>{activeResult.unexpected.length ? `${activeResult.unexpected.length} unexpected` : "exact"}</span></div><MazeBenchCanvas frame={activeResult.actual} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
+                  <div className="compare-card"><div><strong>EXPECTED{activeResult.tick === undefined ? "" : ` TICK ${activeResult.tick}`} · {activeResult.rotation}°</strong><span>{activeResult.missing.length ? `${activeResult.missing.length} missing` : "reference"}</span></div><MazeBenchCanvas frame={activeResult.expected} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
+                  <div className="compare-card"><div><strong>ENGINE OUTPUT{activeResult.tick === undefined ? "" : ` TICK ${activeResult.tick}`} · <DirectionIcon direction={activeResult.input} /></strong><span>{activeResult.unexpected.length ? `${activeResult.unexpected.length} unexpected` : "exact"}</span></div><MazeBenchCanvas frame={activeResult.actual} blocks={blocks} genericBlockIds={genericBlockIds} world={activeResult.world} layer={layer} compact /></div>
                 </div>
               </div>
             )}
@@ -1735,7 +1946,7 @@ export default function VoxelBench() {
                           const nextLocked = folderTests[folderIndex + 1]?.locked === true;
                           return (
                             <div className={`test-card-row ${locked ? "locked" : ""}`} key={test.id}>
-                              <button className={`test-card ${test.id === activeId ? "active" : ""}`} onClick={() => { setActiveId(test.id); setShowResult(Boolean(results[test.id])); }}>
+                              <button className={`test-card ${test.id === activeId ? "active" : ""}`} onClick={() => { setActiveId(test.id); setFrameKind("start"); setIntermediateIndex(null); setGeneratedTimeline(null); setGroupSelection(null); setShowResult(Boolean(results[test.id])); }}>
                                 <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? folderIndex + 1 : result.pass ? "✓" : "!"}</span>
                                 <span className="test-copy"><strong>{test.name}</strong><span className="test-copy__description">{test.description || "No description yet"}</span><small><DirectionIcon direction="up" /> up · {result ? `${passedRotations}/4 rotations` : "4 rotations"} · {test.world.width}×{test.world.height} · {cropFrameToWorld(test.start, test.world).voxels.length} voxels</small></span>
                               </button>
@@ -1776,7 +1987,7 @@ export default function VoxelBench() {
                 <div className="definition-form">
                   <div className="selected-block-title"><span className={`swatch-cube large ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties} /><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
-                  <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => { const roleId = event.target.value; const generic = roles.find((role) => role.id === roleId)?.generic === true; const affected = new Set([selectedDefinition.id]); setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, roleId } : block)); setTests((current) => current.map((test) => isTestLocked(test) ? test : { ...test, start: setGenericModeForBlocks(test.start, affected, generic), expected: setGenericModeForBlocks(test.expected, affected, generic) })); setSelectedRoleId(roleId); setResults({}); }}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
+                  <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => { const roleId = event.target.value; const generic = roles.find((role) => role.id === roleId)?.generic === true; const affected = new Set([selectedDefinition.id]); setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, roleId } : block)); setTests((current) => current.map((test) => isTestLocked(test) ? test : { ...test, start: setGenericModeForBlocks(test.start, affected, generic), intermediate: test.intermediate.map((frame) => setGenericModeForBlocks(frame, affected, generic)), expected: setGenericModeForBlocks(test.expected, affected, generic) })); setSelectedRoleId(roleId); setResults({}); }}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                 </div>
               ) : null}
             </div>
@@ -1797,7 +2008,7 @@ export default function VoxelBench() {
                   <label className="field"><span>Role</span><select value={selectedRole.id} onChange={(event) => setSelectedRoleId(event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label>
                   <label className="field"><span>Name</span><input value={selectedRole.name} onChange={(event) => updateSelectedRole({ name: event.target.value })} /></label>
                   <label className="field"><span>Description</span><textarea rows={3} value={selectedRole.description} onChange={(event) => updateSelectedRole({ description: event.target.value })} /></label>
-                  <div className="generic-toggle"><input aria-label={`Make ${selectedRole.name} a generic numbered family`} id="selected-role-generic" type="checkbox" checked={selectedRole.generic} onChange={(event) => { const generic = event.target.checked; const affected = new Set(blocks.filter((block) => block.roleId === selectedRole.id).map((block) => block.id)); updateSelectedRole({ generic }); setTests((current) => current.map((test) => isTestLocked(test) ? test : { ...test, start: setGenericModeForBlocks(test.start, affected, generic), expected: setGenericModeForBlocks(test.expected, affected, generic) })); setResults({}); }} /><span><b>Generic numbered family</b><small>Select its N tool below, type an object ID, and press Enter before painting.</small></span></div>
+                  <div className="generic-toggle"><input aria-label={`Make ${selectedRole.name} a generic numbered family`} id="selected-role-generic" type="checkbox" checked={selectedRole.generic} onChange={(event) => { const generic = event.target.checked; const affected = new Set(blocks.filter((block) => block.roleId === selectedRole.id).map((block) => block.id)); updateSelectedRole({ generic }); setTests((current) => current.map((test) => isTestLocked(test) ? test : { ...test, start: setGenericModeForBlocks(test.start, affected, generic), intermediate: test.intermediate.map((frame) => setGenericModeForBlocks(frame, affected, generic)), expected: setGenericModeForBlocks(test.expected, affected, generic) })); setResults({}); }} /><span><b>Generic numbered family</b><small>Select its N tool below, type an object ID, and press Enter before painting.</small></span></div>
                   <p className="engine-role-note"><b>Stable engine key preserved.</b> New roles occupy space but remain behaviorally inert until their rule is implemented in the C++ engine.</p>
                 </div>
               ) : null}

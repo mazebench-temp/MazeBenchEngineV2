@@ -24,6 +24,7 @@ test("each test owns a world shared by its Start and Expected frames", () => {
   const first = {
     id: "small-room",
     start: { voxels: [{ x: 1, y: 1, z: 0 }, { x: 4, y: 1, z: 0 }] },
+    intermediate: [{ voxels: [{ x: 1, y: 1, z: 0 }, { x: 5, y: 1, z: 0 }] }],
     expected: { voxels: [{ x: 2, y: 1, z: 0 }, { x: 4, y: 1, z: 0 }] },
   };
   const second = {
@@ -37,6 +38,7 @@ test("each test owns a world shared by its Start and Expected frames", () => {
 
   assert.deepEqual(resizedFirst.world, { width: 3, height: 2, floorLayer: 0 });
   assert.deepEqual(resizedFirst.start.voxels, [{ x: 1, y: 1, z: 0 }]);
+  assert.deepEqual(resizedFirst.intermediate[0].voxels, [{ x: 1, y: 1, z: 0 }]);
   assert.deepEqual(resizedFirst.expected.voxels, [{ x: 2, y: 1, z: 0 }]);
   assert.deepEqual(second.world, { width: 8, height: 7, floorLayer: 0 });
   assert.equal(second.start.voxels.length, 1);

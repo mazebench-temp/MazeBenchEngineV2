@@ -39,6 +39,10 @@ export function applyWorldToTest(test, world) {
     world: { width: world.width, height: world.height, floorLayer: 0 },
     start: { ...test.start, voxels: cropVoxelsToWorld(test.start.voxels, world) },
     expected: { ...test.expected, voxels: cropVoxelsToWorld(test.expected.voxels, world) },
+    intermediate: (test.intermediate ?? []).map((frame) => ({
+      ...frame,
+      voxels: cropVoxelsToWorld(frame.voxels, world),
+    })),
   };
 }
 

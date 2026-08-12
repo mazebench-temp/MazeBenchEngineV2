@@ -22,6 +22,11 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=role_buffer_capacity \
   -Wl,--export=role_buffer \
   -Wl,--export=role_code \
+  -Wl,--export=motion_state_buffer \
+  -Wl,--export=motion_state_size \
+  -Wl,--export=reset_command \
+  -Wl,--export=step_command_tick \
+  -Wl,--export=command_tick \
   -Wl,--export=simulate_turn \
   -Wl,--export-memory \
   -Wl,--initial-memory=8388608 \

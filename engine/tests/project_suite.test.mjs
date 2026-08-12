@@ -37,7 +37,7 @@ const genericBlocks = new Set(
 );
 
 function simulate(voxels, direction, world) {
-  assert.equal(engine.physics_abi_version(), 2);
+  assert.equal(engine.physics_abi_version(), 3);
   const stride = engine.voxel_stride();
   assert.equal(stride, 5);
   assert.ok(voxels.length <= engine.voxel_capacity());
@@ -62,6 +62,43 @@ function simulate(voxels, direction, world) {
     y: buffer[index * stride + 1],
     z: buffer[index * stride + 2],
   }));
+}
+
+function simulateFrames(voxels, direction, world) {
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(
+    engine.memory.buffer,
+    engine.voxel_buffer(),
+    voxels.length * stride,
+  );
+  voxels.forEach((voxel, index) => {
+    buffer.set([
+      voxel.x,
+      voxel.y,
+      voxel.z,
+      blockRoles.get(voxel.blockId) ?? 0,
+      genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
+    ], index * stride);
+  });
+  const readFrame = () => voxels.map((voxel, index) => ({
+    ...voxel,
+    x: buffer[index * stride],
+    y: buffer[index * stride + 1],
+    z: buffer[index * stride + 2],
+  }));
+  const frames = [];
+  let tick = 0;
+  engine.reset_command();
+  for (;;) {
+    const status = engine.step_command_tick(
+      voxels.length, world.width, world.height, direction);
+    assert.ok(status === 0 || status === 1);
+    if (engine.command_tick() !== tick) {
+      tick = engine.command_tick();
+      frames.push(readFrame());
+    }
+    if (status === 0) return frames;
+  }
 }
 
 function identity(voxel) {
@@ -90,7 +127,27 @@ for (const authoredTest of project.tests) {
       const world = rotateWorldClockwise(authoredTest.world, quarterTurns);
       const start = rotateVoxelsClockwise(authoredTest.start.voxels, authoredTest.world, quarterTurns);
       const expected = rotateVoxelsClockwise(authoredTest.expected.voxels, authoredTest.world, quarterTurns);
-      const actual = simulate(start, quarterTurns, world);
+      const expectedIntermediate = (authoredTest.intermediate ?? []).map((frame) =>
+        rotateVoxelsClockwise(frame.voxels, authoredTest.world, quarterTurns));
+      const actualFrames = expectedIntermediate.length
+        ? simulateFrames(start, quarterTurns, world)
+        : null;
+      for (let index = 0; index < expectedIntermediate.length; index += 1) {
+        const actualTick = actualFrames[index];
+        if (!actualTick) {
+          failures.push(`${quarterTurns * 90}° tick ${index + 1}: engine trace ended early`);
+          break;
+        }
+        const tickDifference = frameDifference(expectedIntermediate[index], actualTick, world);
+        if (tickDifference.missing.length || tickDifference.unexpected.length) {
+          failures.push(
+            `${quarterTurns * 90}° tick ${index + 1}: missing ${summarize(tickDifference.missing)} | ` +
+            `unexpected ${summarize(tickDifference.unexpected)}`,
+          );
+          break;
+        }
+      }
+      const actual = actualFrames?.at(-1) ?? simulate(start, quarterTurns, world);
       const difference = frameDifference(expected, actual, world);
       if (difference.missing.length || difference.unexpected.length) {
         failures.push(

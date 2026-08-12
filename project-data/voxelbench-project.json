@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 7,
+  "schemaVersion": 8,
   "coordinateSystem": {
     "horizontalAxes": [
       "x",
@@ -63,7 +63,7 @@
       "id": "floor",
       "name": "Limestone",
       "color": "#D8CFC0",
-      "roleId": "solid"
+      "roleId": "floor"
     },
     {
       "id": "wall",
@@ -622,7 +622,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "id": "wall-stop",
@@ -1099,7 +1100,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "id": "double-crate",
@@ -1588,7 +1590,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "id": "future-ice",
@@ -2053,7 +2056,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "folderId": "general",
@@ -2476,7 +2480,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "Player should slide off ice floor and into the void below",
@@ -2839,7 +2844,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -3352,7 +3358,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -3865,7 +3872,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -4378,7 +4386,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -4891,7 +4900,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -5482,7 +5492,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -6091,7 +6102,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -6700,7 +6712,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -7277,7 +7290,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -7854,7 +7868,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -8417,7 +8432,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -9106,7 +9122,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "Players are able to push any number of these weightless boxes",
@@ -9795,7 +9812,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -16036,7 +16054,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -19617,7 +19636,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -22890,7 +22910,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -26569,7 +26590,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -29786,7 +29808,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -36027,7 +36050,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -39692,7 +39716,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -43553,7 +43578,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -46994,7 +47020,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -47439,7 +47466,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -47924,7 +47952,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -48367,7 +48396,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -48792,7 +48822,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -49343,7 +49374,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -49948,7 +49980,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -50427,7 +50460,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -51032,7 +51066,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -51637,7 +51672,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -52130,7 +52166,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -52693,7 +52730,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -53298,7 +53336,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -54225,7 +54264,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -55194,7 +55234,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -55953,7 +55994,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -56544,7 +56586,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -57457,7 +57500,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -58104,7 +58148,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -58737,7 +58782,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -59356,7 +59402,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -59961,7 +60008,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -60440,7 +60488,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -60975,7 +61024,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -61566,7 +61616,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -62213,7 +62264,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -62776,7 +62828,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -63367,7 +63420,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -64028,7 +64082,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -64675,7 +64730,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -65308,7 +65364,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -65927,7 +65984,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -66504,7 +66562,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -67025,7 +67084,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -67546,7 +67606,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -68053,7 +68114,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -68644,7 +68706,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -69375,7 +69438,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -70166,7 +70230,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -70803,7 +70868,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -71804,7 +71870,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -72303,7 +72370,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -72884,7 +72952,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -73632,7 +73701,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -74799,7 +74869,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -75978,7 +76049,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -76559,7 +76631,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -77046,7 +77119,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -77541,7 +77615,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -78070,7 +78145,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -78599,7 +78675,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -79042,7 +79119,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -79623,7 +79701,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -82742,7 +82821,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -85861,7 +85941,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -88980,7 +89061,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -92099,7 +92181,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -95288,7 +95371,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -98477,7 +98561,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -101666,7 +101751,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -104435,7 +104521,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -107204,7 +107291,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -110561,7 +110649,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -110982,7 +111071,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -111445,7 +111535,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -111912,7 +112003,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -116817,7 +116909,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -120034,7 +120127,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -122879,7 +122973,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -126508,7 +126603,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -130137,7 +130233,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -133752,7 +133849,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -137381,7 +137479,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -140996,7 +141095,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -144625,7 +144725,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -148268,7 +148369,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -151925,7 +152027,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -155596,7 +155699,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -159135,7 +159239,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -162702,7 +162807,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -166409,7 +166515,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -169864,7 +169971,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -173753,7 +173861,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -177302,7 +177411,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -181171,7 +181281,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -189064,7 +189175,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -189671,7 +189783,8 @@
         "width": 6,
         "height": 6,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -192916,7 +193029,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -196605,7 +196719,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -200294,7 +200409,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     },
     {
       "description": "",
@@ -204279,7 +204395,8 @@
         "width": 16,
         "height": 16,
         "floorLayer": 0
-      }
+      },
+      "intermediate": []
     }
   ]
 }

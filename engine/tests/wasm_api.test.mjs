@@ -16,7 +16,7 @@ function roleCode(engine, roleId) {
 }
 
 function simulate(engine, voxels, direction, width = 5, height = 5) {
-  assert.equal(engine.physics_abi_version(), 2);
+  assert.equal(engine.physics_abi_version(), 3);
   const stride = engine.voxel_stride();
   assert.equal(stride, 5);
   const buffer = new Int32Array(engine.memory.buffer, engine.voxel_buffer(), voxels.length * stride);
@@ -83,4 +83,32 @@ test("the C++ WebAssembly engine executes MazeBench-style Ice slides", async () 
     { x: 2, y: 0, z: 0, roleId: "solid" },
   ], 0);
   assert.deepEqual(result[0], { x: 2, y: 0, z: 1, roleId: "player" });
+});
+
+test("WebAssembly exposes one resumable frame per C++ tick", async () => {
+  const engine = await loadEngine();
+  const voxels = [
+    { x: 2, y: 4, z: 1, roleId: "player" },
+    { x: 2, y: 3, z: 0, roleId: "ice" },
+    { x: 2, y: 2, z: 0, roleId: "ice" },
+    { x: 2, y: 1, z: 0, roleId: "ice" },
+    { x: 2, y: 0, z: 0, roleId: "solid" },
+  ];
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(engine.memory.buffer, engine.voxel_buffer(), voxels.length * stride);
+  voxels.forEach((voxel, index) => buffer.set([
+    voxel.x, voxel.y, voxel.z, roleCode(engine, voxel.roleId), -1,
+  ], index * stride));
+
+  assert.ok(engine.motion_state_size() > 0);
+  assert.ok(engine.motion_state_buffer() > 0);
+  engine.reset_command();
+  const playerRows = [];
+  for (;;) {
+    const status = engine.step_command_tick(voxels.length, 5, 5, 0);
+    if (engine.command_tick() > playerRows.length) playerRows.push(buffer[1]);
+    if (status === 0) break;
+    assert.equal(status, 1);
+  }
+  assert.deepEqual(playerRows, [3, 2, 1, 0]);
 });

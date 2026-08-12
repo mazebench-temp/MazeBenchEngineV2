@@ -94,6 +94,50 @@ void TestEveryBoundary() {
   }
 }
 
+void TestTickTraceAndWorkspaceIsolation() {
+  static voxelbench::PhysicsWorkspace first_workspace;
+  static voxelbench::PhysicsWorkspace second_workspace;
+  static voxelbench::MotionState first_state;
+  static voxelbench::MotionState second_state;
+  voxelbench::Voxel first[] = {
+      {2, 4, 1, Role("player"), -1},
+      {2, 3, 0, Role("ice"), -1},
+      {2, 2, 0, Role("ice"), -1},
+      {2, 1, 0, Role("ice"), -1},
+      {2, 0, 0, Role("solid"), -1},
+  };
+  voxelbench::Voxel second[] = {
+      {1, 2, -3, Role("player"), -1},
+      {2, 2, -4, Role("solid"), -1},
+  };
+  voxelbench::reset_workspace(&first_workspace);
+  voxelbench::reset_workspace(&second_workspace);
+  voxelbench::reset_motion_state(&first_state);
+  voxelbench::reset_motion_state(&second_state);
+
+  Check(voxelbench::step_tick(
+            &first_workspace, &first_state, first, 5, 5, 5, 0) ==
+            voxelbench::TickResult::kMore,
+        "the first Ice tick should leave horizontal momentum");
+  Check(first_state.tick == 1 && first[0].y == 3,
+        "step_tick should advance exactly one Ice cell");
+  Check(voxelbench::step_tick(
+            &second_workspace, &second_state, second, 2, 5, 5, 1) ==
+            voxelbench::TickResult::kComplete,
+        "an independent workspace should complete its own command");
+  Check(second_state.tick == 1 && second[0].x == 2 && second[0].y == 2,
+        "the second workspace should not inherit the first command");
+
+  while (voxelbench::step_tick(
+             &first_workspace, &first_state, first, 5, 5, 5, 0) ==
+         voxelbench::TickResult::kMore) {
+  }
+  Check(first_state.tick == 4 && first[0].y == 0,
+        "the resumed Ice trace should contain four committed ticks");
+  Check(first_state.version == voxelbench::kMotionStateVersion,
+        "motion state should carry its serializable format version");
+}
+
 }  // namespace
 
 int main() {
@@ -103,10 +147,11 @@ int main() {
   TestIceStopsAtObstacle();
   TestUnknownRoleBlocks();
   TestEveryBoundary();
+  TestTickTraceAndWorkspaceIsolation();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 6 C++ physics tests passed\n";
+  std::cout << "all 7 C++ physics tests passed\n";
   return EXIT_SUCCESS;
 }

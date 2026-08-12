@@ -11,6 +11,11 @@ type PhysicsExports = WebAssembly.Exports & {
   role_buffer: () => number;
   role_buffer_capacity: () => number;
   role_code: (length: number) => number;
+  command_tick: () => number;
+  motion_state_buffer: () => number;
+  motion_state_size: () => number;
+  reset_command: () => void;
+  step_command_tick: (count: number, width: number, height: number, direction: number) => number;
   simulate_turn: (count: number, width: number, height: number, direction: number) => number;
   voxel_buffer: () => number;
   voxel_capacity: () => number;
@@ -60,8 +65,19 @@ export async function simulateTurnWithCpp(
   roles: PhysicsRole[],
   world: WorldSettings,
 ): Promise<Frame> {
+  const simulation = await simulateCommandWithCpp(frame, direction, blocks, roles, world);
+  return simulation.final;
+}
+
+export async function simulateCommandWithCpp(
+  frame: Frame,
+  direction: Direction,
+  blocks: BlockDefinition[],
+  roles: PhysicsRole[],
+  world: WorldSettings,
+): Promise<{ final: Frame; frames: Frame[] }> {
   const physics = await loadPhysics();
-  if (physics.physics_abi_version() !== 2 || physics.voxel_stride() !== 5) {
+  if (physics.physics_abi_version() !== 3 || physics.voxel_stride() !== 5) {
     throw new Error("The web app and C++ physics engine use different ABI versions");
   }
   if (frame.voxels.length > physics.voxel_capacity()) {
@@ -91,15 +107,7 @@ export async function simulateTurnWithCpp(
       : -1;
   });
 
-  const status = physics.simulate_turn(
-    frame.voxels.length,
-    world.width,
-    world.height,
-    directionCode(direction),
-  );
-  if (status === -1) throw new Error("The C++ engine rejected invalid turn data");
-
-  return {
+  const readFrame = (): Frame => ({
     voxels: frame.voxels.map((voxel, index) => {
       const offset = index * stride;
       return {
@@ -109,5 +117,28 @@ export async function simulateTurnWithCpp(
         z: voxelBuffer[offset + 2],
       };
     }),
-  };
+  });
+
+  physics.reset_command();
+  const frames: Frame[] = [];
+  let previousTick = 0;
+  for (let iteration = 0; iteration < 100_000; iteration += 1) {
+    const status = physics.step_command_tick(
+      frame.voxels.length,
+      world.width,
+      world.height,
+      directionCode(direction),
+    );
+    if (status === -1) throw new Error("The C++ engine rejected invalid command data");
+    if (status === -2) throw new Error("The C++ engine could not find a player");
+    const tick = physics.command_tick();
+    if (tick !== previousTick) {
+      frames.push(readFrame());
+      previousTick = tick;
+    }
+    if (status === 0) {
+      return { final: readFrame(), frames };
+    }
+  }
+  throw new Error("The C++ command did not become quiescent within 100,000 ticks");
 }
