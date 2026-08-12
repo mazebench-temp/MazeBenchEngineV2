@@ -617,7 +617,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .solution-controls > span, .play-controls > span { color: var(--muted); font: 700 8px var(--font-mono); min-width: 55px; text-align: center; }
 .direction-pad { display: flex; gap: 4px; }
 .direction-pad button { color: var(--ink); font-size: 14px; min-width: 31px; padding: 0; }
-.search-record-detail { background: rgba(13,17,38,.72); border: 1px solid var(--line); border-radius: 9px; display: grid; grid-template-columns: 1.2fr .7fr .7fr 2fr; min-height: 57px; }
+.search-record-detail { background: rgba(13,17,38,.72); border: 1px solid var(--line); border-radius: 9px; display: grid; grid-template-columns: 1.2fr .65fr .65fr .65fr 2fr; min-height: 57px; }
 .search-record-detail > div { border-right: 1px solid var(--line); display: grid; gap: 6px; min-width: 0; padding: 9px 11px; }
 .search-record-detail > div:last-child { border-right: 0; }
 .search-record-detail strong { font-size: 10px; }
@@ -640,7 +640,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 @media (max-width: 1320px) {
   .search-layout { grid-template-columns: 288px minmax(430px,1fr) 228px; }
-  .search-record-detail { grid-template-columns: 1fr 1fr 1fr; }
+  .search-record-detail { grid-template-columns: repeat(4, 1fr); }
   .search-record-detail > div:last-child { border-top: 1px solid var(--line); grid-column: 1 / -1; }
 }
 

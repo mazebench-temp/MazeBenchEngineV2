@@ -25,7 +25,11 @@ export type SearchLevel = {
   expanded: number;
   generated: number;
   transpositions?: number;
+  pushes?: number;
+  iceSlides?: number;
+  boxesDropped?: number;
   nodesPerSecond: number;
+  solvesPerSecond: number;
   optimal: boolean;
   limitHit?: boolean;
   seed: number;
@@ -57,9 +61,11 @@ type SearchProgress = {
   bestMoves: number;
   cacheHits: number;
   evaluated: number;
+  evaluatorCount: number;
   generation: number;
   generations: number;
   nodesPerSecond: number;
+  solvesPerSecond: number;
   stagnation: number;
   uniqueCandidates: number;
 };
@@ -89,7 +95,7 @@ const DEFAULT_OPTIONS: SearchOptions = {
   maxWeightlessBoxes: 4,
   terrainDensity: 45,
   targetMoves: 500,
-  population: 64,
+  population: 256,
   generations: 500,
   maxNodes: 50000,
   seed: 20260812,
@@ -163,6 +169,9 @@ export function normalizeSearchLevels(
       expanded: Math.max(0, finiteInteger(candidate.expanded, 0)),
       generated: Math.max(0, finiteInteger(candidate.generated, 0)),
       transpositions: Math.max(0, finiteInteger(candidate.transpositions, 0)),
+      pushes: Math.max(0, finiteInteger(candidate.pushes, 0)),
+      iceSlides: Math.max(0, finiteInteger(candidate.iceSlides, 0)),
+      boxesDropped: Math.max(0, finiteInteger(candidate.boxesDropped, 0)),
       nodesPerSecond: Math.max(0, finiteInteger(candidate.nodesPerSecond, 0)),
       optimal: Boolean(candidate.optimal),
       limitHit: Boolean(candidate.limitHit),
@@ -189,9 +198,11 @@ export default function SearchBench({
     bestMoves: 0,
     cacheHits: 0,
     evaluated: 0,
+    evaluatorCount: 0,
     generation: 0,
     generations: DEFAULT_OPTIONS.generations,
     nodesPerSecond: 0,
+    solvesPerSecond: 0,
     stagnation: 0,
     uniqueCandidates: 0,
   });
@@ -266,7 +277,7 @@ export default function SearchBench({
       maxWeightlessBoxes: [0, 32],
       terrainDensity: [5, 90],
       targetMoves: [1, 4096],
-      population: [4, 128],
+      population: [4, 1024],
       generations: [1, 10000],
       maxNodes: [100, 50000],
       seed: [0, 0xFFFFFFFF],
@@ -324,9 +335,11 @@ export default function SearchBench({
       bestMoves: 0,
       cacheHits: 0,
       evaluated: 0,
+      evaluatorCount: 0,
       generation: 0,
       generations: options.generations,
       nodesPerSecond: 0,
+      solvesPerSecond: 0,
       stagnation: 0,
       uniqueCandidates: 0,
     });
@@ -500,7 +513,7 @@ export default function SearchBench({
           <label className="field"><span>Rows above floor</span><input type="number" min="1" max="16" value={options.layers} disabled={running} onChange={(event) => updateOption("layers", event.target.value)} /></label>
         </div>
         <div className="search-dimensions">
-          <label className="field"><span>Population</span><input type="number" min="4" max="128" value={options.population} disabled={running} onChange={(event) => updateOption("population", event.target.value)} /></label>
+          <label className="field"><span>Population</span><input type="number" min="4" max="1024" value={options.population} disabled={running} onChange={(event) => updateOption("population", event.target.value)} /></label>
           <label className="field"><span>Generations</span><input type="number" min="1" max="10000" value={options.generations} disabled={running} onChange={(event) => updateOption("generations", event.target.value)} /></label>
           <label className="field"><span>States / candidate</span><input type="number" min="100" max="50000" step="100" value={options.maxNodes} disabled={running} onChange={(event) => updateOption("maxNodes", event.target.value)} /></label>
         </div>
@@ -516,7 +529,7 @@ export default function SearchBench({
               <label className="field"><span>Min distinct box IDs</span><input type="number" min="0" max="32" value={options.minWeightlessBoxes} disabled={running} onChange={(event) => updateOption("minWeightlessBoxes", event.target.value)} /></label>
               <label className="field"><span>Max distinct box IDs</span><input type="number" min="0" max="32" value={options.maxWeightlessBoxes} disabled={running} onChange={(event) => updateOption("maxWeightlessBoxes", event.target.value)} /></label>
             </div>
-            <small>Counts separate numbered polycubes. Cubes per polycube: uncapped within the selected volume.</small>
+            <small>Counts separate numbered polycubes. Fresh pieces use 2–5 cubes; later growth remains uncapped within the selected volume.</small>
           </div>
         )}
         <label className="search-hole-toggle" htmlFor="search-evolve-holes" aria-label="Evolve holes in the floor">
@@ -544,9 +557,9 @@ export default function SearchBench({
       <section className="search-main">
         <div className="search-metrics">
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
-          <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached</small></strong></article>
+          <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached · {progress.solvesPerSecond}/sec</small></strong></article>
           <article><span>Best optimum</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
-          <article><span>Complete search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec</small></strong></article>
+          <article><span>Aggregate search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} solvers</small></strong></article>
         </div>
 
         <section className="search-stage">
@@ -601,6 +614,7 @@ export default function SearchBench({
             <div><span>Proof</span><strong>{activeLevel.optimal ? "Shortest path proven" : activeLevel.limitHit ? "State limit reached" : "Not solved"}</strong></div>
             <div><span>Expanded</span><strong>{activeLevel.expanded.toLocaleString()}</strong></div>
             <div><span>Generated</span><strong>{activeLevel.generated.toLocaleString()}</strong></div>
+            <div><span>Pushes</span><strong>{(activeLevel.pushes ?? 0).toLocaleString()}</strong></div>
             <div><span>Solution</span><strong className="solution-sequence">{activeLevel.solution.length ? activeLevel.solution.map((direction, index) => <DirectionGlyph key={`${index}-${direction}`} direction={direction} />) : "—"}</strong></div>
           </section>
         )}

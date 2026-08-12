@@ -3,6 +3,71 @@ const DIRECTION_NAMES = ["up", "right", "down", "left"];
 let stopped = false;
 let physicsPromise = null;
 
+function createEvaluationPool(configuration) {
+  const concurrency = Math.max(
+    1,
+    Math.min(4, Math.floor((self.navigator?.hardwareConcurrency ?? 4) / 2)),
+  );
+  const workers = Array.from(
+    { length: concurrency },
+    () => new Worker("/search-worker.js", { type: "module" }),
+  );
+  let requestId = 0;
+
+  return {
+    concurrency,
+    async evaluate(jobs, onResult) {
+      if (!jobs.length) return;
+      let next = 0;
+      let completed = 0;
+      let finished = false;
+      await new Promise((resolve) => {
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          resolve();
+        };
+        const assign = (worker) => {
+          if (stopped) {
+            finish();
+            return;
+          }
+          if (next >= jobs.length) {
+            if (completed >= jobs.length) finish();
+            return;
+          }
+          const job = jobs[next++];
+          const currentRequest = requestId++;
+          worker.onmessage = (event) => {
+            if (event.data?.type !== "evaluation" ||
+                event.data.requestId !== currentRequest) return;
+            completed += 1;
+            onResult(job, event.data.result ?? null, event.data.error ?? null);
+            if (completed >= jobs.length) finish();
+            else assign(worker);
+          };
+          worker.onerror = (event) => {
+            completed += 1;
+            onResult(job, null, event.message || "Evaluation worker failed");
+            if (completed >= jobs.length) finish();
+            else assign(worker);
+          };
+          worker.postMessage({
+            type: "evaluate",
+            requestId: currentRequest,
+            candidate: job.candidate,
+            configuration,
+          });
+        };
+        workers.slice(0, jobs.length).forEach(assign);
+      });
+    },
+    close() {
+      workers.forEach((worker) => worker.terminate());
+    },
+  };
+}
+
 function mulberry32(seed) {
   let value = seed >>> 0;
   return () => {
@@ -207,9 +272,22 @@ function growStaticCluster(
   return true;
 }
 
-function shrinkStaticCluster(voxels, members, random, floorBlock) {
+function shrinkStaticCluster(
+  voxels,
+  members,
+  random,
+  floorBlock,
+  configuration = null,
+  blockRoles = null,
+) {
   if (members.length <= 1) return false;
-  const removable = members.filter((member) => remainsConnectedWithout(members, member));
+  const removable = members.filter((member) => {
+    const protectedPerimeterWall = configuration && blockRoles &&
+      blockRoles.get(member.blockId) === "solid" && member.z === 1 &&
+      (member.x === 0 || member.x === configuration.width - 1 ||
+       member.y === 0 || member.y === configuration.depth - 1);
+    return !protectedPerimeterWall && remainsConnectedWithout(members, member);
+  });
   if (!removable.length) return false;
   const member = choose(random, removable);
   voxels.splice(voxels.indexOf(member), 1);
@@ -217,6 +295,111 @@ function shrinkStaticCluster(voxels, members, random, floorBlock) {
     voxels.push({ x: member.x, y: member.y, z: 0, blockId: floorBlock.id });
   }
   return true;
+}
+
+function seedWallTerrain(
+  voxels,
+  wallBlocks,
+  configuration,
+  random,
+  blockRoles,
+) {
+  if (!wallBlocks.length) return;
+  const wall = choose(random, wallBlocks);
+  const place = (x, y) => {
+    if (!rigidVoxelAt(voxels, x, y, 1, blockRoles)) {
+      voxels.push({ x, y, z: 1, blockId: wall.id });
+    }
+  };
+  // MazeBenchEngine3 classic rooms always begin with a closed perimeter.
+  // It produces a legible playfield and prevents the evolutionary search
+  // from spending generations rediscovering a useful boundary.
+  for (let x = 0; x < configuration.width; x += 1) {
+    place(x, 0);
+    place(x, configuration.depth - 1);
+  }
+  for (let y = 1; y < configuration.depth - 1; y += 1) {
+    place(0, y);
+    place(configuration.width - 1, y);
+  }
+
+  const interiorArea = Math.max(
+    1, (configuration.width - 2) * (configuration.depth - 2),
+  );
+  const density = Math.max(
+    0.05, Math.min(0.9, (configuration.terrainDensity ?? 45) / 100),
+  );
+  // At the default density this matches MBE3's 0..10% initial interior-wall
+  // range. The density control can deliberately make it sparser or denser.
+  const maximumInternalWalls = Math.max(
+    1, Math.floor(interiorArea * Math.min(0.3, density * 2 / 9)),
+  );
+  const target = integer(random, 0, maximumInternalWalls);
+  for (let placed = 0, attempts = 0;
+    placed < target && attempts < target * 20 + 20;
+    attempts += 1) {
+    const cell = {
+      x: integer(random, 1, configuration.width - 2),
+      y: integer(random, 1, configuration.depth - 2),
+    };
+    if (rigidVoxelAt(voxels, cell.x, cell.y, 1, blockRoles)) continue;
+    voxels.push({ ...cell, z: 1, blockId: wall.id });
+    placed += 1;
+  }
+}
+
+function mutateWallTerrain(
+  voxels,
+  wallBlocks,
+  configuration,
+  random,
+  blockRoles,
+  floorBlock,
+) {
+  const wallIds = new Set(wallBlocks.map((block) => block.id));
+  if (random() < 0.82) {
+    // MBE3 treats walls as one terrain entity and toggles sparse interior
+    // cells instead of growing every disconnected wall as its own blob.
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const cell = {
+        x: integer(random, 1, configuration.width - 2),
+        y: integer(random, 1, configuration.depth - 2),
+      };
+      const occupant = rigidVoxelAt(voxels, cell.x, cell.y, 1, blockRoles);
+      if (occupant && wallIds.has(occupant.blockId)) {
+        voxels.splice(voxels.indexOf(occupant), 1);
+        return true;
+      }
+      if (!occupant) {
+        voxels.push({
+          ...cell,
+          z: 1,
+          blockId: choose(random, wallBlocks).id,
+        });
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // A smaller share of wall mutations remains fully 3D. This preserves the
+  // requested ability to build upward without turning the initial room into
+  // one enormous wall mass.
+  const clusters = exactBlockClusters(voxels, wallIds);
+  if (!clusters.length) return false;
+  const members = choose(random, clusters);
+  return random() < 0.5
+    ? growStaticCluster(
+      voxels, members, configuration, random, blockRoles, floorBlock,
+    )
+    : shrinkStaticCluster(
+      voxels,
+      members,
+      random,
+      floorBlock,
+      configuration,
+      blockRoles,
+    );
 }
 
 function seedStaticCluster(
@@ -302,7 +485,10 @@ function growGenericBox(voxels, members, configuration, random, blockRoles) {
 }
 
 function shrinkGenericBox(voxels, members, random) {
-  if (members.length <= 1) return false;
+  // MBE3's generated piece library begins at dominoes. Search-created
+  // weightless pieces therefore keep at least two cubes, even though their
+  // upper size remains uncapped.
+  if (members.length <= 2) return false;
   const removable = members.filter((member) => remainsConnectedWithout(members, member));
   if (!removable.length) return false;
   const member = choose(random, removable);
@@ -331,6 +517,64 @@ function translateBox(voxels, members, configuration, random, blockRoles) {
     members.forEach((member, index) => Object.assign(member, translated[index]));
     return true;
   }
+  return false;
+}
+
+function relocateBox(voxels, members, configuration, random, blockRoles) {
+  if (!members.length) return false;
+  const memberSet = new Set(members);
+  const origin = members[0];
+  for (let attempt = 0; attempt < 48; attempt += 1) {
+    const target = randomCell(random, configuration.width, configuration.depth);
+    const dx = target.x - origin.x;
+    const dy = target.y - origin.y;
+    if (dx === 0 && dy === 0) continue;
+    const translated = members.map((member) => ({
+      ...member,
+      x: member.x + dx,
+      y: member.y + dy,
+    }));
+    if (translated.some((voxel) => !insideVolume(voxel, configuration) ||
+        rigidVoxelAt(voxels, voxel.x, voxel.y, voxel.z, blockRoles, memberSet))) {
+      continue;
+    }
+    const hasDirectSupport = translated.some((voxel) => rigidVoxelAt(
+      voxels, voxel.x, voxel.y, voxel.z - 1, blockRoles, memberSet,
+    ));
+    if (!hasDirectSupport) continue;
+    members.forEach((member, index) => Object.assign(member, translated[index]));
+    return true;
+  }
+  return false;
+}
+
+function reshapeGenericBox(
+  voxels,
+  members,
+  configuration,
+  random,
+  blockRoles,
+) {
+  if (!members.length || blockRoles.get(members[0].blockId) !== "weightless-pushable") {
+    return false;
+  }
+  const originalMembers = [...members];
+  const block = { id: members[0].blockId, roleId: "weightless-pushable" };
+  const genericId = members[0].genericId ?? 0;
+  for (const member of originalMembers) {
+    voxels.splice(voxels.indexOf(member), 1);
+  }
+  const replacement = placeSupportedBox(
+    voxels,
+    block,
+    genericId,
+    integer(random, 2, 5),
+    configuration,
+    random,
+    blockRoles,
+  );
+  if (replacement.length) return true;
+  voxels.push(...originalMembers);
   return false;
 }
 
@@ -376,8 +620,9 @@ function placeSupportedBox(
       }
     }
   }
-  if (anchors.length) {
-    const anchor = choose(random, anchors);
+  while (anchors.length) {
+    const anchorIndex = integer(random, 0, anchors.length - 1);
+    const [anchor] = anchors.splice(anchorIndex, 1);
     const voxel = {
       ...anchor,
       blockId: block.id,
@@ -388,7 +633,10 @@ function placeSupportedBox(
     for (let extra = 1; extra < targetSize; extra += 1) {
       if (!growGenericBox(voxels, members, configuration, random, blockRoles)) break;
     }
-    return members;
+    if (members.length === targetSize) return members;
+    for (const member of members) {
+      voxels.splice(voxels.indexOf(member), 1);
+    }
   }
   return [];
 }
@@ -708,11 +956,12 @@ function makeCandidateAttempt(configuration, random) {
   const player = firstRoleBlock(byRole, "player");
   const goals = byRole.get("goal") ?? [];
   const iceBlocks = byRole.get("ice") ?? [];
+  const wallBlocks = byRole.get("solid") ?? [];
   const normalPushables = byRole.get("pushable") ?? [];
   const weightlessPushables = byRole.get("weightless-pushable") ?? [];
   const structural = configuration.blocks.filter((block) =>
     configuration.enabledBlockIds.includes(block.id) &&
-    !["floor", "player", "goal", "ice", "pushable", "weightless-pushable"]
+    !["floor", "player", "goal", "ice", "solid", "pushable", "weightless-pushable"]
       .includes(block.roleId));
   const voxels = [];
   const blockRoles = new Map(configuration.blocks.map((block) => [block.id, block.roleId]));
@@ -722,6 +971,10 @@ function makeCandidateAttempt(configuration, random) {
       voxels.push({ x, y, z: 0, blockId: floor.id });
     }
   }
+
+  seedWallTerrain(
+    voxels, wallBlocks, configuration, random, blockRoles,
+  );
 
   const staticClusterMaximum = Math.max(
     2, Math.min(8, Math.floor((width * depth) / 12)),
@@ -771,18 +1024,14 @@ function makeCandidateAttempt(configuration, random) {
     const minimumBoxes = Math.max(0, configuration.minWeightlessBoxes ?? 1);
     const maximumBoxes = Math.max(minimumBoxes, configuration.maxWeightlessBoxes ?? 4);
     const boxCount = integer(random, minimumBoxes, maximumBoxes);
-    // This is an initial random target, not a polycube size limit. Subsequent
-    // mutations can keep growing every object until the selected volume fills.
-    const initialSizeTarget = Math.max(
-      1,
-      Math.floor((width * depth) / Math.max(4, boxCount)),
-    );
     for (let genericId = 0; genericId < boxCount; genericId += 1) {
       const placed = placeSupportedBox(
         voxels,
         choose(random, weightlessPushables),
         genericId,
-        integer(random, 1, initialSizeTarget),
+        // MBE3 seeds compact domino-through-pentomino pieces. This is only a
+        // clean starting distribution; grow mutations remain uncapped.
+        integer(random, 2, 5),
         configuration,
         random,
         blockRoles,
@@ -849,9 +1098,9 @@ function mutateCandidate(candidate, configuration, random) {
   next.solution = [];
   next.optimal = false;
   const byRole = roleBlocks(configuration);
-  const playerBlock = firstRoleBlock(byRole, "player");
   const floorBlock = firstRoleBlock(byRole, "floor");
   const iceBlocks = byRole.get("ice") ?? [];
+  const wallBlocks = byRole.get("solid") ?? [];
   const weightlessPushableBlocks = byRole.get("weightless-pushable") ?? [];
   const pushableBlocks = [
     ...(byRole.get("pushable") ?? []),
@@ -859,7 +1108,7 @@ function mutateCandidate(candidate, configuration, random) {
   ];
   const structural = configuration.blocks.filter((block) =>
     configuration.enabledBlockIds.includes(block.id) &&
-    !["floor", "player", "goal", "ice", "pushable", "weightless-pushable"]
+    !["floor", "player", "goal", "ice", "solid", "pushable", "weightless-pushable"]
       .includes(block.roleId));
   const blockRoles = new Map(configuration.blocks.map((block) => [block.id, block.roleId]));
   const iceClusters = exactBlockClusters(
@@ -873,10 +1122,11 @@ function mutateCandidate(candidate, configuration, random) {
   const maximumWeightlessBoxes = Math.max(
     minimumWeightlessBoxes, configuration.maxWeightlessBoxes ?? 4,
   );
-  // Entity-first selection gives walls/structures, Ice, holes, the player,
-  // the goal, and every individual box equal mutation opportunity. Invalid
-  // operations retry within that entity instead of biasing another category.
+  // Like MBE3, walls collectively count as one entity and every individual
+  // box counts as one entity. Endpoints vary between immigrants rather than
+  // diluting the geometry mutation budget in every lineage.
   const entities = [
+    ...(wallBlocks.length ? [{ kind: "walls" }] : []),
     ...structureClusters.map((members) => ({ kind: "static", members })),
     ...iceClusters.map((members) => ({ kind: "static", members })),
     ...(weightlessPushableBlocks.length &&
@@ -885,15 +1135,21 @@ function mutateCandidate(candidate, configuration, random) {
       ? [{ kind: "weightless-population" }]
       : []),
     ...(configuration.evolveHoles ? [{ kind: "holes" }] : []),
-    ...(playerBlock ? [{ kind: "player" }] : []),
-    ...next.voxels.filter((voxel) => isCollectible(voxel, blockRoles))
-      .map((member) => ({ kind: "goal", member })),
     ...boxEntities(next.voxels, pushableBlocks).map((members) => ({ kind: "box", members })),
   ];
   const entity = choose(random, entities);
 
   for (let attempt = 0; attempt < 18; attempt += 1) {
-    if (entity.kind === "static") {
+    if (entity.kind === "walls") {
+      if (mutateWallTerrain(
+        next.voxels,
+        wallBlocks,
+        configuration,
+        random,
+        blockRoles,
+        floorBlock,
+      )) break;
+    } else if (entity.kind === "static") {
       const changed = random() < 0.5
         ? growStaticCluster(
           next.voxels,
@@ -903,7 +1159,14 @@ function mutateCandidate(candidate, configuration, random) {
           blockRoles,
           floorBlock,
         )
-        : shrinkStaticCluster(next.voxels, entity.members, random, floorBlock);
+        : shrinkStaticCluster(
+          next.voxels,
+          entity.members,
+          random,
+          floorBlock,
+          configuration,
+          blockRoles,
+        );
       if (changed) break;
     } else if (entity.kind === "holes") {
       const cell = randomCell(random, configuration.width, configuration.depth);
@@ -930,7 +1193,7 @@ function mutateCandidate(candidate, configuration, random) {
           next.voxels,
           choose(random, weightlessPushableBlocks),
           genericId,
-          1,
+          integer(random, 2, 5),
           configuration,
           random,
           blockRoles,
@@ -942,51 +1205,40 @@ function mutateCandidate(candidate, configuration, random) {
       }
     } else if (entity.kind === "box") {
       const operation = random();
-      const changed = operation < 0.3
-        ? growGenericBox(
+      const changed = operation < 0.2
+        ? translateBox(
           next.voxels,
           entity.members,
           configuration,
           random,
           blockRoles,
         )
-        : operation < 0.6
-          ? shrinkGenericBox(next.voxels, entity.members, random)
-          : translateBox(next.voxels, entity.members, configuration, random, blockRoles);
+        : operation < 0.4
+          ? relocateBox(
+            next.voxels,
+            entity.members,
+            configuration,
+            random,
+            blockRoles,
+          )
+          : operation < 0.7
+            ? reshapeGenericBox(
+              next.voxels,
+              entity.members,
+              configuration,
+              random,
+              blockRoles,
+            )
+            : operation < 0.85
+              ? growGenericBox(
+                next.voxels,
+                entity.members,
+                configuration,
+                random,
+                blockRoles,
+              )
+              : shrinkGenericBox(next.voxels, entity.members, random);
       if (changed) break;
-    } else if (entity.kind === "player") {
-      const player = next.voxels.find((voxel) => voxel.blockId === playerBlock.id);
-      const goals = next.voxels.filter((voxel) => isCollectible(voxel, blockRoles));
-      const components = player
-        ? walkableSurfaceCells(
-          next.voxels, configuration, blockRoles, new Set([player]),
-        )
-        : [];
-      const component = components.find((cells) => goals.every((goal) =>
-        cells.some((cell) => keyOf(cell) === keyOf(goal))));
-      const choices = component?.filter((cell) =>
-        !goals.some((goal) => keyOf(goal) === keyOf(cell))) ?? [];
-      if (player && choices.length) {
-        Object.assign(player, choose(random, choices));
-        break;
-      }
-    } else if (entity.kind === "goal") {
-      const player = next.voxels.find((voxel) => voxel.blockId === playerBlock.id);
-      const currentGoals = next.voxels.filter((voxel) => isCollectible(voxel, blockRoles));
-      const components = player
-        ? walkableSurfaceCells(
-          next.voxels, configuration, blockRoles, new Set([player]),
-        )
-        : [];
-      const component = components.find((cells) =>
-        cells.some((cell) => keyOf(cell) === keyOf(player)));
-      const choices = component?.filter((cell) =>
-        keyOf(cell) !== keyOf(player) && !currentGoals.some((goal) =>
-          goal !== entity.member && keyOf(goal) === keyOf(cell))) ?? [];
-      if (choices.length) {
-        Object.assign(entity.member, choose(random, choices));
-        break;
-      }
     }
   }
 
@@ -1029,6 +1281,71 @@ function roleCodes(physics, roles) {
   return codes;
 }
 
+function solutionInteractionStats(
+  physics,
+  buffer,
+  count,
+  stride,
+  width,
+  height,
+  solution,
+  codes,
+) {
+  const pushableCodes = new Set([
+    codes.get("pushable"), codes.get("weightless-pushable"),
+  ].filter((code) => code !== undefined));
+  const playerCode = codes.get("player");
+  const groups = new Map();
+  let playerIndex = -1;
+  for (let index = 0; index < count; index += 1) {
+    const offset = index * stride;
+    const role = buffer[offset + 3];
+    if (role === playerCode) playerIndex = index;
+    if (!pushableCodes.has(role)) continue;
+    const genericId = buffer[offset + 4];
+    const key = genericId >= 0 ? `${role}:${genericId}` : `${role}:voxel:${index}`;
+    const members = groups.get(key) ?? [];
+    members.push(index);
+    groups.set(key, members);
+  }
+
+  let pushes = 0;
+  let iceSlides = 0;
+  let boxesDropped = 0;
+  for (const direction of solution) {
+    const beforeGroups = [...groups.values()].map((members) => members.map((index) => {
+      const offset = index * stride;
+      return [buffer[offset], buffer[offset + 1], buffer[offset + 2]];
+    }));
+    const playerOffset = playerIndex * stride;
+    const playerBefore = playerIndex >= 0
+      ? [buffer[playerOffset], buffer[playerOffset + 1]]
+      : null;
+    physics.simulate_turn(count, width, height, DIRECTION_NAMES.indexOf(direction));
+    [...groups.values()].forEach((members, groupIndex) => {
+      let moved = false;
+      let wasActive = false;
+      let isActive = false;
+      members.forEach((index, memberIndex) => {
+        const offset = index * stride;
+        const before = beforeGroups[groupIndex][memberIndex];
+        const after = [buffer[offset], buffer[offset + 1], buffer[offset + 2]];
+        if (before.some((coordinate, axis) => coordinate !== after[axis])) moved = true;
+        if (before[0] >= 0 && before[1] >= 0) wasActive = true;
+        if (after[0] >= 0 && after[1] >= 0) isActive = true;
+      });
+      if (moved) pushes += 1;
+      if (wasActive && !isActive) boxesDropped += 1;
+    });
+    if (playerBefore && buffer[playerOffset] >= 0 && buffer[playerOffset + 1] >= 0 &&
+        Math.abs(buffer[playerOffset] - playerBefore[0]) +
+        Math.abs(buffer[playerOffset + 1] - playerBefore[1]) > 1) {
+      iceSlides += 1;
+    }
+  }
+  return { pushes, iceSlides, boxesDropped };
+}
+
 async function evaluate(candidate, configuration, physics, codes) {
   if (candidate.voxels.length > physics.search_voxel_capacity()) {
     throw new Error(
@@ -1057,6 +1374,7 @@ async function evaluate(candidate, configuration, physics, codes) {
       genericBlocks.has(voxel.blockId) ? Math.max(0, voxel.genericId ?? 0) : -1,
     ], index * stride);
   });
+  const initialState = buffer.slice();
   const started = performance.now();
   const status = physics.search_solve(
     candidate.voxels.length,
@@ -1071,6 +1389,17 @@ async function evaluate(candidate, configuration, physics, codes) {
   for (let index = 0; index < length; index += 1) {
     solution.push(DIRECTION_NAMES[physics.search_solution_step(index)]);
   }
+  buffer.set(initialState);
+  const interactions = solutionInteractionStats(
+    physics,
+    buffer,
+    candidate.voxels.length,
+    stride,
+    candidate.world.width,
+    candidate.world.height,
+    solution,
+    codes,
+  );
   return {
     ...candidate,
     solution,
@@ -1082,6 +1411,7 @@ async function evaluate(candidate, configuration, physics, codes) {
     elapsedMs,
     optimal: status === 1,
     limitHit: status === 2,
+    ...interactions,
   };
 }
 
@@ -1091,6 +1421,12 @@ function better(left, right) {
   const rightQuality = right.optimal ? 2 : right.limitHit ? 1 : 0;
   if (leftQuality !== rightQuality) return leftQuality > rightQuality;
   if (left.optimal && left.moves !== right.moves) return left.moves > right.moves;
+  const leftTerrain = (left.iceSlides ?? 0) + (left.boxesDropped ?? 0);
+  const rightTerrain = (right.iceSlides ?? 0) + (right.boxesDropped ?? 0);
+  if (leftQuality > 0 && leftTerrain !== rightTerrain) return leftTerrain > rightTerrain;
+  if (leftQuality > 0 && (left.pushes ?? 0) !== (right.pushes ?? 0)) {
+    return (left.pushes ?? 0) > (right.pushes ?? 0);
+  }
   return left.expanded > right.expanded;
 }
 
@@ -1105,6 +1441,9 @@ function evaluationSnapshot(candidate) {
     elapsedMs: candidate.elapsedMs,
     optimal: candidate.optimal,
     limitHit: candidate.limitHit,
+    pushes: candidate.pushes ?? 0,
+    iceSlides: candidate.iceSlides ?? 0,
+    boxesDropped: candidate.boxesDropped ?? 0,
   };
 }
 
@@ -1144,10 +1483,9 @@ function structuralNiche(candidate, configuration) {
 }
 
 async function evolve(configuration) {
-  const physics = await loadPhysics();
-  const codes = roleCodes(physics, configuration.roles);
+  const evaluationPool = createEvaluationPool(configuration);
   const random = mulberry32(configuration.seed);
-  const populationSize = Math.max(4, Math.min(128, configuration.population));
+  const populationSize = Math.max(4, Math.min(1024, configuration.population));
   let population = [];
   const initialSignatures = new Set();
   while (population.length < populationSize) {
@@ -1161,53 +1499,74 @@ async function evolve(configuration) {
   let evaluated = 0;
   let cacheHits = 0;
   let totalExpanded = 0;
-  let totalElapsedMs = 0;
   let stagnation = 0;
   const evaluationCache = new Map();
+  const evolutionStartedAt = performance.now();
 
   for (let generation = 1; generation <= configuration.generations; generation += 1) {
-    if (stopped) return;
-    const scored = [];
+    if (stopped) {
+      evaluationPool.close();
+      return;
+    }
+    const scoredByIndex = new Array(population.length).fill(null);
     let generationImproved = false;
+    let processed = 0;
+    const reportProgress = () => {
+      const elapsedSeconds = Math.max(
+        0.001, (performance.now() - evolutionStartedAt) / 1000,
+      );
+      self.postMessage({
+        type: "progress",
+        generation,
+        generations: configuration.generations,
+        evaluated,
+        bestMoves: best?.optimal ? best.moves : 0,
+        nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
+        solvesPerSecond: Math.round(evaluated / elapsedSeconds),
+        cacheHits,
+        uniqueCandidates: evaluationCache.size,
+        stagnation,
+        evaluatorCount: evaluationPool.concurrency,
+      });
+    };
+    const record = (index, result) => {
+      processed += 1;
+      if (result) scoredByIndex[index] = result;
+      if (processed % 4 === 0 || processed === population.length) reportProgress();
+    };
+    const jobs = [];
     for (let index = 0; index < population.length; index += 1) {
-      if (stopped) return;
-      try {
-        const signature = candidateSignature(population[index]);
-        let result;
-        const cached = evaluationCache.get(signature);
-        if (cached) {
-          result = { ...cloneCandidate(population[index]), ...cached, solution: [...cached.solution] };
-          cacheHits += 1;
-        } else {
-          result = await evaluate(population[index], configuration, physics, codes);
-          evaluationCache.set(signature, evaluationSnapshot(result));
-          evaluated += 1;
-          totalExpanded += result.expanded;
-          totalElapsedMs += result.elapsedMs;
-        }
-        scored.push(result);
-        if (better(result, best)) {
-          best = cloneCandidate(result);
-          generationImproved = true;
-          self.postMessage({ type: "best", candidate: best, generation, evaluated });
-        }
-      } catch {
-        // Invalid candidates have no fitness and are replaced next generation.
-      }
-      if (index % 4 === 3 || index === population.length - 1) {
-        self.postMessage({
-          type: "progress",
-          generation,
-          generations: configuration.generations,
-          evaluated,
-          bestMoves: best?.optimal ? best.moves : 0,
-          nodesPerSecond: Math.round(totalExpanded / Math.max(0.001, totalElapsedMs / 1000)),
-          cacheHits,
-          uniqueCandidates: evaluationCache.size,
-          stagnation,
+      const signature = candidateSignature(population[index]);
+      const cached = evaluationCache.get(signature);
+      if (cached) {
+        cacheHits += 1;
+        record(index, {
+          ...cloneCandidate(population[index]),
+          ...cached,
+          solution: [...cached.solution],
         });
-        await new Promise((resolve) => setTimeout(resolve, 0));
+      } else {
+        jobs.push({ candidate: population[index], signature, index });
       }
+    }
+    await evaluationPool.evaluate(jobs, (job, result) => {
+      if (result) {
+        evaluationCache.set(job.signature, evaluationSnapshot(result));
+        evaluated += 1;
+        totalExpanded += result.expanded;
+      }
+      record(job.index, result);
+    });
+    if (stopped) {
+      evaluationPool.close();
+      return;
+    }
+    const scored = scoredByIndex.filter(Boolean);
+    for (const result of scored) {
+      if (!better(result, best)) continue;
+      best = cloneCandidate(result);
+      generationImproved = true;
+      self.postMessage({ type: "best", candidate: best, generation, evaluated });
     }
     stagnation = generationImproved ? 0 : stagnation + 1;
     scored.sort((left, right) => better(left, right) ? -1 : better(right, left) ? 1 : 0);
@@ -1275,11 +1634,16 @@ async function evolve(configuration) {
     population = next;
   }
 
+  evaluationPool.close();
+  const elapsedSeconds = Math.max(
+    0.001, (performance.now() - evolutionStartedAt) / 1000,
+  );
   self.postMessage({
     type: "done",
     candidate: best,
     evaluated,
-    nodesPerSecond: Math.round(totalExpanded / Math.max(0.001, totalElapsedMs / 1000)),
+    nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
+    solvesPerSecond: Math.round(evaluated / elapsedSeconds),
     cacheHits,
     uniqueCandidates: evaluationCache.size,
     stagnation,
@@ -1290,6 +1654,24 @@ if (typeof self !== "undefined") {
   self.addEventListener("message", (event) => {
     if (event.data?.type === "stop") {
       stopped = true;
+      return;
+    }
+    if (event.data?.type === "evaluate") {
+      const { candidate, configuration, requestId } = event.data;
+      loadPhysics()
+        .then((physics) => evaluate(
+          candidate,
+          configuration,
+          physics,
+          roleCodes(physics, configuration.roles),
+        ))
+        .then((result) => self.postMessage({ type: "evaluation", requestId, result }))
+        .catch((error) => self.postMessage({
+          type: "evaluation",
+          requestId,
+          result: null,
+          error: error instanceof Error ? error.message : String(error),
+        }));
       return;
     }
     if (event.data?.type !== "start") return;
@@ -1304,6 +1686,7 @@ export {
   boxEntities,
   candidateSignature,
   exactBlockClusters,
+  growGenericBox,
   makeCandidate,
   mulberry32,
   mutateCandidate,

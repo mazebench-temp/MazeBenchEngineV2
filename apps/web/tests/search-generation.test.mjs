@@ -5,6 +5,7 @@ import {
   boxEntities,
   candidateSignature,
   exactBlockClusters,
+  growGenericBox,
   makeCandidate,
   mulberry32,
   reverseScrambleCandidate,
@@ -35,11 +36,11 @@ const configuration = {
   seed: 1,
 };
 
-test("search seeds distinct uncapped weightless polycubes into 3D terrain", () => {
+test("search seeds distinct compact weightless polycubes into 3D terrain", () => {
   const candidate = makeCandidate(configuration, mulberry32(configuration.seed));
   const boxes = boxEntities(candidate.voxels, [blocks.at(-1)]);
   assert.deepEqual(boxes.map((members) => members[0].genericId), [0, 1, 2, 3]);
-  assert.ok(boxes.some((members) => members.length > 12));
+  assert.ok(boxes.every((members) => members.length >= 2 && members.length <= 5));
 
   const floors = candidate.voxels.filter((voxel) => voxel.blockId === "floor");
   const ice = candidate.voxels.filter((voxel) => voxel.blockId === "ice");
@@ -49,11 +50,62 @@ test("search seeds distinct uncapped weightless polycubes into 3D terrain", () =
   assert.ok(ice.some((voxel) => voxel.z > 0));
   assert.ok(walls.every((voxel) => voxel.z >= 1));
   assert.ok(exactBlockClusters(candidate.voxels, new Set(["ice"])).length >= 2);
-  assert.ok(exactBlockClusters(candidate.voxels, new Set(["wall"])).length >= 2);
+  assert.ok(walls.length >= configuration.width * 2 + (configuration.depth - 2) * 2);
 
   const rowZeroTerrain = candidate.voxels.filter((voxel) =>
     voxel.z === 0 && (voxel.blockId === "floor" || voxel.blockId === "ice"));
   assert.ok(rowZeroTerrain.length < configuration.width * configuration.depth);
+});
+
+test("weightless polycubes remain uncapped after their compact seed", () => {
+  const member = { x: 8, y: 8, z: 1, blockId: "weightless", genericId: 0 };
+  const voxels = [member];
+  const members = [member];
+  const blockRoles = new Map(blocks.map((block) => [block.id, block.roleId]));
+  const random = mulberry32(97);
+  for (let growth = 0; growth < 20; growth += 1) {
+    assert.equal(growGenericBox(
+      voxels, members, configuration, random, blockRoles,
+    ), true);
+  }
+  assert.equal(members.length, 21);
+});
+
+test("classic wall and pushbox seeds match MazeBenchEngine3 proportions", () => {
+  const classicBlocks = blocks.filter((block) => block.id !== "ice");
+  const classicConfiguration = {
+    ...configuration,
+    layers: 1,
+    terrainDensity: 45,
+    minWeightlessBoxes: 3,
+    maxWeightlessBoxes: 3,
+    evolveHoles: false,
+    blocks: classicBlocks,
+    enabledBlockIds: classicBlocks.map((block) => block.id),
+    seed: 20260812,
+  };
+  const candidate = makeCandidate(
+    classicConfiguration, mulberry32(classicConfiguration.seed),
+  );
+  const occupied = new Set(candidate.voxels
+    .filter((voxel) => voxel.blockId === "wall" && voxel.z === 1)
+    .map((voxel) => `${voxel.x},${voxel.y}`));
+  for (let x = 0; x < classicConfiguration.width; x += 1) {
+    assert.ok(occupied.has(`${x},0`));
+    assert.ok(occupied.has(`${x},${classicConfiguration.depth - 1}`));
+  }
+  for (let y = 0; y < classicConfiguration.depth; y += 1) {
+    assert.ok(occupied.has(`0,${y}`));
+    assert.ok(occupied.has(`${classicConfiguration.width - 1},${y}`));
+  }
+  const perimeter = classicConfiguration.width * 2 +
+    (classicConfiguration.depth - 2) * 2;
+  assert.ok(occupied.size >= perimeter);
+  assert.ok(occupied.size <= perimeter + 20);
+
+  const boxes = boxEntities(candidate.voxels, [blocks.at(-1)]);
+  assert.equal(boxes.length, 3);
+  assert.ok(boxes.every((members) => members.length >= 2 && members.length <= 5));
 });
 
 test("polycube mutations can remove non-leaf cubes without disconnecting the blob", () => {
@@ -65,6 +117,9 @@ test("polycube mutations can remove non-leaf cubes without disconnecting the blo
   ];
   assert.equal(shrinkGenericBox(generic, [...generic], () => 0), true);
   assert.equal(generic.length, 3);
+  const domino = generic.slice(0, 2);
+  assert.equal(shrinkGenericBox(domino, [...domino], () => 0), false);
+  assert.equal(domino.length, 2);
 
   const structure = [
     { x: 1, y: 1, z: 1, blockId: "wall" },
