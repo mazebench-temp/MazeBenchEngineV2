@@ -110,6 +110,7 @@ type GroupSelection = {
 };
 
 const STORAGE_KEY = "voxelbench-project-v1";
+const LOCAL_PROJECT_ENDPOINT = "/api/local-project";
 const DELETE_TOOL_ID = "__erase_top__";
 const GROUP_TOOL_ID = "__select_group__";
 const UNDO_STACK_LIMIT = 80;
@@ -533,6 +534,7 @@ export default function VoxelBench() {
   const paintGestureRef = useRef({ active: false, snapshotSaved: false });
   const [historyState, setHistoryState] = useState({ canRedo: false, canUndo: false });
   const [cameraQuarterTurns, setCameraQuarterTurns] = useState(0);
+  const [projectLoaded, setProjectLoaded] = useState(false);
   const activeTest = tests.find((test) => test.id === activeId) ?? tests[0];
   const lockedFolderIds = useMemo(
     () => new Set(folders.filter((folder) => folder.locked).map((folder) => folder.id)),
@@ -580,20 +582,35 @@ export default function VoxelBench() {
         : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}`;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+
+    const restoreProject = async () => {
+      let repoProject: string | null = null;
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) return;
-        const parsed = JSON.parse(saved) as {
+        const response = await fetch(LOCAL_PROJECT_ENDPOINT, { cache: "no-store" });
+        if (response.ok) repoProject = await response.text();
+      } catch {
+        // Repo persistence is local-development-only. Browser storage remains
+        // the fallback for production previews and temporarily offline runs.
+      }
+
+      const browserProject = localStorage.getItem(STORAGE_KEY);
+      const candidates = [repoProject, browserProject].filter((value): value is string => Boolean(value));
+      let restored = false;
+
+      for (const saved of candidates) {
+        try {
+          const parsed = JSON.parse(saved) as {
           blocks: StoredBlockDefinition[];
           folders?: StoredTestFolder[];
           roles?: PhysicsRoleDefinition[];
           tests: StoredTestCase[];
           world?: WorldSettings;
-        };
-        if (parsed.blocks?.length && parsed.tests?.length) {
+          };
+          if (!parsed.blocks?.length || !parsed.tests?.length) continue;
           const legacyWorld = normalizeWorld(parsed.world ?? DEFAULT_WORLD);
           const restoredRoles = normalizeRoles(parsed.roles);
+          if (cancelled) return;
           setRoles(restoredRoles);
           setSelectedRoleId(restoredRoles.find((role) => role.id === "pushable")?.id ?? restoredRoles[0].id);
           setNewBlock((current) => ({
@@ -616,26 +633,62 @@ export default function VoxelBench() {
           setFolders(restoredFolders);
           setTests(restoredTests);
           setActiveId(restoredTests[0].id);
+          restored = true;
+          break;
+        } catch {
+          // Try the browser fallback if the repo copy is incomplete.
         }
-      } catch {
-        setToast("Could not restore local project");
       }
-    }, 0);
-    return () => window.clearTimeout(timer);
+
+      if (!cancelled) {
+        if (!restored && candidates.length) {
+          setToast("Could not restore saved project data");
+        }
+        setProjectLoaded(true);
+      }
+    };
+
+    void restoreProject();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
+    if (!projectLoaded) return;
+    let cancelled = false;
     const timer = window.setTimeout(() => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      const project = {
         schemaVersion: 7,
+        coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
         folders,
-        tests: cropTestsToWorld(tests),
-      }));
-    }, 250);
-    return () => window.clearTimeout(timer);
-  }, [blocks, folders, roles, tests]);
+        tests: cropTestsToWorld(tests).map((test) => ({
+          ...test,
+          start: { voxels: sortVoxels(test.start.voxels) },
+          expected: { voxels: sortVoxels(test.expected.voxels) },
+        })),
+      };
+      const serialized = JSON.stringify(project);
+      localStorage.setItem(STORAGE_KEY, serialized);
+      void fetch(LOCAL_PROJECT_ENDPOINT, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: serialized,
+      }).then((response) => {
+        if (!response.ok && response.status !== 404 && !cancelled) {
+          setToast("Repo save failed · browser backup preserved");
+        }
+      }).catch(() => {
+        // Expected outside local development; localStorage already succeeded.
+      });
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [blocks, folders, projectLoaded, roles, tests]);
 
   const runTest = useCallback(async (test: TestCase) => {
     setToast(`Running ${test.name} through the C++ engine…`);

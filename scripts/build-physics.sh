@@ -24,8 +24,8 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=role_code \
   -Wl,--export=simulate_turn \
   -Wl,--export-memory \
-  -Wl,--initial-memory=3145728 \
-  -Wl,--max-memory=3145728 \
+  -Wl,--initial-memory=8388608 \
+  -Wl,--max-memory=8388608 \
   -o "$output_dir/voxel_physics.wasm" \
   -I"$project_root/engine/include" \
   "$project_root/engine/src/physics.cpp" \

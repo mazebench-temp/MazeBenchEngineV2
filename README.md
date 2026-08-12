@@ -2,6 +2,8 @@
 
 A local visual unit-test editor for 3D, turn-based Sokoban-like mechanics. It uses MazeBenchEngine's perspective Three.js polycube renderer for authoring sparse 3D start frames and expected end frames, and executes turn physics in a C++ engine compiled to WebAssembly.
 
+While the local development server is running, every project edit is atomically saved to `project-data/voxelbench-project.json`. That tracked repo file is loaded before the browser fallback, making authored visual tests directly available to Git and native C++ tooling.
+
 New projects begin with a 16 × 16 × ∞ test world. Existing tests retain their individually saved dimensions.
 
 ## Run locally
