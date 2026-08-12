@@ -432,6 +432,100 @@ void TestExactSearchFindsShortestCommands() {
         "exact search should reconstruct both Up commands");
 }
 
+void TestMacroSearchCollapsesWalkingBeforePushes() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {4, 1, 1, Role("pushable"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+      {3, 1, 0, Role("floor"), -1},
+      {4, 1, 0, Role("floor"), -1},
+      {5, 1, 0, Role("floor"), -1},
+      {6, 1, 0, Role("floor"), -1},
+      {5, 1, 1, Role("goal"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 10, 7, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 4,
+        "macro search should preserve the exact walk-plus-push command cost");
+  Check(result.solution_length == 4 && result.solution[0] == 1 &&
+            result.solution[1] == 1 && result.solution[2] == 1 &&
+            result.solution[3] == 1,
+        "macro search should reconstruct walking commands before both pushes");
+  Check(result.expanded <= 3,
+        "ordinary corridor walking should not occupy global search nodes");
+}
+
+void TestMacroSearchMatchesMazeBenchEngine3LongRoom() {
+  static constexpr const char* kRows[16] = {
+      "################",
+      "#......#...#...#",
+      "#..###.#.#...#.#",
+      "#.#..#.#..###..#",
+      "#..##..#.#.....#",
+      "##.##.#..#.##..#",
+      "##..#..#.#..#..#",
+      "#.#..#.#..#.@CC#",
+      "#...#...#.A##C.#",
+      "#..##..##AA..#.#",
+      "#.##..#..AA..#.#",
+      "#..##...#......#",
+      "#..#####.#.B...#",
+      "##..###...#BBB.#",
+      "###.....#..BX..#",
+      "################",
+  };
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[512];
+  int32_t count = 0;
+  for (int32_t y = 0; y < 16; ++y) {
+    for (int32_t x = 0; x < 16; ++x) {
+      voxels[count++] = {x, y, 0, Role("floor"), -1};
+      const char cell = kRows[y][x];
+      if (cell == '#') {
+        voxels[count++] = {x, y, 1, Role("solid"), -1};
+      } else if (cell == '@') {
+        voxels[count++] = {x, y, 1, Role("player"), -1};
+      } else if (cell == 'X') {
+        voxels[count++] = {x, y, 1, Role("goal"), -1};
+      } else if (cell >= 'A' && cell <= 'Z') {
+        voxels[count++] = {
+            x, y, 1, Role("weightless-pushable"), cell - 'A'};
+      }
+    }
+  }
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, count, 16, 16, 50000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 317,
+        "macro A* should retain MazeBenchEngine3's 317-command optimum");
+  Check(result.expanded < 1000,
+        "macro A* should solve the long 16x16 room without footstep-state explosion");
+}
+
+void TestSearchPrunesPlayerGameOverBranches() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {0, 0, 1, Role("goal"), -1},
+      {2, 2, 1, Role("goal"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 4, 3, 3, 100);
+  Check(result.status == voxelbench::SearchStatus::kUnsolved,
+        "a room whose commands all kill the player should be unsolved");
+  Check(result.expanded == 1 && result.generated == 0,
+        "player disappearance must be pruned before dead states are inserted");
+}
+
 void TestPlayerCollectsGemOnlyAtCommandEnd() {
   voxelbench::Voxel voxels[] = {
       {1, 2, 1, Role("player"), -1},
@@ -640,6 +734,9 @@ int main() {
   TestFallingRiderDoesNotExtendItsCarriersAbyss();
   TestObjectAboveDescendingPlayerFallsInSameTick();
   TestExactSearchFindsShortestCommands();
+  TestMacroSearchCollapsesWalkingBeforePushes();
+  TestMacroSearchMatchesMazeBenchEngine3LongRoom();
+  TestSearchPrunesPlayerGameOverBranches();
   TestPlayerCollectsGemOnlyAtCommandEnd();
   TestBoxMayOverlapGemWithoutCollectingIt();
   TestSlidingAcrossGemDoesNotCollectIt();
@@ -653,6 +750,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 25 C++ physics/search tests passed\n";
+  std::cout << "all 28 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

@@ -509,6 +509,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .search-weightless-options { margin-bottom: 8px; }
 .search-weightless-options .search-dimensions { margin-bottom: 3px; }
 .search-weightless-options > small { color: var(--muted); display: block; font-size: 10px; line-height: 1.35; }
+.search-density { align-items: center; display: grid; grid-template-columns: 1fr auto; }
+.search-density > span { grid-column: 1 / -1; }
+.search-density input[type="range"] { accent-color: var(--cyan); min-width: 0; padding: 0; }
+.search-density strong { color: var(--cyan); font: 700 11px var(--font-mono); padding-left: 10px; }
 .search-controls > .field { margin-bottom: 12px; }
 .search-controls .field input { min-width: 0; width: 100%; }
 .search-hole-toggle { align-items: start; background: rgba(var(--magenta-rgb),.045); border: 1px solid rgba(var(--magenta-rgb),.22); border-radius: 7px; cursor: pointer; display: grid; gap: 8px; grid-template-columns: 15px 1fr; margin-bottom: 12px; padding: 8px; }

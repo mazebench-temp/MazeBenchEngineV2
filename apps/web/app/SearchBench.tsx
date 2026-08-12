@@ -55,10 +55,13 @@ type SearchBenchProps = {
 
 type SearchProgress = {
   bestMoves: number;
+  cacheHits: number;
   evaluated: number;
   generation: number;
   generations: number;
   nodesPerSecond: number;
+  stagnation: number;
+  uniqueCandidates: number;
 };
 
 type SearchOptions = {
@@ -68,6 +71,8 @@ type SearchOptions = {
   collectibles: number;
   minWeightlessBoxes: number;
   maxWeightlessBoxes: number;
+  terrainDensity: number;
+  targetMoves: number;
   population: number;
   generations: number;
   maxNodes: number;
@@ -82,8 +87,10 @@ const DEFAULT_OPTIONS: SearchOptions = {
   collectibles: 1,
   minWeightlessBoxes: 1,
   maxWeightlessBoxes: 4,
-  population: 24,
-  generations: 100,
+  terrainDensity: 45,
+  targetMoves: 500,
+  population: 64,
+  generations: 500,
   maxNodes: 50000,
   seed: 20260812,
   evolveHoles: true,
@@ -180,10 +187,13 @@ export default function SearchBench({
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SearchProgress>({
     bestMoves: 0,
+    cacheHits: 0,
     evaluated: 0,
     generation: 0,
     generations: DEFAULT_OPTIONS.generations,
     nodesPerSecond: 0,
+    stagnation: 0,
+    uniqueCandidates: 0,
   });
   const [best, setBest] = useState<SearchLevel | null>(null);
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
@@ -254,6 +264,8 @@ export default function SearchBench({
       collectibles: [1, 16],
       minWeightlessBoxes: [0, 32],
       maxWeightlessBoxes: [0, 32],
+      terrainDensity: [5, 90],
+      targetMoves: [1, 4096],
       population: [4, 128],
       generations: [1, 10000],
       maxNodes: [100, 50000],
@@ -310,10 +322,13 @@ export default function SearchBench({
     setSelectedSavedId(null);
     setProgress({
       bestMoves: 0,
+      cacheHits: 0,
       evaluated: 0,
       generation: 0,
       generations: options.generations,
       nodesPerSecond: 0,
+      stagnation: 0,
+      uniqueCandidates: 0,
     });
     onStatus("Starting 3D evolutionary search in the C++ exact solver…");
     worker.onmessage = (event: MessageEvent) => {
@@ -489,10 +504,12 @@ export default function SearchBench({
           <label className="field"><span>Generations</span><input type="number" min="1" max="10000" value={options.generations} disabled={running} onChange={(event) => updateOption("generations", event.target.value)} /></label>
           <label className="field"><span>States / candidate</span><input type="number" min="100" max="50000" step="100" value={options.maxNodes} disabled={running} onChange={(event) => updateOption("maxNodes", event.target.value)} /></label>
         </div>
-        <div className="search-dimensions search-dimensions--two">
+        <div className="search-dimensions">
           <label className="field"><span>Collectibles</span><input type="number" min="1" max="16" value={options.collectibles} disabled={running} onChange={(event) => updateOption("collectibles", event.target.value)} /></label>
+          <label className="field"><span>Target commands</span><input type="number" min="1" max="4096" value={options.targetMoves} disabled={running} onChange={(event) => updateOption("targetMoves", event.target.value)} /></label>
           <label className="field"><span>Deterministic seed</span><input type="number" min="0" max="4294967295" value={options.seed} disabled={running} onChange={(event) => updateOption("seed", event.target.value)} /></label>
         </div>
+        <label className="field search-density"><span>Initial terrain density</span><input type="range" min="5" max="90" value={options.terrainDensity} disabled={running} onChange={(event) => updateOption("terrainDensity", event.target.value)} /><strong>{options.terrainDensity}%</strong></label>
         {weightlessEnabled && (
           <div className="search-weightless-options">
             <div className="search-dimensions search-dimensions--two">
@@ -527,7 +544,7 @@ export default function SearchBench({
       <section className="search-main">
         <div className="search-metrics">
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
-          <article><span>Evaluated</span><strong>{progress.evaluated.toLocaleString()}</strong></article>
+          <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached</small></strong></article>
           <article><span>Best optimum</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
           <article><span>Complete search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec</small></strong></article>
         </div>

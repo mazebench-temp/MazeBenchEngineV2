@@ -34,6 +34,26 @@ function cloneCandidate(candidate) {
   };
 }
 
+function candidateSignature(candidate) {
+  const entries = candidate.voxels.map((voxel) =>
+    `${voxel.blockId}:${voxel.genericId ?? -1}:${voxel.x},${voxel.y},${voxel.z}`)
+    .sort();
+  let first = 0x811C9DC5;
+  let second = 0x9E3779B9;
+  const metadata = `${candidate.world.width}x${candidate.world.height}x${candidate.layers}`;
+  for (const entry of [metadata, ...entries]) {
+    for (let index = 0; index < entry.length; index += 1) {
+      const value = entry.charCodeAt(index);
+      first = Math.imul(first ^ value, 0x01000193);
+      second = Math.imul(second ^ value, 0x85EBCA6B);
+    }
+    first = Math.imul(first ^ 124, 0x01000193);
+    second = Math.imul(second ^ 124, 0xC2B2AE35);
+  }
+  return `${candidate.voxels.length}:${(first >>> 0).toString(16).padStart(8, "0")}${
+    (second >>> 0).toString(16).padStart(8, "0")}`;
+}
+
 function roleBlocks(configuration) {
   const enabled = new Set(configuration.enabledBlockIds);
   const byRole = new Map();
@@ -74,22 +94,10 @@ function rigidVoxelAt(voxels, x, y, z, blockRoles, ignored = null) {
     voxel.x === x && voxel.y === y && voxel.z === z) ?? null;
 }
 
-function highestSupport(voxels, x, y, layers, blockRoles, ignored = null) {
-  let highest = -1;
-  for (const voxel of voxels) {
-    if (voxel === ignored || (ignored instanceof Set && ignored.has(voxel)) ||
-        isCollectible(voxel, blockRoles)) continue;
-    if (voxel.x === x && voxel.y === y && voxel.z <= layers) {
-      highest = Math.max(highest, voxel.z);
-    }
-  }
-  return highest;
-}
-
-function randomInterior(random, width, depth) {
+function randomCell(random, width, depth) {
   return {
-    x: integer(random, 1, Math.max(1, width - 2)),
-    y: integer(random, 1, Math.max(1, depth - 2)),
+    x: integer(random, 0, Math.max(0, width - 1)),
+    y: integer(random, 0, Math.max(0, depth - 1)),
   };
 }
 
@@ -106,14 +114,14 @@ const ADJACENT_3D = [
 ];
 
 function insideVolume(voxel, configuration) {
-  return voxel.x >= 1 && voxel.x < configuration.width - 1 &&
-    voxel.y >= 1 && voxel.y < configuration.depth - 1 &&
-    voxel.z >= 1 && voxel.z <= configuration.layers + 1;
+  return voxel.x >= 0 && voxel.x < configuration.width &&
+    voxel.y >= 0 && voxel.y < configuration.depth &&
+    voxel.z >= 1 && voxel.z <= configuration.layers;
 }
 
 function insideStaticVolume(voxel, configuration) {
-  return voxel.x >= 1 && voxel.x < configuration.width - 1 &&
-    voxel.y >= 1 && voxel.y < configuration.depth - 1 &&
+  return voxel.x >= 0 && voxel.x < configuration.width &&
+    voxel.y >= 0 && voxel.y < configuration.depth &&
     voxel.z >= 0 && voxel.z <= configuration.layers;
 }
 
@@ -222,7 +230,7 @@ function seedStaticCluster(
   targetSize,
 ) {
   for (let attempt = 0; attempt < 40; attempt += 1) {
-    const cell = randomInterior(random, configuration.width, configuration.depth);
+    const cell = randomCell(random, configuration.width, configuration.depth);
     const seed = { ...cell, z: seedZ, blockId: block.id };
     const occupant = rigidVoxelAt(voxels, seed.x, seed.y, seed.z, blockRoles);
     if (occupant && !(seed.z === 0 && occupant.blockId === floorBlock.id)) continue;
@@ -356,36 +364,15 @@ function placeSupportedBox(
   random,
   blockRoles,
 ) {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    const cell = randomInterior(random, configuration.width, configuration.depth);
-    const z = highestSupport(
-      voxels, cell.x, cell.y, configuration.layers, blockRoles,
-    ) + 1;
-    if (z <= 0 || z > configuration.layers + 1 || rigidVoxelAt(
-      voxels, cell.x, cell.y, z, blockRoles,
-    )) continue;
-    const voxel = {
-      ...cell,
-      z,
-      blockId: block.id,
-      ...(block.roleId === "weightless-pushable" ? { genericId } : {}),
-    };
-    voxels.push(voxel);
-    const members = [voxel];
-    for (let extra = 1; extra < targetSize; extra += 1) {
-      if (!growGenericBox(
-        voxels, members, configuration, random, blockRoles,
-      )) break;
-    }
-    return members;
-  }
   const anchors = [];
-  for (let y = 1; y < configuration.depth - 1; y += 1) {
-    for (let x = 1; x < configuration.width - 1; x += 1) {
-      const z = highestSupport(voxels, x, y, configuration.layers, blockRoles) + 1;
-      if (z > 0 && z <= configuration.layers + 1 &&
-          !rigidVoxelAt(voxels, x, y, z, blockRoles)) {
-        anchors.push({ x, y, z });
+  for (let y = 0; y < configuration.depth; y += 1) {
+    for (let x = 0; x < configuration.width; x += 1) {
+      // Every generated box begins on the playable Row-1 surface. Its
+      // polycube may grow upward without limit, but the object itself remains
+      // reachable instead of being stranded on top of a random wall tower.
+      if (rigidVoxelAt(voxels, x, y, 0, blockRoles) &&
+          !rigidVoxelAt(voxels, x, y, 1, blockRoles)) {
+        anchors.push({ x, y, z: 1 });
       }
     }
   }
@@ -406,19 +393,23 @@ function placeSupportedBox(
   return [];
 }
 
-function initialStaticClusterSize(random, configuration, clusterCount) {
-  const interiorArea = Math.max(1, (configuration.width - 2) * (configuration.depth - 2));
-  const terrainBudget = interiorArea * (0.12 + random() * 0.28);
-  return integer(random, 1, Math.max(2, Math.floor(terrainBudget / clusterCount)));
+function initialStaticClusterSize(random, configuration, clusterCount, familyCount) {
+  const interiorArea = Math.max(1, configuration.width * configuration.depth);
+  const density = Math.max(0.05, Math.min(0.9, (configuration.terrainDensity ?? 45) / 100));
+  const verticalFactor = 1 + Math.min(configuration.layers, 8) * 0.1;
+  const familyBudget = interiorArea * density * verticalFactor / Math.max(1, familyCount);
+  const average = Math.max(2, Math.floor(familyBudget / clusterCount));
+  return integer(random, Math.max(1, Math.floor(average * 0.65)),
+    Math.max(2, Math.floor(average * 1.35)));
 }
 
 function carveInitialHoles(voxels, configuration, random, blockRoles, floorBlock, iceBlocks) {
-  const area = Math.max(1, (configuration.width - 2) * (configuration.depth - 2));
+  const area = Math.max(1, configuration.width * configuration.depth);
   const clusterCount = integer(random, 1, Math.max(1, Math.floor(area / 48) + 1));
   const rowZeroTerrain = new Set([floorBlock.id, ...iceBlocks.map((block) => block.id)]);
   let carved = 0;
   for (let cluster = 0; cluster < clusterCount; cluster += 1) {
-    let cell = randomInterior(random, configuration.width, configuration.depth);
+    let cell = randomCell(random, configuration.width, configuration.depth);
     const length = integer(random, 2, Math.max(3, Math.floor(area * 0.1)));
     for (let step = 0; step < length; step += 1) {
       const occupant = voxels.find((voxel) =>
@@ -432,8 +423,8 @@ function carveInitialHoles(voxels, configuration, random, blockRoles, floorBlock
       }
       const [dx, dy] = choose(random, ADJACENT_3D.slice(0, 4));
       cell = {
-        x: Math.max(1, Math.min(configuration.width - 2, cell.x + dx)),
-        y: Math.max(1, Math.min(configuration.depth - 2, cell.y + dy)),
+        x: Math.max(0, Math.min(configuration.width - 1, cell.x + dx)),
+        y: Math.max(0, Math.min(configuration.depth - 1, cell.y + dy)),
       };
     }
   }
@@ -449,7 +440,267 @@ function carveInitialHoles(voxels, configuration, random, blockRoles, floorBlock
   }
 }
 
-function makeCandidate(configuration, random) {
+function walkableSurfaceCells(voxels, configuration, blockRoles, ignored = null) {
+  const cells = [];
+  const byKey = new Map();
+  for (let z = 1; z <= configuration.layers; z += 1) {
+    for (let y = 0; y < configuration.depth; y += 1) {
+      for (let x = 0; x < configuration.width; x += 1) {
+        if (rigidVoxelAt(voxels, x, y, z, blockRoles, ignored) ||
+            !rigidVoxelAt(voxels, x, y, z - 1, blockRoles, ignored)) continue;
+        const cell = { x, y, z };
+        cells.push(cell);
+        byKey.set(keyOf(cell), cell);
+      }
+    }
+  }
+  const components = [];
+  const visited = new Set();
+  for (const seed of cells) {
+    const seedKey = keyOf(seed);
+    if (visited.has(seedKey)) continue;
+    const component = [];
+    const queue = [seed];
+    visited.add(seedKey);
+    while (queue.length) {
+      const cell = queue.pop();
+      component.push(cell);
+      for (const [dx, dy] of ADJACENT_3D.slice(0, 4)) {
+        const neighborKey = `${cell.x + dx},${cell.y + dy},${cell.z}`;
+        const neighbor = byKey.get(neighborKey);
+        if (neighbor && !visited.has(neighborKey)) {
+          visited.add(neighborKey);
+          queue.push(neighbor);
+        }
+      }
+    }
+    components.push(component);
+  }
+  return components;
+}
+
+function surfaceDistances(component, start) {
+  const byKey = new Map(component.map((cell) => [keyOf(cell), cell]));
+  const distance = new Map([[keyOf(start), 0]]);
+  const queue = [start];
+  for (let head = 0; head < queue.length; head += 1) {
+    const cell = queue[head];
+    const nextDistance = distance.get(keyOf(cell)) + 1;
+    for (const [dx, dy] of ADJACENT_3D.slice(0, 4)) {
+      const neighborKey = `${cell.x + dx},${cell.y + dy},${cell.z}`;
+      const neighbor = byKey.get(neighborKey);
+      if (neighbor && !distance.has(neighborKey)) {
+        distance.set(neighborKey, nextDistance);
+        queue.push(neighbor);
+      }
+    }
+  }
+  return distance;
+}
+
+function placeReachableObjectives(
+  voxels,
+  configuration,
+  random,
+  blockRoles,
+  playerBlock,
+  goalBlocks,
+) {
+  const goalCount = Math.max(1, configuration.collectibles ?? 1);
+  const components = walkableSurfaceCells(voxels, configuration, blockRoles)
+    .filter((component) => component.length > goalCount)
+    .sort((left, right) => right.length - left.length);
+  if (!components.length) return false;
+  const candidates = components.slice(0, Math.min(3, components.length));
+  const component = choose(random, candidates);
+  const first = choose(random, component);
+  const firstDistances = surfaceDistances(component, first);
+  const playerCell = component.reduce((best, cell) =>
+    firstDistances.get(keyOf(cell)) > firstDistances.get(keyOf(best)) ? cell : best, first);
+  const playerDistances = surfaceDistances(component, playerCell);
+  const goalCells = [...component]
+    .filter((cell) => keyOf(cell) !== keyOf(playerCell))
+    .sort((left, right) =>
+      playerDistances.get(keyOf(right)) - playerDistances.get(keyOf(left)));
+  voxels.push({ ...playerCell, blockId: playerBlock.id });
+  for (let index = 0; index < goalCount; index += 1) {
+    const selectionBand = goalCells.slice(
+      Math.min(index, goalCells.length - 1),
+      Math.min(goalCells.length, Math.max(index + 1, Math.ceil(goalCells.length / 3))),
+    );
+    const goalCell = choose(random, selectionBand);
+    goalCells.splice(goalCells.indexOf(goalCell), 1);
+    voxels.push({ ...goalCell, blockId: choose(random, goalBlocks).id });
+  }
+  return true;
+}
+
+function reverseWalkCandidate(
+  candidate,
+  configuration,
+  player,
+  dx,
+  dy,
+  blockRoles,
+) {
+  const x = player.x - dx;
+  const y = player.y - dy;
+  if (x < 0 || x >= configuration.width ||
+      y < 0 || y >= configuration.depth ||
+      rigidVoxelAt(candidate.voxels, x, y, player.z, blockRoles, player) ||
+      !rigidVoxelAt(candidate.voxels, x, y, player.z - 1, blockRoles, player)) {
+    return false;
+  }
+  Object.assign(player, { x, y });
+  return true;
+}
+
+function reversePullCandidate(
+  candidate,
+  configuration,
+  player,
+  dx,
+  dy,
+  blockRoles,
+  pushableBlocks,
+) {
+  const back = { x: player.x - dx, y: player.y - dy, z: player.z };
+  const front = { x: player.x + dx, y: player.y + dy, z: player.z };
+  if (back.x < 0 || back.x >= configuration.width ||
+      back.y < 0 || back.y >= configuration.depth ||
+      rigidVoxelAt(candidate.voxels, back.x, back.y, back.z, blockRoles, player) ||
+      !rigidVoxelAt(candidate.voxels, back.x, back.y, back.z - 1, blockRoles, player)) {
+    return false;
+  }
+  const entities = boxEntities(candidate.voxels, pushableBlocks);
+  const first = entities.findIndex((members) => members.some((member) =>
+    member.x === front.x && member.y === front.y && member.z === front.z));
+  if (first < 0) return false;
+
+  const moving = new Set([first]);
+  if (blockRoles.get(entities[first][0].blockId) === "weightless-pushable") {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const entityIndex of [...moving]) {
+        for (const member of entities[entityIndex]) {
+          const forwardKey = `${member.x + dx},${member.y + dy},${member.z}`;
+          for (let other = 0; other < entities.length; other += 1) {
+            if (!moving.has(other) && entities[other].some((voxel) =>
+              keyOf(voxel) === forwardKey)) {
+              moving.add(other);
+              changed = true;
+            }
+          }
+        }
+      }
+    }
+  }
+  const movingMembers = [...moving].flatMap((index) => entities[index]);
+  const ignored = new Set([player, ...movingMembers]);
+  const translated = movingMembers.map((member) => ({
+    member,
+    x: member.x - dx,
+    y: member.y - dy,
+    z: member.z,
+  }));
+  if (translated.some((voxel) =>
+    voxel.x < 0 || voxel.x >= configuration.width ||
+    voxel.y < 0 || voxel.y >= configuration.depth ||
+    rigidVoxelAt(candidate.voxels, voxel.x, voxel.y, voxel.z, blockRoles, ignored))) {
+    return false;
+  }
+  for (const entityIndex of moving) {
+    const entitySet = new Set(entities[entityIndex]);
+    const supported = entities[entityIndex].some((member) =>
+      rigidVoxelAt(
+        candidate.voxels,
+        member.x - dx,
+        member.y - dy,
+        member.z - 1,
+        blockRoles,
+        new Set([...entitySet, player]),
+      ));
+    if (!supported) return false;
+  }
+  for (const voxel of translated) {
+    Object.assign(voxel.member, { x: voxel.x, y: voxel.y });
+  }
+  Object.assign(player, back);
+  return true;
+}
+
+function dynamicCandidateSignature(candidate, blockRoles) {
+  return candidate.voxels.filter((voxel) => {
+    const role = blockRoles.get(voxel.blockId);
+    return role === "player" || role === "pushable" || role === "weightless-pushable";
+  }).map((voxel) =>
+    `${voxel.blockId}:${voxel.genericId ?? -1}:${voxel.x},${voxel.y},${voxel.z}`)
+    .sort().join("|");
+}
+
+function reverseScrambleCandidate(candidate, configuration, random) {
+  const blockRoles = new Map(configuration.blocks.map((block) => [block.id, block.roleId]));
+  const goals = candidate.voxels.filter((voxel) => isCollectible(voxel, blockRoles));
+  const player = candidate.voxels.find((voxel) => blockRoles.get(voxel.blockId) === "player");
+  const pushableBlocks = configuration.blocks.filter((block) =>
+    block.roleId === "pushable" || block.roleId === "weightless-pushable");
+  if (!player || goals.length !== 1 || !pushableBlocks.length ||
+      candidate.voxels.some((voxel) => blockRoles.get(voxel.blockId) === "ice")) {
+    return 0;
+  }
+  Object.assign(goals[0], { x: player.x, y: player.y, z: player.z });
+  const visited = new Set([dynamicCandidateSignature(candidate, blockRoles)]);
+  const targetMoves = Math.max(1, configuration.targetMoves ?? 500);
+  const steps = Math.max(120, Math.min(1200, targetMoves * 3));
+  let pulls = 0;
+  for (let step = 0; step < steps; step += 1) {
+    const choices = [];
+    for (const [dx, dy] of ADJACENT_3D.slice(0, 4)) {
+      const pulled = cloneCandidate(candidate);
+      const pulledPlayer = pulled.voxels.find((voxel) =>
+        blockRoles.get(voxel.blockId) === "player");
+      if (reversePullCandidate(
+        pulled,
+        configuration,
+        pulledPlayer,
+        dx,
+        dy,
+        blockRoles,
+        pushableBlocks,
+      )) {
+        const signature = dynamicCandidateSignature(pulled, blockRoles);
+        if (!visited.has(signature)) choices.push({ candidate: pulled, pull: true, signature });
+      }
+      const walked = cloneCandidate(candidate);
+      const walkedPlayer = walked.voxels.find((voxel) =>
+        blockRoles.get(voxel.blockId) === "player");
+      if (reverseWalkCandidate(
+        walked, configuration, walkedPlayer, dx, dy, blockRoles,
+      )) {
+        const signature = dynamicCandidateSignature(walked, blockRoles);
+        if (!visited.has(signature)) choices.push({ candidate: walked, pull: false, signature });
+      }
+    }
+    if (!choices.length) break;
+    const totalWeight = choices.reduce((sum, choice) => sum + (choice.pull ? 5 : 1), 0);
+    let selectedWeight = integer(random, 1, totalWeight);
+    let selected = choices[0];
+    for (const choice of choices) {
+      selectedWeight -= choice.pull ? 5 : 1;
+      if (selectedWeight <= 0) {
+        selected = choice;
+        break;
+      }
+    }
+    candidate.voxels = selected.candidate.voxels;
+    visited.add(selected.signature);
+    if (selected.pull) pulls += 1;
+  }
+  return pulls;
+}
+
+function makeCandidateAttempt(configuration, random) {
   const { width, depth, layers } = configuration;
   const byRole = roleBlocks(configuration);
   validateRequiredBlocks(byRole);
@@ -475,6 +726,7 @@ function makeCandidate(configuration, random) {
   const staticClusterMaximum = Math.max(
     2, Math.min(8, Math.floor((width * depth) / 12)),
   );
+  const staticFamilyCount = Math.max(1, iceBlocks.length + structural.length);
   for (const ice of iceBlocks) {
     const clusterCount = integer(random, 2, staticClusterMaximum);
     for (let cluster = 0; cluster < clusterCount; cluster += 1) {
@@ -486,7 +738,9 @@ function makeCandidate(configuration, random) {
         blockRoles,
         floor,
         0,
-        initialStaticClusterSize(random, configuration, clusterCount),
+        initialStaticClusterSize(
+          random, configuration, clusterCount, staticFamilyCount,
+        ),
       );
     }
   }
@@ -502,30 +756,15 @@ function makeCandidate(configuration, random) {
         blockRoles,
         floor,
         1,
-        initialStaticClusterSize(random, configuration, clusterCount),
+        initialStaticClusterSize(
+          random, configuration, clusterCount, staticFamilyCount,
+        ),
       );
     }
   }
 
   if (configuration.evolveHoles) {
     carveInitialHoles(voxels, configuration, random, blockRoles, floor, iceBlocks);
-  }
-
-  const goalCells = [];
-  const goalCount = Math.min(
-    Math.max(1, configuration.collectibles ?? 1),
-    Math.max(1, (width - 2) * (depth - 2)),
-  );
-  for (let goalIndex = 0; goalIndex < goalCount; goalIndex += 1) {
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      const cell = randomInterior(random, width, depth);
-      if (goalCells.some((goalCell) => goalCell.x === cell.x && goalCell.y === cell.y)) continue;
-      const goalZ = highestSupport(voxels, cell.x, cell.y, layers, blockRoles) + 1;
-      if (goalZ <= 0 || goalZ > layers + 1) continue;
-      voxels.push({ ...cell, z: goalZ, blockId: choose(random, goals).id });
-      goalCells.push(cell);
-      break;
-    }
   }
 
   if (weightlessPushables.length) {
@@ -536,7 +775,7 @@ function makeCandidate(configuration, random) {
     // mutations can keep growing every object until the selected volume fills.
     const initialSizeTarget = Math.max(
       1,
-      Math.floor(((width - 2) * (depth - 2)) / Math.max(4, boxCount)),
+      Math.floor((width * depth) / Math.max(4, boxCount)),
     );
     for (let genericId = 0; genericId < boxCount; genericId += 1) {
       const placed = placeSupportedBox(
@@ -549,9 +788,7 @@ function makeCandidate(configuration, random) {
         blockRoles,
       );
       if (!placed.length) {
-        throw new Error(
-          `The selected volume cannot fit ${boxCount} distinct weightless polycubes.`,
-        );
+        return null;
       }
     }
   }
@@ -573,17 +810,9 @@ function makeCandidate(configuration, random) {
     }
   }
 
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const cell = randomInterior(random, width, depth);
-    const z = highestSupport(voxels, cell.x, cell.y, layers, blockRoles) + 1;
-    if (z <= 0 || z > layers + 1 ||
-        goalCells.some((goalCell) => cell.x === goalCell.x && cell.y === goalCell.y) ||
-        rigidVoxelAt(voxels, cell.x, cell.y, z, blockRoles)) {
-      continue;
-    }
-    voxels.push({ ...cell, z, blockId: player.id });
-    break;
-  }
+  if (!placeReachableObjectives(
+    voxels, configuration, random, blockRoles, player, goals,
+  )) return null;
 
   return {
     id: `candidate-${Date.now()}-${integer(random, 0, 0xFFFFFF).toString(16)}`,
@@ -600,6 +829,19 @@ function makeCandidate(configuration, random) {
     optimal: false,
     seed: configuration.seed,
   };
+}
+
+function makeCandidate(configuration, random) {
+  for (let restart = 0; restart < 80; restart += 1) {
+    const candidate = makeCandidateAttempt(configuration, random);
+    if (candidate) {
+      if (random() < 0.34) reverseScrambleCandidate(candidate, configuration, random);
+      return candidate;
+    }
+  }
+  throw new Error(
+    "Could not construct a connected playable candidate. Reduce terrain density or object count.",
+  );
 }
 
 function mutateCandidate(candidate, configuration, random) {
@@ -664,7 +906,7 @@ function mutateCandidate(candidate, configuration, random) {
         : shrinkStaticCluster(next.voxels, entity.members, random, floorBlock);
       if (changed) break;
     } else if (entity.kind === "holes") {
-      const cell = randomInterior(random, configuration.width, configuration.depth);
+      const cell = randomCell(random, configuration.width, configuration.depth);
       const existing = next.voxels.find((voxel) =>
         voxel.x === cell.x && voxel.y === cell.y && voxel.z === 0);
       if (existing && (existing.blockId === floorBlock.id ||
@@ -714,33 +956,37 @@ function mutateCandidate(candidate, configuration, random) {
       if (changed) break;
     } else if (entity.kind === "player") {
       const player = next.voxels.find((voxel) => voxel.blockId === playerBlock.id);
-      const cell = randomInterior(random, configuration.width, configuration.depth);
-      const z = highestSupport(
-        next.voxels,
-        cell.x,
-        cell.y,
-        configuration.layers,
-        blockRoles,
-        player,
-      ) + 1;
-      if (player && z > 0 && z <= configuration.layers + 1 &&
-          !next.voxels.some((voxel) => isCollectible(voxel, blockRoles) &&
-            voxel.x === cell.x && voxel.y === cell.y && voxel.z === z) &&
-          !rigidVoxelAt(next.voxels, cell.x, cell.y, z, blockRoles, player)) {
-        Object.assign(player, cell, { z });
+      const goals = next.voxels.filter((voxel) => isCollectible(voxel, blockRoles));
+      const components = player
+        ? walkableSurfaceCells(
+          next.voxels, configuration, blockRoles, new Set([player]),
+        )
+        : [];
+      const component = components.find((cells) => goals.every((goal) =>
+        cells.some((cell) => keyOf(cell) === keyOf(goal))));
+      const choices = component?.filter((cell) =>
+        !goals.some((goal) => keyOf(goal) === keyOf(cell))) ?? [];
+      if (player && choices.length) {
+        Object.assign(player, choose(random, choices));
         break;
       }
     } else if (entity.kind === "goal") {
+      const player = next.voxels.find((voxel) => voxel.blockId === playerBlock.id);
       const currentGoals = next.voxels.filter((voxel) => isCollectible(voxel, blockRoles));
-      const cell = randomInterior(random, configuration.width, configuration.depth);
-      const goalZ = highestSupport(
-        next.voxels, cell.x, cell.y, configuration.layers, blockRoles, entity.member,
-      ) + 1;
-      if (goalZ <= 0 || goalZ > configuration.layers + 1 ||
-          currentGoals.some((voxel) => voxel !== entity.member &&
-            voxel.x === cell.x && voxel.y === cell.y && voxel.z === goalZ)) continue;
-      Object.assign(entity.member, cell, { z: goalZ });
-      break;
+      const components = player
+        ? walkableSurfaceCells(
+          next.voxels, configuration, blockRoles, new Set([player]),
+        )
+        : [];
+      const component = components.find((cells) =>
+        cells.some((cell) => keyOf(cell) === keyOf(player)));
+      const choices = component?.filter((cell) =>
+        keyOf(cell) !== keyOf(player) && !currentGoals.some((goal) =>
+          goal !== entity.member && keyOf(goal) === keyOf(cell))) ?? [];
+      if (choices.length) {
+        Object.assign(entity.member, choose(random, choices));
+        break;
+      }
     }
   }
 
@@ -841,10 +1087,60 @@ async function evaluate(candidate, configuration, physics, codes) {
 
 function better(left, right) {
   if (!right) return true;
-  if (left.optimal !== right.optimal) return left.optimal;
+  const leftQuality = left.optimal ? 2 : left.limitHit ? 1 : 0;
+  const rightQuality = right.optimal ? 2 : right.limitHit ? 1 : 0;
+  if (leftQuality !== rightQuality) return leftQuality > rightQuality;
   if (left.optimal && left.moves !== right.moves) return left.moves > right.moves;
-  if (left.limitHit !== right.limitHit) return !left.limitHit;
   return left.expanded > right.expanded;
+}
+
+function evaluationSnapshot(candidate) {
+  return {
+    solution: [...candidate.solution],
+    moves: candidate.moves,
+    expanded: candidate.expanded,
+    generated: candidate.generated,
+    transpositions: candidate.transpositions,
+    nodesPerSecond: candidate.nodesPerSecond,
+    elapsedMs: candidate.elapsedMs,
+    optimal: candidate.optimal,
+    limitHit: candidate.limitHit,
+  };
+}
+
+function structuralNiche(candidate, configuration) {
+  const roles = new Map(configuration.blocks.map((block) => [block.id, block.roleId]));
+  const counts = new Map();
+  let maximumZ = 0;
+  for (const voxel of candidate.voxels) {
+    const role = roles.get(voxel.blockId) ?? "unknown";
+    counts.set(role, (counts.get(role) ?? 0) + 1);
+    maximumZ = Math.max(maximumZ, voxel.z);
+  }
+  const boxes = boxEntities(
+    candidate.voxels,
+    configuration.blocks.filter((block) =>
+      block.roleId === "pushable" || block.roleId === "weightless-pushable"),
+  );
+  const player = candidate.voxels.find((voxel) => roles.get(voxel.blockId) === "player");
+  const goals = candidate.voxels.filter((voxel) => roles.get(voxel.blockId) === "goal");
+  const endpointDistance = player && goals.length
+    ? Math.min(...goals.map((goal) =>
+      Math.abs(goal.x - player.x) + Math.abs(goal.y - player.y) +
+      Math.abs(goal.z - player.z)))
+    : 0;
+  const rowZeroTerrain = candidate.voxels.filter((voxel) => voxel.z === 0 &&
+    (roles.get(voxel.blockId) === "floor" || roles.get(voxel.blockId) === "ice")).length;
+  const holes = candidate.world.width * candidate.world.height - rowZeroTerrain;
+  return [
+    boxes.length,
+    Math.floor((counts.get("weightless-pushable") ?? 0) / 8),
+    Math.floor((counts.get("ice") ?? 0) / 8),
+    Math.floor((counts.get("solid") ?? 0) / 8),
+    Math.floor(holes / 4),
+    Math.floor(endpointDistance / 3),
+    Math.floor(maximumZ / 2),
+  ].join(":");
 }
 
 async function evolve(configuration) {
@@ -852,28 +1148,47 @@ async function evolve(configuration) {
   const codes = roleCodes(physics, configuration.roles);
   const random = mulberry32(configuration.seed);
   const populationSize = Math.max(4, Math.min(128, configuration.population));
-  let population = Array.from(
-    { length: populationSize },
-    () => makeCandidate(configuration, random),
-  );
+  let population = [];
+  const initialSignatures = new Set();
+  while (population.length < populationSize) {
+    const candidate = makeCandidate(configuration, random);
+    const signature = candidateSignature(candidate);
+    if (initialSignatures.has(signature)) continue;
+    initialSignatures.add(signature);
+    population.push(candidate);
+  }
   let best = null;
   let evaluated = 0;
+  let cacheHits = 0;
   let totalExpanded = 0;
   let totalElapsedMs = 0;
+  let stagnation = 0;
+  const evaluationCache = new Map();
 
   for (let generation = 1; generation <= configuration.generations; generation += 1) {
     if (stopped) return;
     const scored = [];
+    let generationImproved = false;
     for (let index = 0; index < population.length; index += 1) {
       if (stopped) return;
       try {
-        const result = await evaluate(population[index], configuration, physics, codes);
+        const signature = candidateSignature(population[index]);
+        let result;
+        const cached = evaluationCache.get(signature);
+        if (cached) {
+          result = { ...cloneCandidate(population[index]), ...cached, solution: [...cached.solution] };
+          cacheHits += 1;
+        } else {
+          result = await evaluate(population[index], configuration, physics, codes);
+          evaluationCache.set(signature, evaluationSnapshot(result));
+          evaluated += 1;
+          totalExpanded += result.expanded;
+          totalElapsedMs += result.elapsedMs;
+        }
         scored.push(result);
-        evaluated += 1;
-        totalExpanded += result.expanded;
-        totalElapsedMs += result.elapsedMs;
         if (better(result, best)) {
           best = cloneCandidate(result);
+          generationImproved = true;
           self.postMessage({ type: "best", candidate: best, generation, evaluated });
         }
       } catch {
@@ -887,25 +1202,75 @@ async function evolve(configuration) {
           evaluated,
           bestMoves: best?.optimal ? best.moves : 0,
           nodesPerSecond: Math.round(totalExpanded / Math.max(0.001, totalElapsedMs / 1000)),
+          cacheHits,
+          uniqueCandidates: evaluationCache.size,
+          stagnation,
         });
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
+    stagnation = generationImproved ? 0 : stagnation + 1;
     scored.sort((left, right) => better(left, right) ? -1 : better(right, left) ? 1 : 0);
-    const eliteCount = Math.max(1, Math.ceil(populationSize * 0.18));
-    const elites = scored.slice(0, eliteCount);
-    const next = elites.map(cloneCandidate);
+    if (best?.optimal && best.moves >= Math.max(1, configuration.targetMoves ?? 500)) {
+      break;
+    }
+    const eliteCount = Math.max(2, Math.min(scored.length, Math.ceil(populationSize * 0.1)));
+    const eliteIndices = [];
+    const retainedNiches = new Set();
+    const nicheSlots = Math.max(2, Math.floor(eliteCount / 3));
+    for (let index = 0; index < scored.length && eliteIndices.length < nicheSlots; index += 1) {
+      const niche = structuralNiche(scored[index], configuration);
+      if (retainedNiches.has(niche)) continue;
+      retainedNiches.add(niche);
+      eliteIndices.push(index);
+    }
+    for (let index = 0; index < scored.length && eliteIndices.length < eliteCount; index += 1) {
+      if (!eliteIndices.includes(index)) eliteIndices.push(index);
+    }
+    const elites = eliteIndices.map((index) => scored[index]);
+    const next = [];
+    const nextSignatures = new Set();
+    for (const elite of elites) {
+      const signature = candidateSignature(elite);
+      if (nextSignatures.has(signature)) continue;
+      nextSignatures.add(signature);
+      next.push(cloneCandidate(elite));
+    }
+    const immigrantCount = Math.max(
+      1,
+      stagnation > 40 ? Math.floor(populationSize / 5) : Math.floor(populationSize / 12),
+    );
+    while (next.length < populationSize - immigrantCount) {
+      if (!elites.length) break;
+      let accepted = null;
+      for (let attempt = 0; attempt < 16 && !accepted; attempt += 1) {
+        const globalParent = scored[integer(
+          random, 0, Math.min(scored.length, Math.max(eliteCount * 2, 2)) - 1,
+        )];
+        const nicheParent = choose(random, elites);
+        const parent = random() < 0.25 ? nicheParent :
+          better(globalParent, nicheParent) ? globalParent : nicheParent;
+        let child = cloneCandidate(parent);
+        const escape = stagnation > 20 && random() < 0.34;
+        const mutations = escape ? integer(random, 6, 18) : integer(random, 1, 5);
+        for (let mutation = 0; mutation < mutations; mutation += 1) {
+          child = mutateCandidate(child, configuration, random);
+        }
+        const signature = candidateSignature(child);
+        if (!nextSignatures.has(signature)) {
+          nextSignatures.add(signature);
+          accepted = child;
+        }
+      }
+      if (accepted) next.push(accepted);
+      else break;
+    }
     while (next.length < populationSize) {
-      if (!elites.length || random() < 0.12) {
-        next.push(makeCandidate(configuration, random));
-        continue;
-      }
-      let child = cloneCandidate(choose(random, elites));
-      const mutations = integer(random, 1, generation % 20 === 0 ? 7 : 4);
-      for (let mutation = 0; mutation < mutations; mutation += 1) {
-        child = mutateCandidate(child, configuration, random);
-      }
-      next.push(child);
+      const immigrant = makeCandidate(configuration, random);
+      const signature = candidateSignature(immigrant);
+      if (nextSignatures.has(signature)) continue;
+      nextSignatures.add(signature);
+      next.push(immigrant);
     }
     population = next;
   }
@@ -915,6 +1280,9 @@ async function evolve(configuration) {
     candidate: best,
     evaluated,
     nodesPerSecond: Math.round(totalExpanded / Math.max(0.001, totalElapsedMs / 1000)),
+    cacheHits,
+    uniqueCandidates: evaluationCache.size,
+    stagnation,
   });
 }
 
@@ -934,10 +1302,12 @@ if (typeof self !== "undefined") {
 
 export {
   boxEntities,
+  candidateSignature,
   exactBlockClusters,
   makeCandidate,
   mulberry32,
   mutateCandidate,
   shrinkGenericBox,
   shrinkStaticCluster,
+  reverseScrambleCandidate,
 };
