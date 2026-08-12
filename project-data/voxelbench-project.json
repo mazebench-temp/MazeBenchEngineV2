@@ -152,9 +152,9 @@
       "name": "Box + Ice"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "3d-box-ice",
-      "locked": false,
+      "locked": true,
       "name": "3D Box + Ice"
     }
   ],
