@@ -76,6 +76,34 @@ function simulateFrames(voxels, direction, world) {
   }
 }
 
+function simulateFinal(voxels, direction, world) {
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(
+    engine.memory.buffer,
+    engine.voxel_buffer(),
+    voxels.length * stride,
+  );
+  voxels.forEach((voxel, index) => {
+    buffer.set([
+      voxel.x,
+      voxel.y,
+      voxel.z,
+      blockRoles.get(voxel.blockId) ?? 0,
+      genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
+    ], index * stride);
+  });
+  assert.equal(
+    engine.simulate_turn(voxels.length, world.width, world.height, direction),
+    0,
+  );
+  return voxels.map((voxel, index) => ({
+    ...voxel,
+    x: buffer[index * stride],
+    y: buffer[index * stride + 1],
+    z: buffer[index * stride + 2],
+  }));
+}
+
 function identity(voxel) {
   return `${voxel.x},${voxel.y},${voxel.z}:${voxel.blockId}:${voxel.genericId ?? -1}`;
 }
@@ -133,6 +161,14 @@ for (const authoredTest of project.tests) {
         failures.push(
           `${quarterTurns * 90}°: missing ${summarize(difference.missing)} | ` +
           `unexpected ${summarize(difference.unexpected)}`,
+        );
+      }
+      const fastFinal = simulateFinal(start, quarterTurns, world);
+      const fastDifference = frameDifference(expected, fastFinal, world);
+      if (fastDifference.missing.length || fastDifference.unexpected.length) {
+        failures.push(
+          `${quarterTurns * 90}° fast final: missing ${summarize(fastDifference.missing)} | ` +
+          `unexpected ${summarize(fastDifference.unexpected)}`,
         );
       }
     }

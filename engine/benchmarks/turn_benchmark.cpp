@@ -15,7 +15,9 @@ uint32_t Role(const char* value) {
 }  // namespace
 
 int main() {
-  constexpr std::uint64_t kIterations = 20000000;
+  // Compact Sokoban search workload: clone six voxels, push one box through a
+  // flat Ice lane, and consume the resulting player/box coordinates.
+  constexpr std::uint64_t kIterations = 100000000;
   voxelbench::Voxel template_voxels[] = {
       {1, 6, 1, Role("player"), -1},
       {1, 5, 1, Role("pushable"), 0},
@@ -35,6 +37,9 @@ int main() {
   const auto elapsed = std::chrono::duration<double>(
       std::chrono::steady_clock::now() - started).count();
   const double commands_per_second = static_cast<double>(kIterations) / elapsed;
-  std::cout << "physics_turns_per_second=" << static_cast<std::uint64_t>(commands_per_second)
+  std::cout << "workload=flat_single_push_ice_lane"
+            << " iterations=" << kIterations
+            << " physics_turns_per_second="
+            << static_cast<std::uint64_t>(commands_per_second)
             << " elapsed_seconds=" << elapsed << " checksum=" << checksum << '\n';
 }

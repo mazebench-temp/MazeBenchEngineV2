@@ -9,6 +9,8 @@ clang++ \
   -std=c++20 \
   -O3 \
   -DNDEBUG \
+  -flto \
+  -march=native \
   -I"$project_root/engine/include" \
   "$project_root/engine/src/physics.cpp" \
   "$project_root/engine/benchmarks/turn_benchmark.cpp" \

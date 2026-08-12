@@ -42,7 +42,7 @@ Logical Z is stored sparsely and is unbounded in both directions. Empty-hole pai
 
 ## Physics roles and engine
 
-Physics roles are project data with a stable internal key plus an editable display name and description. Blocks reference a role key, so renaming a role does not disconnect existing blocks. New roles can be created in the editor; their behavior is added explicitly in `engine/src/physics.cpp`.
+Physics roles are project data with a stable internal key plus an editable display name and description. Blocks reference a role key, so renaming a role does not disconnect existing blocks. New roles can be created in the editor; their behavior is added explicitly in the focused C++ modules under `engine/src/physics/`.
 
 All movement, collision, room-boundary, pushing, and Ice rules live in the C++ engine. `apps/web/app/physicsEngine.ts` only transfers frame and role data into the compiled WebAssembly module and reads the resulting coordinates back.
 
