@@ -134,15 +134,15 @@
       "name": "Box + Hole"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "3d-boxes",
-      "locked": false,
+      "locked": true,
       "name": "3D Boxes"
     },
     {
       "collapsed": true,
       "id": "3d-box-hole",
-      "locked": false,
+      "locked": true,
       "name": "3D Box + Hole"
     },
     {
@@ -152,7 +152,7 @@
       "name": "Box + Ice"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "3d-box-ice",
       "locked": false,
       "name": "3D Box + Ice"
@@ -203690,6 +203690,12 @@
           },
           {
             "x": 6,
+            "y": 12,
+            "z": 2,
+            "blockId": "player"
+          },
+          {
+            "x": 6,
             "y": 13,
             "z": 0,
             "blockId": "floor"
@@ -203699,12 +203705,6 @@
             "y": 13,
             "z": 1,
             "blockId": "wall"
-          },
-          {
-            "x": 6,
-            "y": 13,
-            "z": 2,
-            "blockId": "player"
           },
           {
             "x": 6,

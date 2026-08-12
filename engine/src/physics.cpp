@@ -40,6 +40,8 @@ uint8_t g_mandatory_objects[kVoxelCapacity];
 uint8_t g_carried_objects[kVoxelCapacity];
 uint8_t g_rejected_carriers[kVoxelCapacity];
 uint8_t g_fell_objects[kVoxelCapacity];
+uint8_t g_object_falling[kVoxelCapacity];
+uint8_t g_pending_fall[kVoxelCapacity];
 int32_t g_carrier_parent[kVoxelCapacity];
 uint8_t g_object_gravity_armed[kVoxelCapacity];
 uint8_t g_component_objects[kVoxelCapacity];
@@ -156,6 +158,7 @@ int32_t CreateObject(uint8_t kind) {
   g_object_head[object] = -1;
   g_object_kind[object] = kind;
   g_object_gravity_armed[object] = 0;
+  g_object_falling[object] = 0;
   return object;
 }
 
@@ -696,6 +699,91 @@ bool ObjectHasCarrierBelow(
   return false;
 }
 
+void AdvanceUnmovedGravityOneStep(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  bool found_pending = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_pending_fall[object] = 0;
+    if (g_moving_objects[object] != 0 || g_carrier_parent[object] == -2 ||
+        !ObjectIsActive(voxels, object, width, height) ||
+        g_object_gravity_armed[object] == 0) {
+      continue;
+    }
+    if (ObjectHasDirectSupport(voxels, object, width, height)) {
+      g_object_falling[object] = 0;
+      continue;
+    }
+    if (g_object_falling[object] == 0) {
+      // Support loss starts a fall. Its first one-voxel displacement is
+      // proposed on the next synchronized movement tick.
+      g_object_falling[object] = 1;
+      continue;
+    }
+    g_pending_fall[object] = 1;
+    found_pending = true;
+  }
+  if (!found_pending) return;
+
+  // Falling bodies form simultaneous vertical proposals. A body may enter a
+  // cell vacated by another falling body, but never one retained this tick.
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_pending_fall[object] == 0) continue;
+      bool blocked = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        if (voxels[member].z == INT32_MIN) {
+          blocked = true;
+          break;
+        }
+        const int32_t occupant = FindVoxelAt(
+            voxels,
+            voxels[member].x,
+            voxels[member].y,
+            voxels[member].z - 1,
+            width,
+            height);
+        if (occupant < 0) continue;
+        const int32_t other = g_voxel_object[occupant];
+        if (other == object ||
+            (other >= 0 && g_pending_fall[other] != 0)) {
+          continue;
+        }
+        blocked = true;
+        break;
+      }
+      if (blocked) {
+        g_pending_fall[object] = 0;
+        g_object_falling[object] = 0;
+        changed = true;
+      }
+    }
+  }
+
+  bool moved = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_pending_fall[object] == 0) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      --voxels[member].z;
+    }
+    moved = true;
+  }
+  if (!moved) return;
+  BuildSpatialIndex(voxels, count, width, height);
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_pending_fall[object] != 0 &&
+        ObjectHasDirectSupport(voxels, object, width, height)) {
+      g_object_falling[object] = 0;
+    }
+  }
+}
+
 bool TranslateMovingObjects(
     Voxel* voxels,
     int32_t count,
@@ -844,6 +932,7 @@ bool TranslateMovingObjects(
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_fell_objects[object] != 0) g_mandatory_objects[object] = 0;
   }
+  AdvanceUnmovedGravityOneStep(voxels, count, width, height);
   return true;
 }
 
