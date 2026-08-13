@@ -65,6 +65,7 @@ type SearchProgress = {
   generation: number;
   generations: number;
   nodesPerSecond: number;
+  solverNodesPerSecond: number;
   solvesPerSecond: number;
   stagnation: number;
   uniqueCandidates: number;
@@ -107,6 +108,9 @@ const DEFAULT_OPTIONS: SearchOptions = {
   evolveHoles: true,
 };
 
+const SEARCH_VOXEL_CAPACITY = 4096;
+const SEARCH_COORDINATE_MAX = 32767;
+
 function finiteInteger(value: unknown, fallback: number) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
@@ -141,8 +145,12 @@ export function normalizeSearchLevels(
     if (!item || typeof item !== "object") return [];
     const candidate = item as Partial<SearchLevel>;
     if (!Array.isArray(candidate.voxels)) return [];
-    const width = clamp(finiteInteger(candidate.world?.width, 8), 3, 32);
-    const height = clamp(finiteInteger(candidate.world?.height, 8), 3, 32);
+    const width = clamp(
+      finiteInteger(candidate.world?.width, 8), 3, SEARCH_COORDINATE_MAX + 1,
+    );
+    const height = clamp(
+      finiteInteger(candidate.world?.height, 8), 3, SEARCH_COORDINATE_MAX + 1,
+    );
     const seenRigid = new Set<string>();
     const voxels = candidate.voxels.flatMap((raw) => {
       if (!raw || typeof raw !== "object") return [];
@@ -167,7 +175,7 @@ export function normalizeSearchLevels(
       name: String(candidate.name ?? "Saved evolved level"),
       createdAt: String(candidate.createdAt ?? new Date(0).toISOString()),
       world: { width, height, floorLayer: 0 },
-      layers: clamp(finiteInteger(candidate.layers, 3), 1, 16),
+      layers: clamp(finiteInteger(candidate.layers, 3), 1, SEARCH_COORDINATE_MAX),
       voxels,
       solution,
       moves: Math.max(0, finiteInteger(candidate.moves, solution.length)),
@@ -273,6 +281,7 @@ export default function SearchBench({
     generation: 0,
     generations: DEFAULT_OPTIONS.generations,
     nodesPerSecond: 0,
+    solverNodesPerSecond: 0,
     solvesPerSecond: 0,
     stagnation: 0,
     uniqueCandidates: 0,
@@ -341,9 +350,9 @@ export default function SearchBench({
 
   const updateOption = (key: Exclude<keyof SearchOptions, "evolveHoles">, value: string) => {
     const ranges: Record<Exclude<keyof SearchOptions, "evolveHoles">, [number, number]> = {
-      width: [4, 16],
-      depth: [4, 16],
-      layers: [1, 16],
+      width: [4, SEARCH_COORDINATE_MAX + 1],
+      depth: [4, SEARCH_COORDINATE_MAX + 1],
+      layers: [1, SEARCH_COORDINATE_MAX],
       collectibles: [1, 16],
       minWeightlessBoxes: [0, 32],
       maxWeightlessBoxes: [0, 32],
@@ -400,6 +409,12 @@ export default function SearchBench({
       onStatus(`Enable Player, Goal, and either Floor or Ice before searching · missing ${missing.join(", ")}`);
       return;
     }
+    const footprint = options.width * options.depth;
+    const minimumSceneVoxels = footprint + 1 + options.collectibles;
+    if (!Number.isSafeInteger(footprint) || minimumSceneVoxels > SEARCH_VOXEL_CAPACITY) {
+      onStatus(`${options.width}×${options.depth} needs at least ${minimumSceneVoxels.toLocaleString()} voxels · exact search supports ${SEARCH_VOXEL_CAPACITY.toLocaleString()} total scene voxels`);
+      return;
+    }
     workerRef.current?.terminate();
     const worker = new Worker("/search-worker.js", { type: "module" });
     workerRef.current = worker;
@@ -415,6 +430,7 @@ export default function SearchBench({
       generation: 0,
       generations: options.generations,
       nodesPerSecond: 0,
+      solverNodesPerSecond: 0,
       solvesPerSecond: 0,
       stagnation: 0,
       uniqueCandidates: 0,
@@ -444,6 +460,13 @@ export default function SearchBench({
         });
       } else if (message?.type === "done") {
         if (message.candidate) setBest(message.candidate as SearchLevel);
+        setProgress((current) => ({
+          ...current,
+          ...message,
+          generation: current.generation,
+          generations: current.generations,
+          evaluatorCount: current.evaluatorCount,
+        }));
         setRunning(false);
         workerRef.current = null;
         onStatus(message.candidate?.optimal
@@ -597,10 +620,11 @@ export default function SearchBench({
           <p>Every candidate is solved exactly in C++. Fitness maximizes the shortest proven command sequence.</p>
         </div>
         <div className="search-dimensions">
-          <label className="field"><span>Width</span><input type="number" min="4" max="16" value={options.width} disabled={running} onChange={(event) => updateOption("width", event.target.value)} /></label>
-          <label className="field"><span>Depth</span><input type="number" min="4" max="16" value={options.depth} disabled={running} onChange={(event) => updateOption("depth", event.target.value)} /></label>
-          <label className="field"><span>Rows above floor</span><input type="number" min="1" max="16" value={options.layers} disabled={running} onChange={(event) => updateOption("layers", event.target.value)} /></label>
+          <label className="field"><span>Width</span><input type="number" min="4" max={SEARCH_COORDINATE_MAX + 1} value={options.width} disabled={running} onChange={(event) => updateOption("width", event.target.value)} /></label>
+          <label className="field"><span>Depth</span><input type="number" min="4" max={SEARCH_COORDINATE_MAX + 1} value={options.depth} disabled={running} onChange={(event) => updateOption("depth", event.target.value)} /></label>
+          <label className="field"><span>Rows above floor</span><input type="number" min="1" max={SEARCH_COORDINATE_MAX} value={options.layers} disabled={running} onChange={(event) => updateOption("layers", event.target.value)} /></label>
         </div>
+        <small className="search-capacity-note">No 16-cell axis cap · dimensions may use any shape that fits the C++ solver&apos;s {SEARCH_VOXEL_CAPACITY.toLocaleString()}-voxel scene capacity.</small>
         <div className="search-dimensions">
           <label className="field"><span>Population</span><input type="number" min="4" max="1024" value={options.population} disabled={running} onChange={(event) => updateOption("population", event.target.value)} /></label>
           <label className="field"><span>Generations</span><input type="number" min="1" max="10000" value={options.generations} disabled={running} onChange={(event) => updateOption("generations", event.target.value)} /></label>
@@ -648,7 +672,8 @@ export default function SearchBench({
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
           <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached · {progress.solvesPerSecond}/sec</small></strong></article>
           <article><span>Solution length</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
-          <article><span>Aggregate search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} solvers</small></strong></article>
+          <article><span>C++ solver</span><strong>{formatRate(progress.solverNodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · average per worker</small></strong></article>
+          <article><span>End-to-end</span><strong>{formatRate(progress.nodesPerSecond)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} workers + evolution</small></strong></article>
         </div>
 
         <SolutionLengthChart history={solutionLengthHistory} running={running} />

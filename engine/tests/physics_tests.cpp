@@ -432,6 +432,46 @@ void TestExactSearchFindsShortestCommands() {
         "exact search should reconstruct both Up commands");
 }
 
+void TestFlatIceSearchKeepsExactCommandSemantics() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {2, 4, 1, Role("player"), -1},
+      {2, 4, 0, Role("floor"), -1},
+      {2, 3, 0, Role("ice"), -1},
+      {2, 2, 0, Role("ice"), -1},
+      {2, 1, 0, Role("ice"), -1},
+      {2, 0, 0, Role("floor"), -1},
+      {2, 0, 1, Role("goal"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 7, 5, 5, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 1,
+        "flat Ice search should preserve a complete slide as one command");
+  Check(result.solution_length == 1 && result.solution[0] == 0,
+        "flat Ice search should reconstruct the exact Up slide");
+}
+
+void TestMacroSearchSupportsBoardsWiderThanSixteen() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[22];
+  int32_t count = 0;
+  for (int32_t x = 0; x < 20; ++x) {
+    voxels[count++] = {x, 1, 0, Role("floor"), -1};
+  }
+  voxels[count++] = {1, 1, 1, Role("player"), -1};
+  voxels[count++] = {18, 1, 1, Role("goal"), -1};
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, count, 20, 4, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 17,
+        "macro search should support footprints wider than sixteen cells");
+  Check(result.solution_length == 17,
+        "wide-board search should reconstruct every exact command");
+}
+
 void TestMacroSearchCollapsesWalkingBeforePushes() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
@@ -734,6 +774,8 @@ int main() {
   TestFallingRiderDoesNotExtendItsCarriersAbyss();
   TestObjectAboveDescendingPlayerFallsInSameTick();
   TestExactSearchFindsShortestCommands();
+  TestFlatIceSearchKeepsExactCommandSemantics();
+  TestMacroSearchSupportsBoardsWiderThanSixteen();
   TestMacroSearchCollapsesWalkingBeforePushes();
   TestMacroSearchMatchesMazeBenchEngine3LongRoom();
   TestSearchPrunesPlayerGameOverBranches();
@@ -750,6 +792,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 28 C++ physics/search tests passed\n";
+  std::cout << "all 30 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

@@ -23,8 +23,12 @@ constexpr int32_t kHashCapacity = 131072;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
 constexpr int32_t kSearchGoalCapacity = 64;
-constexpr int32_t kMacroCellCapacity = 16 * 16;
+constexpr int32_t kMacroCellCapacity = kSearchVoxelCapacity;
 constexpr uint8_t kWalkOnlyDirection = 4;
+constexpr uint8_t kNoSupport = 0;
+constexpr uint8_t kFloorSupport = 1;
+constexpr uint8_t kIceSupport = 2;
+constexpr uint8_t kOtherSupport = 3;
 
 struct SearchNode {
   int16_t coordinates[kSearchDynamicEntityCapacity][3];
@@ -400,6 +404,135 @@ void BuildMacroSurface(
   }
 }
 
+bool BuildFlatStaticIceSurface(
+    SearchData* data,
+    int32_t width,
+    int32_t height,
+    int32_t player_z) {
+  const int64_t cell_count = static_cast<int64_t>(width) * height;
+  if (data->entity_count != 1 || data->player_entity != 0 ||
+      cell_count <= 0 || cell_count > kMacroCellCapacity) {
+    return false;
+  }
+  const int32_t cells = static_cast<int32_t>(cell_count);
+  for (int32_t cell = 0; cell < cells; ++cell) {
+    data->macro_occupants[cell] = -1;
+    data->macro_support[cell] = kNoSupport;
+  }
+  for (int32_t index = 0; index < data->count; ++index) {
+    const Voxel& voxel = data->scene[index];
+    if (index == data->player_index || voxel.role == kGoalRole) continue;
+    if (voxel.x < 0 || voxel.x >= width || voxel.y < 0 || voxel.y >= height) {
+      return false;
+    }
+    const int32_t cell = voxel.y * width + voxel.x;
+    if (voxel.z == player_z) {
+      if (data->macro_occupants[cell] >= 0) return false;
+      data->macro_occupants[cell] = static_cast<int16_t>(index);
+    } else if (voxel.z == player_z - 1) {
+      if (data->macro_support[cell] != kNoSupport) return false;
+      data->macro_support[cell] = voxel.role == kIceRole
+          ? kIceSupport
+          : voxel.role == HashRoleLiteral("floor")
+              ? kFloorSupport
+              : kOtherSupport;
+    } else {
+      // Falling onto lower geometry and raised terrain retain the general
+      // discrete tick engine. This fast path is deliberately flat and exact.
+      return false;
+    }
+  }
+  const Voxel& player = data->scene[data->player_index];
+  const int32_t player_cell = player.y * width + player.x;
+  if (data->macro_support[player_cell] == kNoSupport ||
+      data->macro_occupants[player_cell] >= 0) {
+    return false;
+  }
+  for (int32_t goal = 0; goal < data->goal_count; ++goal) {
+    const int32_t x = data->goal_coordinates[goal][0];
+    const int32_t y = data->goal_coordinates[goal][1];
+    if (x < 0 || x >= width || y < 0 || y >= height ||
+        data->goal_coordinates[goal][2] != player_z ||
+        data->macro_occupants[y * width + x] >= 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool AdvanceFlatStaticIce(
+    SearchData* data,
+    const SearchNode& parent,
+    int32_t width,
+    int32_t height,
+    int32_t direction) {
+  constexpr int32_t kDx[4] = {0, 1, 0, -1};
+  constexpr int32_t kDy[4] = {-1, 0, 1, 0};
+  const int32_t dx = kDx[direction];
+  const int32_t dy = kDy[direction];
+  int32_t x = DecodeCoordinate(parent.coordinates[data->player_entity][0]);
+  int32_t y = DecodeCoordinate(parent.coordinates[data->player_entity][1]);
+  const int32_t z = DecodeCoordinate(
+      parent.coordinates[data->player_entity][2]);
+  if (x < 0 || x >= width || y < 0 || y >= height) return false;
+  const int32_t from_x = x;
+  const int32_t from_y = y;
+  uint64_t collected_goals = parent.collected_goals;
+
+  auto can_enter = [&](int32_t next_x, int32_t next_y) {
+    return next_x >= 0 && next_x < width && next_y >= 0 && next_y < height &&
+        data->macro_occupants[next_y * width + next_x] < 0;
+  };
+  auto collect = [&] {
+    for (int32_t goal = 0; goal < data->goal_count; ++goal) {
+      if (data->goal_coordinates[goal][0] == x &&
+          data->goal_coordinates[goal][1] == y &&
+          data->goal_coordinates[goal][2] == z) {
+        collected_goals |= uint64_t{1} << goal;
+      }
+    }
+  };
+
+  int32_t next_x = x + dx;
+  int32_t next_y = y + dy;
+  if (!can_enter(next_x, next_y)) return false;
+  uint8_t support = data->macro_support[next_y * width + next_x];
+  if (support == kNoSupport) return false;
+  x = next_x;
+  y = next_y;
+
+  bool sliding = support == kIceSupport;
+  if (!sliding) {
+    next_x = x + dx;
+    next_y = y + dy;
+    sliding = can_enter(next_x, next_y) &&
+        data->macro_support[next_y * width + next_x] == kIceSupport;
+  }
+  while (sliding) {
+    next_x = x + dx;
+    next_y = y + dy;
+    if (!can_enter(next_x, next_y)) break;
+    support = data->macro_support[next_y * width + next_x];
+    if (support == kNoSupport) return false;
+    x = next_x;
+    y = next_y;
+    if (support != kIceSupport) break;
+  }
+  collect();
+  if (x == from_x && y == from_y && collected_goals == parent.collected_goals) {
+    return false;
+  }
+  for (int32_t entity = 0; entity < data->entity_count; ++entity) {
+    for (int32_t axis = 0; axis < 3; ++axis) {
+      data->candidate[entity][axis] = parent.coordinates[entity][axis];
+    }
+  }
+  EncodeCoordinate(x, &data->candidate[data->player_entity][0]);
+  EncodeCoordinate(y, &data->candidate[data->player_entity][1]);
+  data->candidate_collected_goals = collected_goals;
+  return true;
+}
+
 int32_t BuildWalkReachability(
     SearchData* data,
     int32_t width,
@@ -583,23 +716,30 @@ SearchResult SearchCommands(
     int32_t width,
     int32_t height,
     int32_t maximum_nodes,
-    int32_t node_count) {
+    int32_t node_count,
+    bool flat_static_ice) {
   SearchResult result{};
   for (int32_t head = 0; head < node_count; ++head) {
     const SearchNode& parent = data->nodes[head];
     if (parent.cost >= kSearchSolutionCapacity) continue;
     ++result.expanded;
     for (int32_t direction = 0; direction < 4; ++direction) {
-      LoadNode(data, parent);
-      const int32_t status = simulate_turn(
-          physics_workspace,
-          data->scene,
-          count,
-          width,
-          height,
-          direction);
-      if (status != 0 || !CaptureCandidate(data) ||
-          !CandidatePlayerIsActive(data, width, height)) continue;
+      if (flat_static_ice) {
+        if (!AdvanceFlatStaticIce(data, parent, width, height, direction)) {
+          continue;
+        }
+      } else {
+        LoadNode(data, parent);
+        const int32_t status = simulate_turn(
+            physics_workspace,
+            data->scene,
+            count,
+            width,
+            height,
+            direction);
+        if (status != 0 || !CaptureCandidate(data) ||
+            !CandidatePlayerIsActive(data, width, height)) continue;
+      }
       if (IsGoal(data)) {
         result.status = SearchStatus::kSolved;
         ReconstructCommandSolution(data, head, &result);
@@ -873,9 +1013,14 @@ SearchResult search_shortest(
       root_player.x == data->goal_coordinates[0][0] &&
       root_player.y == data->goal_coordinates[0][1] &&
       root_player.z == data->goal_coordinates[0][2];
+  const int64_t cell_count = static_cast<int64_t>(width) * height;
   const bool macro_compatible = !has_ice && data->goal_count == 1 &&
-      width <= 16 && height <= 16 && width * height <= kMacroCellCapacity &&
+      cell_count <= kMacroCellCapacity &&
       !player_starts_on_goal && SceneIsSettled(data, width, height);
+  const bool flat_static_ice = has_ice && !player_starts_on_goal &&
+      BuildFlatStaticIceSurface(
+          data, width, height, root_player.z) &&
+      SceneIsSettled(data, width, height);
   return macro_compatible
       ? SearchMacroMoves(
             data,
@@ -892,7 +1037,8 @@ SearchResult search_shortest(
             width,
             height,
             maximum_nodes,
-            node_count);
+            node_count,
+            flat_static_ice);
 }
 
 }  // namespace voxelbench

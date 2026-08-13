@@ -1,4 +1,6 @@
 const DIRECTION_NAMES = ["up", "right", "down", "left"];
+const SEARCH_VOXEL_CAPACITY = 4096;
+const SEARCH_COORDINATE_MAX = 32767;
 
 let stopped = false;
 let physicsPromise = null;
@@ -694,16 +696,27 @@ function carveInitialHoles(voxels, configuration, random, blockRoles, floorBlock
 function walkableSurfaceCells(voxels, configuration, blockRoles, ignored = null) {
   const cells = [];
   const byKey = new Map();
-  for (let z = 1; z <= configuration.layers; z += 1) {
-    for (let y = 0; y < configuration.depth; y += 1) {
-      for (let x = 0; x < configuration.width; x += 1) {
-        if (rigidVoxelAt(voxels, x, y, z, blockRoles, ignored) ||
-            !rigidVoxelAt(voxels, x, y, z - 1, blockRoles, ignored)) continue;
-        const cell = { x, y, z };
-        cells.push(cell);
-        byKey.set(keyOf(cell), cell);
-      }
-    }
+  const ignoredVoxels = ignored instanceof Set
+    ? ignored
+    : ignored
+      ? new Set([ignored])
+      : null;
+  const rigidKeys = new Set();
+  for (const voxel of voxels) {
+    if (ignoredVoxels?.has(voxel) || isCollectible(voxel, blockRoles)) continue;
+    rigidKeys.add(keyOf(voxel));
+  }
+  // Candidate surfaces exist only one voxel above rigid geometry. Enumerating
+  // those supports scales with authored voxels instead of width × depth ×
+  // vertical range, so tall sparse searches do not pay for empty space.
+  for (const support of voxels) {
+    if (ignoredVoxels?.has(support) || isCollectible(support, blockRoles)) continue;
+    const cell = { x: support.x, y: support.y, z: support.z + 1 };
+    const key = keyOf(cell);
+    if (cell.z < 1 || cell.z > configuration.layers || byKey.has(key) ||
+        rigidKeys.has(key)) continue;
+    cells.push(cell);
+    byKey.set(key, cell);
   }
   const components = [];
   const visited = new Set();
@@ -784,6 +797,46 @@ function placeReachableObjectives(
     voxels.push({ ...goalCell, blockId: choose(random, goalBlocks).id });
   }
   return true;
+}
+
+function relocateObjectives(
+  voxels,
+  configuration,
+  random,
+  blockRoles,
+  playerBlock,
+  goalBlocks,
+) {
+  const originals = voxels.filter((voxel) => {
+    const role = blockRoles.get(voxel.blockId);
+    return role === "player" || role === "goal";
+  });
+  if (!originals.length || !playerBlock || !goalBlocks.length) return false;
+  const originalSignature = originals.map((voxel) =>
+    `${voxel.blockId}:${keyOf(voxel)}`).sort().join("|");
+  for (const voxel of originals) voxels.splice(voxels.indexOf(voxel), 1);
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (placeReachableObjectives(
+      voxels,
+      configuration,
+      random,
+      blockRoles,
+      playerBlock,
+      goalBlocks,
+    )) {
+      const replacements = voxels.filter((voxel) => {
+        const role = blockRoles.get(voxel.blockId);
+        return role === "player" || role === "goal";
+      });
+      const replacementSignature = replacements.map((voxel) =>
+        `${voxel.blockId}:${keyOf(voxel)}`).sort().join("|");
+      if (replacementSignature !== originalSignature) return true;
+      for (const voxel of replacements) voxels.splice(voxels.indexOf(voxel), 1);
+    }
+  }
+  voxels.push(...originals);
+  return false;
 }
 
 function reverseWalkCandidate(
@@ -1107,6 +1160,8 @@ function mutateCandidate(candidate, configuration, random) {
   const floorBlock = firstRoleBlock(byRole, "floor");
   const iceBlocks = byRole.get("ice") ?? [];
   const startingSurface = floorBlock ?? iceBlocks[0];
+  const playerBlock = firstRoleBlock(byRole, "player");
+  const goalBlocks = byRole.get("goal") ?? [];
   const wallBlocks = byRole.get("solid") ?? [];
   const weightlessPushableBlocks = byRole.get("weightless-pushable") ?? [];
   const pushableBlocks = [
@@ -1130,9 +1185,10 @@ function mutateCandidate(candidate, configuration, random) {
     minimumWeightlessBoxes, configuration.maxWeightlessBoxes ?? 4,
   );
   // Like MBE3, walls collectively count as one entity and every individual
-  // box counts as one entity. Endpoints vary between immigrants rather than
-  // diluting the geometry mutation budget in every lineage.
+  // box counts as one entity. Unlike MBE3, endpoints are also a mutation
+  // entity so a strong lineage can continue improving its player/goal layout.
   const entities = [
+    { kind: "endpoints" },
     ...(wallBlocks.length ? [{ kind: "walls" }] : []),
     ...structureClusters.map((members) => ({ kind: "static", members })),
     ...iceClusters.map((members) => ({ kind: "static", members })),
@@ -1147,7 +1203,16 @@ function mutateCandidate(candidate, configuration, random) {
   const entity = choose(random, entities);
 
   for (let attempt = 0; attempt < 18; attempt += 1) {
-    if (entity.kind === "walls") {
+    if (entity.kind === "endpoints") {
+      if (relocateObjectives(
+        next.voxels,
+        configuration,
+        random,
+        blockRoles,
+        playerBlock,
+        goalBlocks,
+      )) break;
+    } else if (entity.kind === "walls") {
       if (mutateWallTerrain(
         next.voxels,
         wallBlocks,
@@ -1492,6 +1557,23 @@ function structuralNiche(candidate, configuration) {
 }
 
 async function evolve(configuration) {
+  const footprint = Number(configuration.width) * Number(configuration.depth);
+  const minimumSceneVoxels = footprint + 1 + Math.max(
+    1, configuration.collectibles ?? 1,
+  );
+  if (!Number.isSafeInteger(footprint) || footprint <= 0 ||
+      minimumSceneVoxels > SEARCH_VOXEL_CAPACITY) {
+    throw new Error(
+      `The ${configuration.width}×${configuration.depth} base plus player and gems requires at least ${minimumSceneVoxels.toLocaleString()} voxels; exact search currently supports ${SEARCH_VOXEL_CAPACITY.toLocaleString()} total scene voxels.`,
+    );
+  }
+  if (configuration.width - 1 > SEARCH_COORDINATE_MAX ||
+      configuration.depth - 1 > SEARCH_COORDINATE_MAX ||
+      configuration.layers > SEARCH_COORDINATE_MAX) {
+    throw new Error(
+      `Search coordinates currently range from 0 through ${SEARCH_COORDINATE_MAX.toLocaleString()} on each axis.`,
+    );
+  }
   const evaluationPool = createEvaluationPool(configuration);
   const random = mulberry32(configuration.seed);
   const populationSize = Math.max(4, Math.min(1024, configuration.population));
@@ -1508,6 +1590,7 @@ async function evolve(configuration) {
   let evaluated = 0;
   let cacheHits = 0;
   let totalExpanded = 0;
+  let totalSolverMs = 0;
   let stagnation = 0;
   const evaluationCache = new Map();
   const evolutionStartedAt = performance.now();
@@ -1531,6 +1614,9 @@ async function evolve(configuration) {
         evaluated,
         bestMoves: best?.optimal ? best.moves : 0,
         nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
+        solverNodesPerSecond: Math.round(
+          totalExpanded / Math.max(0.001, totalSolverMs / 1000),
+        ),
         solvesPerSecond: Math.round(evaluated / elapsedSeconds),
         cacheHits,
         uniqueCandidates: evaluationCache.size,
@@ -1563,6 +1649,7 @@ async function evolve(configuration) {
         evaluationCache.set(job.signature, evaluationSnapshot(result));
         evaluated += 1;
         totalExpanded += result.expanded;
+        totalSolverMs += result.elapsedMs;
       }
       record(job.index, result);
     });
@@ -1658,6 +1745,9 @@ async function evolve(configuration) {
     candidate: best,
     evaluated,
     nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
+    solverNodesPerSecond: Math.round(
+      totalExpanded / Math.max(0.001, totalSolverMs / 1000),
+    ),
     solvesPerSecond: Math.round(evaluated / elapsedSeconds),
     cacheHits,
     uniqueCandidates: evaluationCache.size,
@@ -1705,6 +1795,7 @@ export {
   makeCandidate,
   mulberry32,
   mutateCandidate,
+  relocateObjectives,
   shrinkGenericBox,
   shrinkStaticCluster,
   reverseScrambleCandidate,

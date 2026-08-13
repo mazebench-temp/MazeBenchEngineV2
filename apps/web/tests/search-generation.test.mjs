@@ -8,6 +8,7 @@ import {
   growGenericBox,
   makeCandidate,
   mulberry32,
+  relocateObjectives,
   reverseScrambleCandidate,
   shrinkGenericBox,
   shrinkStaticCluster,
@@ -191,6 +192,48 @@ test("Ice becomes the complete starting floor when Floor is disabled", () => {
   const base = candidate.voxels.filter((voxel) => voxel.z === 0);
   assert.equal(base.length, configuration.width * configuration.depth);
   assert.ok(base.every((voxel) => voxel.blockId === "ice"));
+});
+
+test("player and gem endpoints receive their own evolution mutation", () => {
+  const candidate = makeCandidate(configuration, mulberry32(809));
+  const blockRoles = new Map(blocks.map((block) => [block.id, block.roleId]));
+  const before = candidate.voxels.filter((voxel) =>
+    ["player", "goal"].includes(blockRoles.get(voxel.blockId)))
+    .map((voxel) => `${voxel.blockId}:${voxel.x},${voxel.y},${voxel.z}`)
+    .sort();
+  assert.equal(relocateObjectives(
+    candidate.voxels,
+    configuration,
+    mulberry32(810),
+    blockRoles,
+    blocks.find((block) => block.id === "player"),
+    [blocks.find((block) => block.id === "gem")],
+  ), true);
+  const after = candidate.voxels.filter((voxel) =>
+    ["player", "goal"].includes(blockRoles.get(voxel.blockId)))
+    .map((voxel) => `${voxel.blockId}:${voxel.x},${voxel.y},${voxel.z}`)
+    .sort();
+  assert.notDeepEqual(after, before);
+  assert.equal(after.length, 2);
+});
+
+test("very tall sparse search volumes do not enumerate empty layers", () => {
+  const sparseBlocks = blocks.filter((block) =>
+    ["floor", "player", "gem"].includes(block.id));
+  const candidate = makeCandidate({
+    ...configuration,
+    width: 4,
+    depth: 4,
+    layers: 1000,
+    minWeightlessBoxes: 0,
+    maxWeightlessBoxes: 0,
+    evolveHoles: false,
+    blocks: sparseBlocks,
+    enabledBlockIds: sparseBlocks.map((block) => block.id),
+    seed: 922,
+  }, mulberry32(922));
+  assert.equal(candidate.layers, 1000);
+  assert.ok(candidate.voxels.every((voxel) => voxel.z <= 1));
 });
 
 test("candidate signatures deduplicate reordered copies of the same board", () => {

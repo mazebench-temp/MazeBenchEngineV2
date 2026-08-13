@@ -92,4 +92,57 @@ int main() {
             << " complete_successors_per_second="
             << static_cast<std::uint64_t>(generated / seconds)
             << " elapsed_seconds=" << seconds << '\n';
+
+  voxelbench::Voxel ice_voxels[512];
+  int32_t ice_count = 0;
+  for (int32_t y = 0; y < 16; ++y) {
+    for (int32_t x = 0; x < 16; ++x) {
+      ice_voxels[ice_count++] = {x, y, 0, Role("ice"), -1};
+      const char cell = kRows[y][x];
+      if (cell == '#') {
+        ice_voxels[ice_count++] = {x, y, 1, Role("solid"), -1};
+      } else if (cell == '@') {
+        ice_voxels[ice_count++] = {x, y, 1, Role("player"), -1};
+      } else if (cell == 'X') {
+        ice_voxels[ice_count++] = {x, y, 1, Role("goal"), -1};
+      }
+    }
+  }
+
+  constexpr int32_t kIceIterations = 10000;
+  expanded = 0;
+  generated = 0;
+  solved = 0;
+  moves = 0;
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto ice_started = std::chrono::steady_clock::now();
+  for (int32_t iteration = 0; iteration < kIceIterations; ++iteration) {
+    const auto result = voxelbench::search_shortest(
+        &search_workspace,
+        &physics_workspace,
+        ice_voxels,
+        ice_count,
+        16,
+        16,
+        voxelbench::kSearchNodeCapacity);
+    expanded += static_cast<std::uint64_t>(result.expanded);
+    generated += static_cast<std::uint64_t>(result.generated);
+    solved += result.status == voxelbench::SearchStatus::kSolved ? 1 : 0;
+    moves += static_cast<std::uint64_t>(result.moves);
+  }
+  const double ice_seconds = std::chrono::duration<double>(
+      std::chrono::steady_clock::now() - ice_started).count();
+  std::cout << "workload=flat_static_ice_16x16"
+            << " solves=" << kIceIterations
+            << " solved=" << solved
+            << " average_moves=" << moves / kIceIterations
+            << " expanded=" << expanded
+            << " generated=" << generated
+            << " exact_solves_per_second="
+            << static_cast<std::uint64_t>(kIceIterations / ice_seconds)
+            << " expanded_nodes_per_second="
+            << static_cast<std::uint64_t>(expanded / ice_seconds)
+            << " complete_successors_per_second="
+            << static_cast<std::uint64_t>(generated / ice_seconds)
+            << " elapsed_seconds=" << ice_seconds << '\n';
 }
