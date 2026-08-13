@@ -134,7 +134,7 @@
     {
       "id": "ice-slope",
       "name": "Ice slope",
-      "color": "#72D7FF",
+      "color": "#90e3f4",
       "roleId": "ice",
       "occupancy": "solid",
       "visual": {
@@ -212,7 +212,7 @@
     {
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
-      "locked": true,
+      "locked": false,
       "name": "ICE SLOPES + 3D BOXES"
     }
   ],
@@ -20015,6 +20015,36 @@
       "name": "Untitled test 240 copy copy copy",
       "folderId": "ice-slopes-box",
       "file": "test-240-copy-2-copy-copy.json"
+    },
+    {
+      "id": "test-249",
+      "name": "Untitled test 249",
+      "folderId": "ice-slopes-3d-boxes",
+      "file": "test-249.json"
+    },
+    {
+      "id": "test-250",
+      "name": "Untitled test 250",
+      "folderId": "ice-slopes-3d-boxes",
+      "file": "test-250.json"
+    },
+    {
+      "id": "test-250-copy",
+      "name": "Untitled test 250 copy",
+      "folderId": "ice-slopes-3d-boxes",
+      "file": "test-250-copy.json"
+    },
+    {
+      "id": "test-250-copy-copy",
+      "name": "Untitled test 250 copy copy",
+      "folderId": "ice-slopes-3d-boxes",
+      "file": "test-250-copy-copy.json"
+    },
+    {
+      "id": "test-250-copy-copy-copy",
+      "name": "Untitled test 250 copy copy copy",
+      "folderId": "ice-slopes-3d-boxes",
+      "file": "test-250-copy-copy-copy.json"
     }
   ]
 }

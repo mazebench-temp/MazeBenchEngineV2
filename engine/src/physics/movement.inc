@@ -1044,6 +1044,26 @@ int32_t ObjectDownhillSlopeDirection(
   return downhill;
 }
 
+bool ObjectBridgesSlopeAndFlatIce(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  bool has_slope_support = false;
+  bool has_flat_ice_support = false;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const Voxel& voxel = voxels[member];
+    if (voxel.z == INT32_MIN) continue;
+    const int32_t support = FindVoxelAt(
+        voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+    if (support < 0 || g_voxel_object[support] == object) continue;
+    has_slope_support |= IsIceSlopeRole(voxels[support].role);
+    has_flat_ice_support |= voxels[support].role == kIceRole;
+  }
+  return has_slope_support && has_flat_ice_support;
+}
+
 bool ObjectProposalVacatesCell(
     Voxel* voxels,
     int32_t object,
@@ -1098,10 +1118,16 @@ bool AddAutonomousSlopeObjects(
     if (supports_player_target) continue;
     const int32_t downhill = ObjectDownhillSlopeDirection(
         voxels, object, width, height);
-    if (downhill < 0 || downhill != player_direction) continue;
+    if (downhill < 0 || downhill != player_direction ||
+        ObjectBridgesSlopeAndFlatIce(voxels, object, width, height)) {
+      // A rigid body bridging a wedge and level Ice has a stable level foot.
+      // It can still be deliberately pushed, but slope gravity alone cannot
+      // move it without changing its shape.
+      continue;
+    }
+    g_object_direction[object] = static_cast<uint8_t>(downhill);
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
-    g_object_direction[object] = static_cast<uint8_t>(downhill);
     added = true;
   }
 
@@ -1397,6 +1423,71 @@ bool ObjectProposalsSwap(
   return false;
 }
 
+void AddSlopeCarriedObjects(
+    Voxel* voxels,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  BuildCarriedObjects(voxels, player_index, false, width, height);
+  bool promoted = true;
+  while (promoted) {
+    promoted = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_carried_objects[object] == 0) continue;
+      if (g_object_falling[object] != 0 ||
+          g_object_direction[object] <= 3) {
+        // A body already committed to gravity or holding latent slope
+        // momentum keeps its own proposal as support departs. It is not a
+        // stationary rider to be dragged along the carrier's axis.
+        g_carried_objects[object] = 0;
+        g_moving_objects[object] = g_mandatory_objects[object];
+        g_carrier_parent[object] = -1;
+        continue;
+      }
+      if (g_mandatory_objects[object] != 0) {
+        continue;
+      }
+      const int32_t carrier = g_carrier_parent[object];
+      if (carrier < 0 || g_mandatory_objects[carrier] == 0) continue;
+      g_mandatory_objects[object] = 1;
+      g_moving_objects[object] = 1;
+      g_object_direction[object] = g_object_direction[carrier];
+      g_object_dx[object] = g_object_dx[carrier];
+      g_object_dy[object] = g_object_dy[carrier];
+      g_object_dz[object] = g_object_dz[carrier];
+      promoted = true;
+    }
+  }
+}
+
+void PreserveSlopeCarriedMomentum(
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
+  // Carried stacks continue only while the bottom carrier still has slippery
+  // support.  This avoids granting a rider an extra tick when the carrier has
+  // just reached Wall/Floor, while preserving a whole stack over continuing
+  // Ice (including a body partly supported by its moving carrier).
+  for (int32_t pass = 0; pass < g_object_count; ++pass) {
+    bool changed = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      const int32_t carrier = g_carrier_parent[object];
+      if (carrier < 0) continue;
+      const bool carrier_continues = carrier >= 0 &&
+          (ObjectIsFullyOnIce(voxels, carrier, width, height) ||
+           g_inherited_support_motion[carrier] != 0);
+      const uint8_t inherited = carrier_continues
+          ? static_cast<uint8_t>(g_object_direction[object] + 1)
+          : 0;
+      if (g_inherited_support_motion[object] != inherited) {
+        g_inherited_support_motion[object] = inherited;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+}
+
 // Directional slope motion is transactional at the object level. Each rigid
 // polycube owns its direction and vertical ramp delta; only a head-on contact
 // with a reflected body propagates that reflection through a touching convoy.
@@ -1534,6 +1625,12 @@ bool TranslateSlopeMomentumObjects(
           voxels, object, width, height, false, allow_push);
     }
   }
+
+  // Slope proposals can have a different vertical delta per object, so the
+  // ordinary uniform-delta carrier path cannot be used directly. Discover
+  // the same support graph, then copy each carrier's exact 3D proposal to its
+  // riders before validating the transaction.
+  AddSlopeCarriedObjects(voxels, player_index, width, height);
 
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_mandatory_objects[object] == 0 ||
@@ -1722,6 +1819,7 @@ bool TranslateSlopeMomentumObjects(
     return false;
   }
   BuildSpatialIndex(voxels, count, width, height);
+  PreserveSlopeCarriedMomentum(voxels, width, height);
   MarkObjectsForDeferredGravity(voxels, width, height, false);
   return true;
 }

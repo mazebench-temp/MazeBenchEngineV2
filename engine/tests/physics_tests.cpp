@@ -981,6 +981,43 @@ void TestCappedSearchDoesNotClaimAnOptimalProof() {
         "the same route should become exact when the full frontier is retained");
 }
 
+void TestSlopeCarrierMovesStationaryRider() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {1, 1, 3, Role("weightless-pushable"), 1},
+      {1, 1, 1, Role("ice-slope-down"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {1, 0, 0, Role("wall"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 8, 3, 3, 0) == 0,
+        "a command matching the slope's downhill direction should run");
+  Check(voxels[1].y == 0 && voxels[1].z == 1,
+        "the bottom body should descend the slope");
+  Check(voxels[2].y == 0 && voxels[2].z == 2,
+        "a stationary body resting on the slope mover should ride with it");
+}
+
+void TestSlopeAndFlatIceBridgeNeedsDeliberatePush() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 1, 2, Role("weightless-pushable"), 0},
+      {2, 1, 2, Role("weightless-pushable"), 0},
+      {2, 1, 1, Role("weightless-pushable"), 0},
+      {1, 1, 1, Role("ice-slope-down"), -1},
+      {2, 1, 0, Role("ice"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 9, 3, 3, 0) == 0,
+        "a command beside the mixed-support polycube should run");
+  Check(voxels[1].y == 1 && voxels[2].y == 1 && voxels[3].y == 1,
+        "a polycube bridging slope and flat Ice should remain stable without a push");
+}
+
 }  // namespace
 
 int main() {
@@ -1022,10 +1059,12 @@ int main() {
   TestSearchStoresLargePolycubeAsOneEntity();
   TestGeneralSearchChecksRaisedPolycubeCollisions();
   TestCappedSearchDoesNotClaimAnOptimalProof();
+  TestSlopeCarrierMovesStationaryRider();
+  TestSlopeAndFlatIceBridgeNeedsDeliberatePush();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 38 C++ physics/search tests passed\n";
+  std::cout << "all 40 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

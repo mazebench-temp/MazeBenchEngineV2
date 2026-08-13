@@ -742,6 +742,10 @@ TickResult step_tick(
             g_moving_objects[moving] = 0;
           }
         }
+        if (object_keeps_sliding) {
+          StoreMandatoryMomentum(
+              state, voxels, count, width, height, state->direction);
+        }
       } else {
         bool has_deferred = false;
         for (int32_t moving = 0; moving < g_object_count; ++moving) {
@@ -759,13 +763,12 @@ TickResult step_tick(
         }
         const bool deferred = has_deferred && PromoteDeferredSlopeMomentum(
             voxels, player_index, width, height);
-        object_keeps_sliding = deferred ||
-            MovingObjectsAreFullyOnIce(voxels, width, height);
-      }
-      if (object_keeps_sliding) {
-        if (downhill_underfoot_push) state->reserved[1] = 1;
-        StoreMandatoryMomentum(
+        (void)deferred;
+        object_keeps_sliding = StoreSupportedMandatoryMomentum(
             state, voxels, count, width, height, state->direction);
+      }
+      if (downhill_underfoot_push && object_keeps_sliding) {
+        state->reserved[1] = 1;
       }
       rode_pushed_object =
           MovePlayerWithRider(voxels, player_index, rider, width, height);
@@ -816,12 +819,9 @@ TickResult step_tick(
       if (translated) {
         const bool deferred = PromoteDeferredSlopeMomentum(
             voxels, player_index, width, height);
-        object_keeps_sliding = deferred || MovingObjectsAreFullyOnIce(
-            voxels, width, height);
-        if (object_keeps_sliding) {
-          StoreMandatoryMomentum(
-              state, voxels, count, width, height, state->direction);
-        }
+        (void)deferred;
+        object_keeps_sliding = StoreSupportedMandatoryMomentum(
+            state, voxels, count, width, height, state->direction);
       } else {
         const bool deferred = PromoteDeferredSlopeMomentum(
             voxels, player_index, width, height);
