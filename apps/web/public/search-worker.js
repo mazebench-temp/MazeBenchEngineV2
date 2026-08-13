@@ -167,8 +167,11 @@ function randomCell(random, width, depth) {
 }
 
 function validateRequiredBlocks(byRole) {
-  const missing = ["floor", "player", "goal"]
+  const missing = ["player", "goal"]
     .filter((role) => !firstRoleBlock(byRole, role));
+  if (!firstRoleBlock(byRole, "floor") && !firstRoleBlock(byRole, "ice")) {
+    missing.unshift("floor or ice");
+  }
   if (missing.length) {
     throw new Error(`Enable at least one ${missing.join(", ")} block before searching.`);
   }
@@ -952,10 +955,11 @@ function makeCandidateAttempt(configuration, random) {
   const { width, depth, layers } = configuration;
   const byRole = roleBlocks(configuration);
   validateRequiredBlocks(byRole);
-  const floor = firstRoleBlock(byRole, "floor");
   const player = firstRoleBlock(byRole, "player");
   const goals = byRole.get("goal") ?? [];
   const iceBlocks = byRole.get("ice") ?? [];
+  const floor = firstRoleBlock(byRole, "floor");
+  const startingSurface = floor ?? iceBlocks[0];
   const wallBlocks = byRole.get("solid") ?? [];
   const normalPushables = byRole.get("pushable") ?? [];
   const weightlessPushables = byRole.get("weightless-pushable") ?? [];
@@ -968,7 +972,7 @@ function makeCandidateAttempt(configuration, random) {
 
   for (let y = 0; y < depth; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      voxels.push({ x, y, z: 0, blockId: floor.id });
+      voxels.push({ x, y, z: 0, blockId: startingSurface.id });
     }
   }
 
@@ -989,7 +993,7 @@ function makeCandidateAttempt(configuration, random) {
         configuration,
         random,
         blockRoles,
-        floor,
+        startingSurface,
         0,
         initialStaticClusterSize(
           random, configuration, clusterCount, staticFamilyCount,
@@ -1007,7 +1011,7 @@ function makeCandidateAttempt(configuration, random) {
         configuration,
         random,
         blockRoles,
-        floor,
+        startingSurface,
         1,
         initialStaticClusterSize(
           random, configuration, clusterCount, staticFamilyCount,
@@ -1017,7 +1021,9 @@ function makeCandidateAttempt(configuration, random) {
   }
 
   if (configuration.evolveHoles) {
-    carveInitialHoles(voxels, configuration, random, blockRoles, floor, iceBlocks);
+    carveInitialHoles(
+      voxels, configuration, random, blockRoles, startingSurface, iceBlocks,
+    );
   }
 
   if (weightlessPushables.length) {
@@ -1100,6 +1106,7 @@ function mutateCandidate(candidate, configuration, random) {
   const byRole = roleBlocks(configuration);
   const floorBlock = firstRoleBlock(byRole, "floor");
   const iceBlocks = byRole.get("ice") ?? [];
+  const startingSurface = floorBlock ?? iceBlocks[0];
   const wallBlocks = byRole.get("solid") ?? [];
   const weightlessPushableBlocks = byRole.get("weightless-pushable") ?? [];
   const pushableBlocks = [
@@ -1147,7 +1154,7 @@ function mutateCandidate(candidate, configuration, random) {
         configuration,
         random,
         blockRoles,
-        floorBlock,
+        startingSurface,
       )) break;
     } else if (entity.kind === "static") {
       const changed = random() < 0.5
@@ -1157,13 +1164,13 @@ function mutateCandidate(candidate, configuration, random) {
           configuration,
           random,
           blockRoles,
-          floorBlock,
+          startingSurface,
         )
         : shrinkStaticCluster(
           next.voxels,
           entity.members,
           random,
-          floorBlock,
+          startingSurface,
           configuration,
           blockRoles,
         );
@@ -1172,11 +1179,11 @@ function mutateCandidate(candidate, configuration, random) {
       const cell = randomCell(random, configuration.width, configuration.depth);
       const existing = next.voxels.find((voxel) =>
         voxel.x === cell.x && voxel.y === cell.y && voxel.z === 0);
-      if (existing && (existing.blockId === floorBlock.id ||
+      if (existing && (existing.blockId === startingSurface.id ||
           iceBlocks.some((block) => block.id === existing.blockId))) {
         removeAt(next.voxels, cell.x, cell.y, 0);
       } else if (!existing) {
-        put(next.voxels, { ...cell, z: 0, blockId: floorBlock.id });
+        put(next.voxels, { ...cell, z: 0, blockId: startingSurface.id });
       } else {
         continue;
       }
@@ -1244,8 +1251,10 @@ function mutateCandidate(candidate, configuration, random) {
 
   // Floor is a plane-only material. This final guard also protects imported
   // candidates and future mutation operators.
-  next.voxels = next.voxels.filter((voxel) =>
-    voxel.blockId !== floorBlock.id || voxel.z === 0);
+  if (floorBlock) {
+    next.voxels = next.voxels.filter((voxel) =>
+      voxel.blockId !== floorBlock.id || voxel.z === 0);
+  }
   if (!dynamicsAreSettled(next.voxels, configuration, blockRoles, pushableBlocks)) {
     return cloneCandidate(candidate);
   }
@@ -1569,6 +1578,12 @@ async function evolve(configuration) {
       self.postMessage({ type: "best", candidate: best, generation, evaluated });
     }
     stagnation = generationImproved ? 0 : stagnation + 1;
+    self.postMessage({
+      type: "generation",
+      generation,
+      solutionLength: best?.optimal ? best.moves : 0,
+    });
+    reportProgress();
     scored.sort((left, right) => better(left, right) ? -1 : better(right, left) ? 1 : 0);
     if (best?.optimal && best.moves >= Math.max(1, configuration.targetMoves ?? 500)) {
       break;

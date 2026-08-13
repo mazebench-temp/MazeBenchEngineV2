@@ -86,6 +86,11 @@ type SearchOptions = {
   evolveHoles: boolean;
 };
 
+type SolutionLengthPoint = {
+  generation: number;
+  length: number;
+};
+
 const DEFAULT_OPTIONS: SearchOptions = {
   width: 8,
   depth: 8,
@@ -184,6 +189,72 @@ function DirectionGlyph({ direction }: { direction: SearchDirection }) {
   return <span aria-label={direction}>{({ up: "↑", right: "→", down: "↓", left: "←" })[direction]}</span>;
 }
 
+function SolutionLengthChart({
+  history,
+  running,
+}: {
+  history: SolutionLengthPoint[];
+  running: boolean;
+}) {
+  const width = 640;
+  const height = 128;
+  const left = 38;
+  const right = 12;
+  const top = 10;
+  const bottom = 22;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const lastGeneration = Math.max(1, history.at(-1)?.generation ?? 1);
+  const maximumLength = Math.max(0, ...history.map((point) => point.length));
+  const coordinate = (point: SolutionLengthPoint) => ({
+    x: left + (lastGeneration === 1
+      ? 0
+      : ((point.generation - 1) / (lastGeneration - 1)) * plotWidth),
+    y: top + plotHeight - (point.length / Math.max(1, maximumLength)) * plotHeight,
+  });
+  const line = history.map(coordinate).map(({ x, y }) => `${x},${y}`).join(" ");
+  const area = history.length
+    ? `${left},${top + plotHeight} ${line} ${coordinate(history.at(-1)!).x},${top + plotHeight}`
+    : "";
+  const latest = history.at(-1)?.length ?? 0;
+
+  return (
+    <section className="solution-length-chart" aria-label="Solution length history">
+      <header>
+        <div><span>EVOLUTION TRACE</span><strong>Solution length by generation</strong></div>
+        <em>{latest > 0 ? `${latest} commands` : running ? "Searching…" : history.length ? "No proven solution" : "No run yet"}</em>
+      </header>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={latest > 0
+        ? `Best proven solution length is ${latest} commands after generation ${lastGeneration}`
+        : `No proven solution after generation ${lastGeneration}`} preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="solution-history-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--cyan)" stopOpacity=".28" />
+            <stop offset="100%" stopColor="var(--cyan)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {[0, 0.5, 1].map((ratio) => {
+          const y = top + plotHeight * ratio;
+          const value = Math.round(maximumLength * (1 - ratio));
+          const label = maximumLength === 0
+            ? ratio === 1 ? "0" : ""
+            : maximumLength === 1 && ratio === 0.5 ? "" : String(value);
+          return <g key={ratio}><line className="chart-grid-line" x1={left} y1={y} x2={width - right} y2={y} /><text className="chart-axis-label" x={left - 7} y={y + 3} textAnchor="end">{label}</text></g>;
+        })}
+        <text className="chart-axis-label" x={left} y={height - 5}>GEN 1</text>
+        <text className="chart-axis-label" x={width - right} y={height - 5} textAnchor="end">GEN {lastGeneration}</text>
+        {history.length > 0 && <polygon className="chart-area" points={area} />}
+        {history.length > 1 && <polyline className="chart-line" points={line} />}
+        {history.map((point, index) => {
+          const { x, y } = coordinate(point);
+          const showPoint = history.length <= 40 || index === history.length - 1 || index % Math.ceil(history.length / 40) === 0;
+          return showPoint ? <circle className="chart-point" key={point.generation} cx={x} cy={y} r={index === history.length - 1 ? 3.2 : 1.8} /> : null;
+        })}
+      </svg>
+    </section>
+  );
+}
+
 export default function SearchBench({
   blocks,
   roles,
@@ -207,6 +278,7 @@ export default function SearchBench({
     uniqueCandidates: 0,
   });
   const [best, setBest] = useState<SearchLevel | null>(null);
+  const [solutionLengthHistory, setSolutionLengthHistory] = useState<SolutionLengthPoint[]>([]);
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"inspect" | "solution" | "play">("inspect");
   const [solutionFrames, setSolutionFrames] = useState<Array<{ voxels: SearchVoxel[] }>>([]);
@@ -320,9 +392,12 @@ export default function SearchBench({
     const enabledRoles = new Set(blocks
       .filter((block) => enabledBlockIds.includes(block.id))
       .map((block) => block.roleId));
-    const missing = ["floor", "player", "goal"].filter((role) => !enabledRoles.has(role));
+    const missing = ["player", "goal"].filter((role) => !enabledRoles.has(role));
+    if (!enabledRoles.has("floor") && !enabledRoles.has("ice")) {
+      missing.unshift("floor or ice");
+    }
     if (missing.length) {
-      onStatus(`Enable Floor, Player, and Goal blocks before searching · missing ${missing.join(", ")}`);
+      onStatus(`Enable Player, Goal, and either Floor or Ice before searching · missing ${missing.join(", ")}`);
       return;
     }
     workerRef.current?.terminate();
@@ -330,6 +405,7 @@ export default function SearchBench({
     workerRef.current = worker;
     setRunning(true);
     setBest(null);
+    setSolutionLengthHistory([]);
     setSelectedSavedId(null);
     setProgress({
       bestMoves: 0,
@@ -353,6 +429,19 @@ export default function SearchBench({
           : `New search-effort record · ${message.candidate.expanded} nodes explored`);
       } else if (message?.type === "progress") {
         setProgress(message as SearchProgress);
+      } else if (message?.type === "generation") {
+        const point = {
+          generation: finiteInteger(message.generation, 0),
+          length: Math.max(0, finiteInteger(message.solutionLength, 0)),
+        };
+        setSolutionLengthHistory((current) => {
+          if (point.generation <= 0) return current;
+          const previous = current.at(-1);
+          if (previous?.generation === point.generation) {
+            return [...current.slice(0, -1), point];
+          }
+          return [...current, point];
+        });
       } else if (message?.type === "done") {
         if (message.candidate) setBest(message.candidate as SearchLevel);
         setRunning(false);
@@ -537,7 +626,7 @@ export default function SearchBench({
           <span><b>Evolve holes in the floor</b><small>Empty Row-0 cells become bottomless voids; this terrain gets equal mutation opportunity.</small></span>
         </label>
         <div className="search-blocks">
-          <div><strong>Blocks allowed in evolution</strong><small>Floor is enforced at Row 0; other enabled blocks may populate the 3D volume.</small></div>
+          <div><strong>Blocks allowed in evolution</strong><small>Floor stays on Row 0. If Floor is off, enabled Ice fills the starting Row-0 plane.</small></div>
           {blocks.map((block) => (
             <label key={block.id} className="search-block-toggle" htmlFor={`search-block-${block.id}`} aria-label={`Allow ${block.name} in evolution`}>
               <input id={`search-block-${block.id}`} type="checkbox" checked={enabledBlockIds.includes(block.id)} disabled={running} onChange={() => toggleBlock(block.id)} />
@@ -558,9 +647,11 @@ export default function SearchBench({
         <div className="search-metrics">
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
           <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached · {progress.solvesPerSecond}/sec</small></strong></article>
-          <article><span>Best optimum</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
+          <article><span>Solution length</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
           <article><span>Aggregate search</span><strong>{formatRate(progress.nodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} solvers</small></strong></article>
         </div>
+
+        <SolutionLengthChart history={solutionLengthHistory} running={running} />
 
         <section className="search-stage">
           <div className="search-stage-toolbar">

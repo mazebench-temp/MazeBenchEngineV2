@@ -175,6 +175,24 @@ test("Ice-only 16-row seeds are dense and begin with a reachable gem", () => {
   assert.ok(reachable.has(`${gem.x},${gem.y},${gem.z}`));
 });
 
+test("Ice becomes the complete starting floor when Floor is disabled", () => {
+  const iceFloorBlocks = blocks.filter((block) =>
+    ["ice", "player", "gem"].includes(block.id));
+  const candidate = makeCandidate({
+    ...configuration,
+    layers: 1,
+    minWeightlessBoxes: 0,
+    maxWeightlessBoxes: 0,
+    evolveHoles: false,
+    blocks: iceFloorBlocks,
+    enabledBlockIds: iceFloorBlocks.map((block) => block.id),
+    seed: 415,
+  }, mulberry32(415));
+  const base = candidate.voxels.filter((voxel) => voxel.z === 0);
+  assert.equal(base.length, configuration.width * configuration.depth);
+  assert.ok(base.every((voxel) => voxel.blockId === "ice"));
+});
+
 test("candidate signatures deduplicate reordered copies of the same board", () => {
   const candidate = makeCandidate(configuration, mulberry32(19));
   const reordered = {
