@@ -7,11 +7,14 @@ import {
   selectConnectedVoxelGroup,
   toggleVoxelGroupSelection,
 } from "../app/voxelGroups.mjs";
+import { cellObjectSelectionKey } from "../app/cellObjects.mjs";
 
 const voxel = (x, y, z, blockId = "crate", genericId) =>
   genericId === undefined
     ? { x, y, z, blockId }
     : { x, y, z, blockId, genericId };
+
+const selectionKeys = (voxels) => voxels.map(cellObjectSelectionKey);
 
 test("selects only the six-neighbor component of the same exact type", () => {
   const voxels = [
@@ -25,7 +28,19 @@ test("selects only the six-neighbor component of the same exact type", () => {
 
   assert.deepEqual(
     new Set(selectConnectedVoxelGroup(voxels, { x: 1, y: 1, z: 0 })),
-    new Set(["1,1,0", "2,1,0", "2,1,1"]),
+    new Set(selectionKeys(voxels.slice(0, 3))),
+  );
+});
+
+test("connected selection separates authored state and variant values", () => {
+  const first = { ...voxel(1, 1, 0, "switch"), stateId: 0, variantId: 2 };
+  const same = { ...voxel(2, 1, 0, "switch"), stateId: 0, variantId: 2 };
+  const otherState = { ...voxel(3, 1, 0, "switch"), stateId: 1, variantId: 2 };
+  const otherVariant = { ...voxel(1, 2, 0, "switch"), stateId: 0, variantId: 3 };
+
+  assert.deepEqual(
+    new Set(selectConnectedVoxelGroup([first, same, otherState, otherVariant], first)),
+    new Set(selectionKeys([first, same])),
   );
 });
 
@@ -48,7 +63,7 @@ test("clicking an already selected group deselects only that group", () => {
 test("deletes every selected voxel while preserving unselected groups", () => {
   const result = removeSelectedVoxels(
     [voxel(1, 1, 0), voxel(1, 1, 1), voxel(4, 4, 0, "wall")],
-    ["1,1,0", "1,1,1"],
+    selectionKeys([voxel(1, 1, 0), voxel(1, 1, 1)]),
   );
 
   assert.equal(result.removedCount, 2);
@@ -58,28 +73,32 @@ test("deletes every selected voxel while preserving unselected groups", () => {
 test("moves a selected 3D component one horizontal cell", () => {
   const result = moveVoxelGroup(
     [voxel(1, 1, 0), voxel(1, 1, 1), voxel(4, 4, 0, "wall")],
-    ["1,1,0", "1,1,1"],
+    selectionKeys([voxel(1, 1, 0), voxel(1, 1, 1)]),
     1,
     0,
     { width: 6, height: 6 },
   );
 
   assert.equal(result.moved, true);
-  assert.deepEqual(new Set(result.selectedKeys), new Set(["2,1,0", "2,1,1"]));
+  assert.deepEqual(new Set(result.selectedKeys), new Set(selectionKeys([
+    voxel(2, 1, 0), voxel(2, 1, 1),
+  ])));
   assert.deepEqual(result.voxels, [voxel(2, 1, 0), voxel(2, 1, 1), voxel(4, 4, 0, "wall")]);
 });
 
 test("moves multiple disconnected selected groups together", () => {
   const result = moveVoxelGroup(
     [voxel(1, 1, 0, "crate"), voxel(3, 3, 0, "generic", 9), voxel(5, 5, 0, "wall")],
-    ["1,1,0", "3,3,0"],
+    selectionKeys([voxel(1, 1, 0, "crate"), voxel(3, 3, 0, "generic", 9)]),
     1,
     0,
     { width: 7, height: 7 },
   );
 
   assert.equal(result.moved, true);
-  assert.deepEqual(new Set(result.selectedKeys), new Set(["2,1,0", "4,3,0"]));
+  assert.deepEqual(new Set(result.selectedKeys), new Set(selectionKeys([
+    voxel(2, 1, 0, "crate"), voxel(4, 3, 0, "generic", 9),
+  ])));
   assert.deepEqual(result.voxels, [
     voxel(2, 1, 0, "crate"),
     voxel(4, 3, 0, "generic", 9),
@@ -90,31 +109,33 @@ test("moves multiple disconnected selected groups together", () => {
 test("raises and lowers a selected group on unbounded Z", () => {
   const raised = moveVoxelGroup(
     [voxel(2, 2, 0), voxel(2, 2, 1), voxel(4, 4, 0, "wall")],
-    ["2,2,0", "2,2,1"],
+    selectionKeys([voxel(2, 2, 0), voxel(2, 2, 1)]),
     0,
     0,
     { width: 6, height: 6 },
     1,
   );
   assert.equal(raised.moved, true);
-  assert.deepEqual(new Set(raised.selectedKeys), new Set(["2,2,1", "2,2,2"]));
+  assert.deepEqual(new Set(raised.selectedKeys), new Set(selectionKeys([
+    voxel(2, 2, 1), voxel(2, 2, 2),
+  ])));
 
   const lowered = moveVoxelGroup(
     [voxel(2, 2, 0)],
-    ["2,2,0"],
+    selectionKeys([voxel(2, 2, 0)]),
     0,
     0,
     { width: 6, height: 6 },
     -1,
   );
   assert.equal(lowered.moved, true);
-  assert.deepEqual(lowered.selectedKeys, ["2,2,-1"]);
+  assert.deepEqual(lowered.selectedKeys, selectionKeys([voxel(2, 2, -1)]));
 });
 
 test("vertical group movement is blocked by an unselected cube", () => {
   const result = moveVoxelGroup(
     [voxel(2, 2, 0), voxel(2, 2, 1, "wall")],
-    ["2,2,0"],
+    selectionKeys([voxel(2, 2, 0)]),
     0,
     0,
     { width: 6, height: 6 },
@@ -126,7 +147,7 @@ test("vertical group movement is blocked by an unselected cube", () => {
 
 test("does not move a group beyond the room edge", () => {
   const voxels = [voxel(0, 1, 0), voxel(0, 1, 1)];
-  const result = moveVoxelGroup(voxels, ["0,1,0", "0,1,1"], -1, 0, { width: 6, height: 6 });
+  const result = moveVoxelGroup(voxels, selectionKeys(voxels), -1, 0, { width: 6, height: 6 });
 
   assert.equal(result.moved, false);
   assert.deepEqual(result.voxels, voxels);
@@ -134,8 +155,25 @@ test("does not move a group beyond the room edge", () => {
 
 test("does not move a group into an unselected voxel", () => {
   const voxels = [voxel(1, 1, 0), voxel(2, 1, 0, "wall")];
-  const result = moveVoxelGroup(voxels, ["1,1,0"], 1, 0, { width: 6, height: 6 });
+  const result = moveVoxelGroup(voxels, selectionKeys([voxels[0]]), 1, 0, { width: 6, height: 6 });
 
   assert.equal(result.moved, false);
   assert.deepEqual(result.voxels, voxels);
+});
+
+test("moves a solid body onto a sensor without deleting either occupant", () => {
+  const body = { ...voxel(1, 1, 1, "crate"), instanceId: "body" };
+  const sensor = { ...voxel(2, 1, 1, "goal"), instanceId: "sensor" };
+  const result = moveVoxelGroup(
+    [body, sensor],
+    [cellObjectSelectionKey(body)],
+    1,
+    0,
+    { width: 6, height: 6 },
+    0,
+    new Set(["goal"]),
+  );
+
+  assert.equal(result.moved, true);
+  assert.deepEqual(result.voxels, [{ ...body, x: 2 }, sensor]);
 });

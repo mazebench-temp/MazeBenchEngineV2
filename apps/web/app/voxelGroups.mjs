@@ -1,4 +1,6 @@
-/** @typedef {{ x: number, y: number, z: number, blockId: string, genericId?: number }} Voxel */
+import { cellObjectSelectionKey } from "./cellObjects.mjs";
+
+/** @typedef {{ x: number, y: number, z: number, blockId: string, genericId?: number, groupId?: number, instanceId?: string, stateId?: number, variantId?: number, orientation?: string }} Voxel */
 /** @typedef {{ width: number, height: number }} HorizontalWorld */
 
 const FACE_NEIGHBORS = [
@@ -19,31 +21,54 @@ export function voxelCoordinateKey(voxel) {
 
 /**
  * Selects the complete six-neighbor component containing `origin`. "Exact
- * type" includes the generic object ID, so adjacent numbered polycubes remain
- * independently selectable.
+ * type" includes group, variant, state, and orientation, so adjacent authored
+ * mechanisms and numbered polycubes remain independently selectable.
  *
  * @param {Voxel[]} voxels
  * @param {{ x: number, y: number, z: number }} origin
  * @returns {string[]}
  */
-export function selectConnectedVoxelGroup(voxels, origin) {
-  const voxelsByCoordinate = new Map(voxels.map((voxel) => [voxelCoordinateKey(voxel), voxel]));
-  const first = voxelsByCoordinate.get(voxelCoordinateKey(origin));
+export function selectConnectedVoxelGroup(voxels, origin, shareableBlockIds = new Set()) {
+  const voxelsByCoordinate = new Map();
+  for (const voxel of voxels) {
+    const key = voxelCoordinateKey(voxel);
+    const occupants = voxelsByCoordinate.get(key) ?? [];
+    occupants.push(voxel);
+    voxelsByCoordinate.set(key, occupants);
+  }
+  const originOccupants = voxelsByCoordinate.get(voxelCoordinateKey(origin)) ?? [];
+  const first = originOccupants.find((voxel) => !shareableBlockIds.has(voxel.blockId)) ??
+    originOccupants.at(-1);
   if (!first) return [];
 
-  const genericId = Number.isInteger(first.genericId) ? first.genericId : -1;
-  const selected = new Set([voxelCoordinateKey(first)]);
+  const groupId = Number.isInteger(first.groupId)
+    ? first.groupId
+    : Number.isInteger(first.genericId) ? first.genericId : -1;
+  const variantId = Number.isInteger(first.variantId) ? first.variantId : 0;
+  const stateId = Number.isInteger(first.stateId) ? first.stateId : 0;
+  const orientation = String(first.orientation ?? "none");
+  const selected = new Set([cellObjectSelectionKey(first)]);
   const pending = [first];
 
   while (pending.length) {
     const voxel = pending.pop();
     if (!voxel) break;
     for (const [dx, dy, dz] of FACE_NEIGHBORS) {
-      const neighbor = voxelsByCoordinate.get(`${voxel.x + dx},${voxel.y + dy},${voxel.z + dz}`);
-      if (!neighbor || selected.has(voxelCoordinateKey(neighbor))) continue;
-      const neighborGenericId = Number.isInteger(neighbor.genericId) ? neighbor.genericId : -1;
-      if (neighbor.blockId !== first.blockId || neighborGenericId !== genericId) continue;
-      selected.add(voxelCoordinateKey(neighbor));
+      const candidates = voxelsByCoordinate.get(
+        `${voxel.x + dx},${voxel.y + dy},${voxel.z + dz}`,
+      ) ?? [];
+      const neighbor = candidates.find((candidate) => {
+        const candidateGroupId = Number.isInteger(candidate.groupId)
+          ? candidate.groupId
+          : Number.isInteger(candidate.genericId) ? candidate.genericId : -1;
+        return candidate.blockId === first.blockId && candidateGroupId === groupId &&
+          (Number.isInteger(candidate.variantId) ? candidate.variantId : 0) === variantId &&
+          (Number.isInteger(candidate.stateId) ? candidate.stateId : 0) === stateId &&
+          String(candidate.orientation ?? "none") === orientation &&
+          !selected.has(cellObjectSelectionKey(candidate));
+      });
+      if (!neighbor) continue;
+      selected.add(cellObjectSelectionKey(neighbor));
       pending.push(neighbor);
     }
   }
@@ -87,7 +112,7 @@ export function toggleVoxelGroupSelection(currentCoordinateKeys, groupCoordinate
  */
 export function removeSelectedVoxels(voxels, selectedCoordinateKeys) {
   const selected = new Set(selectedCoordinateKeys);
-  const remaining = voxels.filter((voxel) => !selected.has(voxelCoordinateKey(voxel)));
+  const remaining = voxels.filter((voxel) => !selected.has(cellObjectSelectionKey(voxel)));
   return {
     removedCount: voxels.length - remaining.length,
     voxels: remaining.map((voxel) => ({ ...voxel })),
@@ -106,16 +131,26 @@ export function removeSelectedVoxels(voxels, selectedCoordinateKeys) {
  * @param {number} [dz]
  * @returns {{ moved: boolean, selectedKeys: string[], voxels: Voxel[] }}
  */
-export function moveVoxelGroup(voxels, selectedCoordinateKeys, dx, dy, world, dz = 0) {
+export function moveVoxelGroup(
+  voxels,
+  selectedCoordinateKeys,
+  dx,
+  dy,
+  world,
+  dz = 0,
+  shareableBlockIds = new Set(),
+) {
   const selected = new Set(selectedCoordinateKeys);
-  const moving = voxels.filter((voxel) => selected.has(voxelCoordinateKey(voxel)));
+  const moving = voxels.filter((voxel) => selected.has(cellObjectSelectionKey(voxel)));
   if (!moving.length || (dx === 0 && dy === 0 && dz === 0)) {
     return { moved: false, selectedKeys: [...selected], voxels: voxels.map((voxel) => ({ ...voxel })) };
   }
 
-  const stationaryCoordinates = new Set(
+  const stationarySolidCoordinates = new Set(
     voxels
-      .filter((voxel) => !selected.has(voxelCoordinateKey(voxel)))
+      .filter((voxel) =>
+        !selected.has(cellObjectSelectionKey(voxel)) &&
+        !shareableBlockIds.has(voxel.blockId))
       .map(voxelCoordinateKey),
   );
   const destinations = moving.map((voxel) => ({
@@ -129,18 +164,19 @@ export function moveVoxelGroup(voxels, selectedCoordinateKeys, dx, dy, world, dz
     voxel.x >= world.width ||
     voxel.y < 0 ||
     voxel.y >= world.height ||
-    stationaryCoordinates.has(voxelCoordinateKey(voxel)),
+    (!shareableBlockIds.has(voxel.blockId) &&
+      stationarySolidCoordinates.has(voxelCoordinateKey(voxel))),
   );
   if (blocked) {
     return { moved: false, selectedKeys: [...selected], voxels: voxels.map((voxel) => ({ ...voxel })) };
   }
 
   const movedBySource = new Map(
-    moving.map((voxel, index) => [voxelCoordinateKey(voxel), destinations[index]]),
+    moving.map((voxel, index) => [cellObjectSelectionKey(voxel), destinations[index]]),
   );
   return {
     moved: true,
-    selectedKeys: destinations.map(voxelCoordinateKey),
-    voxels: voxels.map((voxel) => movedBySource.get(voxelCoordinateKey(voxel)) ?? { ...voxel }),
+    selectedKeys: destinations.map(cellObjectSelectionKey),
+    voxels: voxels.map((voxel) => movedBySource.get(cellObjectSelectionKey(voxel)) ?? { ...voxel }),
   };
 }

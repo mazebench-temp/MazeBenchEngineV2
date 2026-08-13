@@ -34,6 +34,16 @@ import {
 import { deleteTestCase } from "./testSuite.mjs";
 import { enforceFloorLayer, selectionContainsFloor } from "./floorLayer.mjs";
 import {
+  OCCUPANCY_PROFILES,
+  blockCanShareCell,
+  cellObjectSelectionKey,
+  cellObjectSemanticKey,
+  diffObjectMultisets,
+  eraseOneObjectAtCell,
+  normalizeOccupancyProfile,
+  placeObjectInCell,
+} from "./cellObjects.mjs";
+import {
   shouldShowResultComparison,
   traceFrameLabel,
 } from "./resultTrace.mjs";
@@ -42,6 +52,11 @@ import {
   offsetTimelineSelection,
   previousExpectedFrame,
 } from "./timelineFrames.mjs";
+import {
+  normalizeSlopeDirection,
+  offsetSlopeDirection,
+  slopeDirectionIndex,
+} from "./visualVariants.mjs";
 
 type Direction = "up" | "down" | "left" | "right";
 type FrameKind = "start" | "expected";
@@ -58,15 +73,36 @@ type BlockDefinition = {
   name: string;
   color: string;
   roleId: string;
+  occupancy: OccupancyProfile;
+  visual: BlockVisualDefinition;
 };
 
-type StoredBlockDefinition = Omit<BlockDefinition, "roleId"> & {
+type OccupancyProfile = "solid" | "sensor" | "support" | "decoration" | "inactive";
+type BlockVisualDefinition = {
+  kind: "cube" | "gem" | "slope";
+  modelUrl?: string;
+};
+
+type StoredBlockDefinition = Omit<BlockDefinition, "roleId" | "occupancy" | "visual"> & {
   behavior?: string;
   genericId?: number;
+  occupancy?: OccupancyProfile;
   roleId?: string;
+  visual?: Partial<BlockVisualDefinition>;
 };
 
-type Voxel = { x: number; y: number; z: number; blockId: string; genericId?: number };
+type Voxel = {
+  x: number;
+  y: number;
+  z: number;
+  blockId: string;
+  genericId?: number;
+  groupId?: number;
+  instanceId?: string;
+  orientation?: string;
+  stateId?: number;
+  variantId?: number;
+};
 type Frame = { voxels: Voxel[] };
 type WorldSettings = { width: number; height: number; floorLayer: 0 };
 type TestFolder = { collapsed: boolean; id: string; locked: boolean; name: string };
@@ -157,13 +193,27 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
-  { id: "floor", name: "Limestone", color: "#D8CFC0", roleId: "floor" },
-  { id: "wall", name: "Basalt wall", color: "#424957", roleId: "solid" },
-  { id: "crate", name: "Amber crate", color: "#E9963A", roleId: "pushable" },
-  { id: "player", name: "Player", color: "#5A67D8", roleId: "player" },
-  { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice" },
-  { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal" },
+  { id: "floor", name: "Limestone", color: "#D8CFC0", roleId: "floor", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "wall", name: "Basalt wall", color: "#424957", roleId: "solid", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "crate", name: "Amber crate", color: "#E9963A", roleId: "pushable", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "player", name: "Player", color: "#5A67D8", roleId: "player", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "ice-slope", name: "Ice slope", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "slope" } },
+  { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
 ];
+
+const SLOPE_DIRECTION_OPTIONS = [
+  { id: "up", label: "Up", glyph: "↑" },
+  { id: "right", label: "Right", glyph: "→" },
+  { id: "down", label: "Down", glyph: "↓" },
+  { id: "left", label: "Left", glyph: "←" },
+] as const;
+
+function visualDefinitionForKind(kind: string): BlockVisualDefinition {
+  if (kind === "gem") return { kind: "gem", modelUrl: "/assets/objects/gem.glb" };
+  if (kind === "slope") return { kind: "slope" };
+  return { kind: "cube" };
+}
 
 const DEFAULT_FOLDERS: TestFolder[] = [
   { collapsed: false, id: "general", locked: false, name: "Movement & walls" },
@@ -190,15 +240,43 @@ function normalizeBlocks(
 ): BlockDefinition[] {
   const roleIds = new Set(roles.map((role) => role.id));
   const fallbackRoleId = roleIds.has("solid") ? "solid" : roles[0].id;
-  return blocks.map((block) => {
+  const normalized = blocks.map((block) => {
     const requestedRoleId = block.roleId ?? block.behavior ?? fallbackRoleId;
+    const roleId = roleIds.has(requestedRoleId) ? requestedRoleId : fallbackRoleId;
+    const visualKind = block.visual?.kind === "slope"
+      ? "slope"
+      : block.visual?.kind === "gem" || roleId === "goal"
+        ? "gem"
+        : "cube";
     return {
       id: block.id,
       name: block.name,
       color: block.color,
-      roleId: roleIds.has(requestedRoleId) ? requestedRoleId : fallbackRoleId,
+      roleId,
+      occupancy: normalizeOccupancyProfile(block.occupancy, roleId) as OccupancyProfile,
+      visual: visualKind === "gem"
+        ? { kind: "gem", modelUrl: block.visual?.modelUrl ?? "/assets/objects/gem.glb" }
+        : visualKind === "slope"
+          ? { kind: "slope" }
+          : { kind: "cube" },
     };
   });
+  if (roleIds.has("ice") && !normalized.some((block) => block.visual.kind === "slope")) {
+    normalized.push({
+      id: "ice-slope",
+      name: "Ice slope",
+      color: "#72D7FF",
+      roleId: "ice",
+      occupancy: "solid",
+      visual: { kind: "slope" },
+    });
+  }
+  return normalized;
+}
+
+function nonnegativeInteger(value: unknown, fallback = 0) {
+  const number = Number(value);
+  return Number.isInteger(number) && number >= 0 ? number : fallback;
 }
 
 function normalizeFolders(folders?: StoredTestFolder[]) {
@@ -231,14 +309,29 @@ function normalizeGenericIds(
   return {
     voxels: enforceFloorLayer(frame.voxels, floorBlockIds).map((voxel) => {
       const block = blocksById.get(voxel.blockId);
+      const instanceId = String(voxel.instanceId ?? "").trim();
+      const orientation = String(voxel.orientation ?? "").trim();
+      const base: Voxel = {
+        ...voxel,
+        ...(instanceId ? { instanceId } : {}),
+        ...(orientation ? { orientation } : {}),
+        ...(voxel.stateId === undefined ? {} : { stateId: nonnegativeInteger(voxel.stateId) }),
+        ...(voxel.variantId === undefined ? {} : { variantId: nonnegativeInteger(voxel.variantId) }),
+      };
       if (block && genericRoleIds.has(block.roleId)) {
-        const value = Number(voxel.genericId ?? legacyIds.get(voxel.blockId) ?? 0);
+        const value = nonnegativeInteger(
+          voxel.groupId ?? voxel.genericId ?? legacyIds.get(voxel.blockId),
+        );
         return {
-          ...voxel,
-          genericId: Number.isInteger(value) && value >= 0 ? value : 0,
+          ...base,
+          genericId: value,
+          ...(voxel.groupId === undefined ? {} : { groupId: value }),
         };
       }
-      return { x: voxel.x, y: voxel.y, z: voxel.z, blockId: voxel.blockId };
+      const groupId = Number.isInteger(voxel.groupId) && Number(voxel.groupId) >= 0
+        ? Number(voxel.groupId)
+        : undefined;
+      return groupId === undefined ? base : { ...base, groupId };
     }),
   };
 }
@@ -252,8 +345,12 @@ function setGenericModeForBlocks(
     voxels: frame.voxels.map((voxel) => {
       if (!blockIds.has(voxel.blockId)) return { ...voxel };
       return generic
-        ? { ...voxel, genericId: Math.max(0, Math.floor(Number(voxel.genericId) || 0)) }
-        : { x: voxel.x, y: voxel.y, z: voxel.z, blockId: voxel.blockId };
+        ? {
+          ...voxel,
+          genericId: nonnegativeInteger(voxel.groupId ?? voxel.genericId),
+          groupId: nonnegativeInteger(voxel.groupId ?? voxel.genericId),
+        }
+        : { ...voxel, genericId: undefined };
     }),
   };
 }
@@ -297,6 +394,13 @@ function normalizeTests(
 
 function keyOf(voxel: Pick<Voxel, "x" | "y" | "z">) {
   return `${voxel.x},${voxel.y},${voxel.z}`;
+}
+
+function newInstanceId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `object:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }
 
 const DEFAULT_WORLD: WorldSettings = { width: 16, height: 16, floorLayer: 0 };
@@ -434,7 +538,8 @@ function replaceEditableFrame(
 function sortVoxels(voxels: Voxel[]) {
   return [...voxels].sort((a, b) => {
     const coord = keyOf(a).localeCompare(keyOf(b));
-    return coord || a.blockId.localeCompare(b.blockId);
+    return coord || cellObjectSemanticKey(a).localeCompare(cellObjectSemanticKey(b)) ||
+      String(a.instanceId ?? "").localeCompare(String(b.instanceId ?? ""));
   });
 }
 
@@ -465,11 +570,10 @@ function cropTestsToWorld(tests: TestCase[]) {
 function compareFrames(expected: Frame, actual: Frame, world: WorldSettings): FrameComparison {
   const boundedExpected = cropFrameToWorld(expected, world);
   const boundedActual = cropFrameToWorld(actual, world);
-  const identity = (voxel: Voxel) => `${keyOf(voxel)}:${voxel.blockId}:${voxel.genericId ?? -1}`;
-  const expectedMap = new Map(boundedExpected.voxels.map((voxel) => [identity(voxel), voxel]));
-  const actualMap = new Map(boundedActual.voxels.map((voxel) => [identity(voxel), voxel]));
-  const missing = [...expectedMap].filter(([key]) => !actualMap.has(key)).map(([, voxel]) => voxel);
-  const unexpected = [...actualMap].filter(([key]) => !expectedMap.has(key)).map(([, voxel]) => voxel);
+  const { missing, unexpected } = diffObjectMultisets(
+    boundedExpected.voxels,
+    boundedActual.voxels,
+  ) as { missing: Voxel[]; unexpected: Voxel[] };
   return { actual: boundedActual, pass: missing.length === 0 && unexpected.length === 0, missing, unexpected };
 }
 
@@ -770,7 +874,12 @@ export default function VoxelBench() {
   const [roles, setRoles] = useState<PhysicsRoleDefinition[]>(DEFAULT_ROLES);
   const [blocks, setBlocks] = useState<BlockDefinition[]>(DEFAULT_BLOCKS);
   const [folders, setFolders] = useState<TestFolder[]>(DEFAULT_FOLDERS);
-  const [tests, setTests] = useState<TestCase[]>(DEFAULT_TESTS);
+  const [tests, setTests] = useState<TestCase[]>(() => normalizeTests(
+    DEFAULT_TESTS,
+    DEFAULT_FOLDERS,
+    DEFAULT_BLOCKS,
+    DEFAULT_ROLES,
+  ));
   const [savedSearchLevels, setSavedSearchLevels] = useState<SearchLevel[]>([]);
   const [activeId, setActiveId] = useState(DEFAULT_TESTS[0].id);
   const [frameKind, setFrameKind] = useState<FrameKind>("start");
@@ -784,7 +893,9 @@ export default function VoxelBench() {
   const [selectedBlock, setSelectedBlock] = useState("crate");
   const [groupToolPinned, setGroupToolPinned] = useState(false);
   const [groupSelection, setGroupSelection] = useState<GroupSelection | null>(null);
+  const [inspectedCell, setInspectedCell] = useState<{ x: number; y: number; z: number } | null>(null);
   const [selectedGenericIds, setSelectedGenericIds] = useState<Record<string, number>>({});
+  const [selectedSlopeDirections, setSelectedSlopeDirections] = useState<Record<string, string>>({});
   const [genericPrompt, setGenericPrompt] = useState<{ blockId: string; value: string } | null>(null);
   const [genericPromptError, setGenericPromptError] = useState("");
   const layer = 1;
@@ -792,7 +903,13 @@ export default function VoxelBench() {
   const [showResult, setShowResult] = useState(false);
   const [toast, setToast] = useState("");
   const [addingBlock, setAddingBlock] = useState(false);
-  const [newBlock, setNewBlock] = useState({ name: "", color: "#D96B5F", roleId: "solid" });
+  const [newBlock, setNewBlock] = useState<{
+    color: string;
+    name: string;
+    occupancy: OccupancyProfile;
+    roleId: string;
+    visual: BlockVisualDefinition;
+  }>({ name: "", color: "#D96B5F", roleId: "solid", occupancy: "solid", visual: { kind: "cube" } });
   const [addingRole, setAddingRole] = useState(false);
   const [selectedRoleId, setSelectedRoleId] = useState("pushable");
   const [newRole, setNewRole] = useState({ name: "", description: "", generic: false });
@@ -844,6 +961,19 @@ export default function VoxelBench() {
     () => new Set(blocks.filter((block) => block.roleId === "floor").map((block) => block.id)),
     [blocks],
   );
+  const blockDefinitionsById = useMemo(
+    () => new Map(blocks.map((block) => [block.id, block])),
+    [blocks],
+  );
+  const shareableBlockIds = useMemo(
+    () => new Set(blocks.filter(blockCanShareCell).map((block) => block.id)),
+    [blocks],
+  );
+  const inspectedCellOccupants = useMemo(() => {
+    if (!inspectedCell) return [];
+    const coordinate = keyOf(inspectedCell);
+    return activeFrame.voxels.filter((voxel) => keyOf(voxel) === coordinate);
+  }, [activeFrame.voxels, inspectedCell]);
   const selectedDefinition = selectedBlock === DELETE_TOOL_ID
     ? undefined
     : blocks.find((block) => block.id === selectedBlock) ?? blocks[0];
@@ -851,13 +981,19 @@ export default function VoxelBench() {
   const selectedGenericId = selectedDefinition && genericBlockIds.has(selectedDefinition.id)
     ? selectedGenericIds[selectedDefinition.id] ?? 0
     : null;
+  const selectedSlopeDirection = selectedDefinition?.visual.kind === "slope"
+    ? normalizeSlopeDirection(selectedSlopeDirections[selectedDefinition.id])
+    : null;
+  const selectedSlopeOption = selectedSlopeDirection
+    ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
+    : null;
   const selectedToolName = groupSelectionMode
     ? "Select group"
     : activeGroupSelection
       ? `${activeGroupSelection.keys.length} cubes selected`
       : selectedBlock === DELETE_TOOL_ID
         ? "Erase"
-        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}`;
+        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -939,7 +1075,7 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 9,
+        schemaVersion: 10,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
@@ -955,17 +1091,29 @@ export default function VoxelBench() {
         })),
       };
       const serialized = JSON.stringify(project);
-      localStorage.setItem(STORAGE_KEY, serialized);
+      let browserBackupPreserved = true;
+      try {
+        localStorage.setItem(STORAGE_KEY, serialized);
+      } catch {
+        // Large authored suites can exceed the browser's storage quota. The
+        // tracked repo file remains the source of truth, so never let this
+        // optional fallback prevent the local-project request below.
+        browserBackupPreserved = false;
+      }
       void fetch(LOCAL_PROJECT_ENDPOINT, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: serialized,
       }).then((response) => {
         if (!response.ok && response.status !== 404 && !cancelled) {
-          setToast("Repo save failed · browser backup preserved");
+          setToast(browserBackupPreserved
+            ? "Repo save failed · browser backup preserved"
+            : "Repo save failed · project is too large for the browser backup");
         }
       }).catch(() => {
-        // Expected outside local development; localStorage already succeeded.
+        if (!browserBackupPreserved && !cancelled) {
+          setToast("Repo save unavailable · project is too large for the browser backup");
+        }
       });
     }, 350);
     return () => {
@@ -1111,8 +1259,14 @@ export default function VoxelBench() {
     }
     setGenericPrompt(null);
     setSelectedBlock(blockId);
-    setToast(`${block.name} selected`);
-  }, [blocks, genericRoleIds, selectedGenericIds]);
+    const slopeDirection = block.visual.kind === "slope"
+      ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+      : null;
+    const slopeOption = slopeDirection
+      ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
+      : null;
+    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`);
+  }, [blocks, genericRoleIds, selectedGenericIds, selectedSlopeDirections]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
     const slots = [DELETE_TOOL_ID, GROUP_TOOL_ID, ...blocks.map((block) => block.id)];
@@ -1141,8 +1295,16 @@ export default function VoxelBench() {
     const genericId = genericBlockIds.has(block.id)
       ? selectedGenericIds[block.id] ?? 0
       : null;
-    setToast(genericId === null ? `${block.name} selected` : `${block.name} ${genericId} selected`);
-  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds]);
+    const slopeDirection = block.visual.kind === "slope"
+      ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+      : null;
+    const slopeOption = slopeDirection
+      ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
+      : null;
+    setToast(genericId === null
+      ? `${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`
+      : `${block.name} ${genericId} selected`);
+  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedSlopeDirections]);
 
   const handleHorizontalToolbarKey = useCallback((direction: -1 | 1) => {
     if (!groupToolPinned && selectedDefinition && genericBlockIds.has(selectedDefinition.id)) {
@@ -1154,8 +1316,16 @@ export default function VoxelBench() {
         return;
       }
     }
+    if (!groupToolPinned && selectedDefinition?.visual.kind === "slope") {
+      const currentDirection = normalizeSlopeDirection(selectedSlopeDirections[selectedDefinition.id]);
+      const nextDirection = offsetSlopeDirection(currentDirection, direction);
+      const option = SLOPE_DIRECTION_OPTIONS.find((candidate) => candidate.id === nextDirection);
+      setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: nextDirection }));
+      setToast(`${selectedDefinition.name} ${option?.glyph ?? ""} ${option?.label ?? nextDirection} selected`);
+      return;
+    }
     selectToolbarRelative(direction);
-  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds]);
+  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds, selectedSlopeDirections]);
 
   const confirmGenericSelection = () => {
     if (!genericPrompt) return;
@@ -1297,7 +1467,12 @@ export default function VoxelBench() {
 
   const selectVoxelGroup = useCallback((x: number, y: number, z: number, additive: boolean) => {
     if (!activeTest) return;
-    const keys = selectConnectedVoxelGroup(activeFrame.voxels, { x, y, z });
+    setInspectedCell({ x, y, z });
+    const keys = selectConnectedVoxelGroup(
+      activeFrame.voxels,
+      { x, y, z },
+      shareableBlockIds,
+    );
     if (!keys.length) {
       if (!additive) setGroupSelection(null);
       setToast("No cube at that position");
@@ -1321,17 +1496,23 @@ export default function VoxelBench() {
         ? `${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added · ${combinedKeys.length} selected`
         : "That group is already selected"
       : `${keys.length} touching ${keys.length === 1 ? "cube" : "cubes"} selected · click again to deselect`);
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex, shareableBlockIds]);
 
   const selectVoxelGroups = useCallback((origins: Array<{ x: number; y: number; z: number }>, additive: boolean) => {
     if (!activeTest) return;
     const selectedKeys = new Set<string>();
+    const visitedCoordinates = new Set<string>();
     let groupCount = 0;
 
     for (const origin of origins) {
       const originKey = `${origin.x},${origin.y},${origin.z}`;
-      if (selectedKeys.has(originKey)) continue;
-      const groupKeys = selectConnectedVoxelGroup(activeFrame.voxels, origin);
+      if (visitedCoordinates.has(originKey)) continue;
+      visitedCoordinates.add(originKey);
+      const groupKeys = selectConnectedVoxelGroup(
+        activeFrame.voxels,
+        origin,
+        shareableBlockIds,
+      );
       if (!groupKeys.length) continue;
       groupCount += 1;
       groupKeys.forEach((key) => selectedKeys.add(key));
@@ -1349,7 +1530,7 @@ export default function VoxelBench() {
     setToast(addedCount > 0
       ? `${groupCount} ${groupCount === 1 ? "group" : "groups"} boxed · ${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added`
       : "Every group in that rectangle is already selected");
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex, shareableBlockIds]);
 
   const moveSelectedGroup = useCallback((direction: Direction, verticalDelta = 0) => {
     if (!activeTest || !activeGroupSelection) return;
@@ -1382,6 +1563,7 @@ export default function VoxelBench() {
       delta.dy,
       activeWorld,
       verticalDelta,
+      shareableBlockIds,
     );
     if (!movement.moved) {
       setToast(verticalDelta
@@ -1422,7 +1604,7 @@ export default function VoxelBench() {
         ? "lowered one layer"
         : `moved ${direction} relative to camera`;
     setToast(`${movement.selectedKeys.length} ${movement.selectedKeys.length === 1 ? "cube" : "cubes"} ${movementLabel}`);
-  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, floorBlockIds, frameKind, intermediateIndex, pushHistory, syncHistoryState]);
+  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, floorBlockIds, frameKind, intermediateIndex, pushHistory, shareableBlockIds, syncHistoryState]);
 
   const deleteSelectedGroup = useCallback(() => {
     if (!activeTest || !activeGroupSelection || !groupToolPinned) return;
@@ -1577,15 +1759,30 @@ export default function VoxelBench() {
       return;
     }
     const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
-    const currentVoxel = currentFrame.voxels.find((voxel) => keyOf(voxel) === `${x},${y},${z}`);
     const genericId = blockId && genericBlockIds.has(blockId)
       ? selectedGenericIds[blockId] ?? 0
       : undefined;
-    if (
-      (!blockId && !currentVoxel) ||
-      (currentVoxel?.blockId === blockId && currentVoxel.genericId === genericId)
-    ) return;
+    const blockDefinition = blockId ? blockDefinitionsById.get(blockId) : undefined;
+    const slopeDirection = blockDefinition?.visual.kind === "slope"
+      ? normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id])
+      : null;
+    const placement: Voxel | null = blockId ? {
+      x,
+      y,
+      z,
+      blockId,
+      instanceId: newInstanceId(),
+      orientation: slopeDirection ?? "none",
+      stateId: 0,
+      variantId: slopeDirection ? slopeDirectionIndex(slopeDirection) : 0,
+      ...(genericId === undefined ? {} : { genericId, groupId: genericId }),
+    } : null;
+    const operation = placement
+      ? placeObjectInCell(currentFrame.voxels, placement, blockDefinitionsById)
+      : eraseOneObjectAtCell(currentFrame.voxels, { x, y, z });
+    if (!operation.changed) return;
     setGroupSelection(null);
+    setInspectedCell({ x, y, z });
     if (!paintGestureRef.current.active || !paintGestureRef.current.snapshotSaved) {
       pushHistory(undoStackRef, {
         testId: activeTest.id,
@@ -1600,12 +1797,9 @@ export default function VoxelBench() {
     setTests((current) => current.map((test) => {
       if (test.id !== activeTest.id) return test;
       const frame = cloneFrame(editableFrame(test, frameKind, intermediateIndex));
-      frame.voxels = frame.voxels.filter((voxel) => keyOf(voxel) !== `${x},${y},${z}`);
-      if (blockId) {
-        frame.voxels.push(genericId === undefined
-          ? { x, y, z, blockId }
-          : { x, y, z, blockId, genericId });
-      }
+      frame.voxels = placement
+        ? placeObjectInCell(frame.voxels, placement, blockDefinitionsById).objects
+        : eraseOneObjectAtCell(frame.voxels, { x, y, z }).objects;
       return replaceEditableFrame(test, frameKind, intermediateIndex, frame);
     }));
     setResults((current) => {
@@ -1613,6 +1807,79 @@ export default function VoxelBench() {
       delete next[activeTest.id];
       return next;
     });
+  };
+
+  const removeCellOccupant = (selectionKey: string) => {
+    if (!activeTest || activeTestLocked || !inspectedCell) return;
+    const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
+    if (!currentFrame.voxels.some((voxel) => cellObjectSelectionKey(voxel) === selectionKey)) return;
+    pushHistory(undoStackRef, {
+      testId: activeTest.id,
+      frameKind,
+      intermediateIndex,
+      frame: currentFrame,
+    });
+    redoStackRef.current = [];
+    syncHistoryState();
+    setTests((current) => current.map((test) => {
+      if (test.id !== activeTest.id) return test;
+      const frame = cloneFrame(editableFrame(test, frameKind, intermediateIndex));
+      frame.voxels = frame.voxels.filter(
+        (voxel) => cellObjectSelectionKey(voxel) !== selectionKey,
+      );
+      return replaceEditableFrame(test, frameKind, intermediateIndex, frame);
+    }));
+    setGroupSelection((current) => {
+      if (!current) return null;
+      const keys = current.keys.filter((key) => key !== selectionKey);
+      return keys.length ? { ...current, keys } : null;
+    });
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setToast("Removed one object from the cell");
+  };
+
+  const selectCellOccupant = (selectionKey: string) => {
+    if (!activeTest) return;
+    const currentKeys = activeGroupSelection?.keys ?? [];
+    const selection = toggleVoxelGroupSelection(currentKeys, [selectionKey], false);
+    setGroupSelection(selection.keys.length ? {
+      testId: activeTest.id,
+      frameKind,
+      intermediateIndex,
+      keys: selection.keys,
+    } : null);
+    setToast(selection.deselected ? "Object deselected" : "Selected one cell occupant");
+  };
+
+  const clearInspectedCell = () => {
+    if (!activeTest || activeTestLocked || !inspectedCell || !inspectedCellOccupants.length) return;
+    const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
+    const coordinate = keyOf(inspectedCell);
+    pushHistory(undoStackRef, {
+      testId: activeTest.id,
+      frameKind,
+      intermediateIndex,
+      frame: currentFrame,
+    });
+    redoStackRef.current = [];
+    syncHistoryState();
+    setTests((current) => current.map((test) => {
+      if (test.id !== activeTest.id) return test;
+      const frame = cloneFrame(editableFrame(test, frameKind, intermediateIndex));
+      frame.voxels = frame.voxels.filter((voxel) => keyOf(voxel) !== coordinate);
+      return replaceEditableFrame(test, frameKind, intermediateIndex, frame);
+    }));
+    setGroupSelection(null);
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setToast(`Cleared ${inspectedCellOccupants.length} objects from the cell`);
   };
 
   const updateActive = (patch: Partial<TestCase>) => {
@@ -1980,7 +2247,13 @@ export default function VoxelBench() {
     } else {
       setSelectedBlock(id);
     }
-    setNewBlock({ name: "", color: "#D96B5F", roleId: roles[0]?.id ?? "solid" });
+    setNewBlock({
+      name: "",
+      color: "#D96B5F",
+      roleId: roles[0]?.id ?? "solid",
+      occupancy: "solid",
+      visual: { kind: "cube" },
+    });
     setAddingBlock(false);
     setToast(isGeneric ? `${name} created · choose its generic object ID` : `${name} block created`);
   };
@@ -2044,7 +2317,7 @@ export default function VoxelBench() {
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
     const payload = JSON.stringify({
-      schemaVersion: 9,
+      schemaVersion: 10,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
@@ -2220,6 +2493,12 @@ export default function VoxelBench() {
                 </button>
                 {blocks.map((block, index) => {
                   const generic = genericBlockIds.has(block.id);
+                  const slopeDirection = block.visual.kind === "slope"
+                    ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+                    : null;
+                  const slopeOption = slopeDirection
+                    ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
+                    : null;
                   const genericLabel = generic
                     ? genericToolbarLabel(
                       block.id,
@@ -2229,9 +2508,9 @@ export default function VoxelBench() {
                     )
                     : undefined;
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
-                      <span className={`swatch-cube ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties} />
+                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
                     </button>
                   );
                 })}
@@ -2334,17 +2613,35 @@ export default function VoxelBench() {
                 <div className="definition-form new-definition">
                   <label className="field"><span>New block name</span><input value={newBlock.name} placeholder="e.g. Ice" onChange={(event) => setNewBlock((value) => ({ ...value, name: event.target.value }))} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={newBlock.color} onChange={(event) => setNewBlock((value) => ({ ...value, color: event.target.value }))} /></label><label className="field"><span>Physics role</span><select value={newBlock.roleId} onChange={(event) => setNewBlock((value) => ({ ...value, roleId: event.target.value }))}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
+                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={newBlock.occupancy} onChange={(event) => setNewBlock((value) => ({ ...value, occupancy: event.target.value as OccupancyProfile }))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={newBlock.visual.kind} onChange={(event) => setNewBlock((value) => ({ ...value, visual: visualDefinitionForKind(event.target.value) }))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="gem">MazeBench gem</option></select></label></div>
                   <button className="tool-button tool-button--primary full" onClick={addBlock}>Create block</button>
                 </div>
               ) : groupSelectionMode || activeGroupSelection ? (
-                <div className="group-tool-description"><span className="group-tool-icon large" aria-hidden="true"><i /><i /><i /></span><div><strong>Select group</strong><small>Press G once, then click a cube; G again clears the selection. Arrow keys move relative to the camera. Shift+↑ raises and Shift+↓ lowers the selected groups one layer. Delete or Backspace erases them.</small></div></div>
+                <div className="group-tool-panel">
+                  <div className="group-tool-description"><span className="group-tool-icon large" aria-hidden="true"><i /><i /><i /></span><div><strong>Select group</strong><small>Press G once, then click an object; G again clears the selection. Arrow keys move relative to the camera. Shift+↑ raises and Shift+↓ lowers the selected groups one layer.</small></div></div>
+                  <section className="cell-contents" aria-label="Cell contents">
+                    <div className="cell-contents__heading"><div><span>Cell contents</span><strong>{inspectedCell ? `${inspectedCell.x}, ${inspectedCell.y}, ${inspectedCell.z}` : "Click an object"}</strong></div>{inspectedCell && <em>{inspectedCellOccupants.length}</em>}</div>
+                    {inspectedCell ? inspectedCellOccupants.length ? (
+                      <div className="cell-contents__list">{inspectedCellOccupants.map((voxel) => {
+                        const definition = blockDefinitionsById.get(voxel.blockId);
+                        const selectionKey = cellObjectSelectionKey(voxel);
+                        const selected = selectedVoxelKeys.has(selectionKey);
+                        return <div className={`cell-contents__item ${selected ? "is-selected" : ""}`} key={selectionKey}><span className="cell-contents__swatch" style={{ "--block-color": definition?.color ?? "#777" } as React.CSSProperties} /><div><strong>{definition?.name ?? voxel.blockId}</strong><small>{definition?.occupancy ?? "solid"}{voxel.groupId === undefined ? "" : ` · group ${voxel.groupId}`}{voxel.stateId ? ` · state ${voxel.stateId}` : ""}</small></div><button className="cell-contents__select" type="button" aria-label={`${selected ? "Deselect" : "Select"} ${definition?.name ?? voxel.blockId}`} onClick={() => selectCellOccupant(selectionKey)}>{selected ? "✓" : "Select"}</button><button type="button" disabled={activeTestLocked} aria-label={`Remove ${definition?.name ?? voxel.blockId} from cell`} onClick={() => removeCellOccupant(selectionKey)}>×</button></div>;
+                      })}</div>
+                    ) : <p className="cell-contents__empty">This cell is empty.</p> : <p className="cell-contents__empty">Click a cell to inspect every overlapping object.</p>}
+                    {inspectedCell && <div className="cell-contents__actions"><button className="tool-button" type="button" disabled={activeTestLocked || !inspectedCellOccupants.length} onClick={clearInspectedCell}>Clear cell</button><button className="tool-button tool-button--primary" type="button" disabled={activeTestLocked || !selectedDefinition || selectedBlock === DELETE_TOOL_ID} onClick={() => selectedDefinition && paint(inspectedCell.x, inspectedCell.y, inspectedCell.z, selectedDefinition.id)}>Place selected here</button></div>}
+                  </section>
+                </div>
               ) : selectedBlock === DELETE_TOOL_ID ? (
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties} /><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
+                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="gem">MazeBench gem</option></select></label></div>
+                  {selectedDefinition.visual.kind === "slope" && <div className="slope-direction-picker" role="group" aria-label="Slope paint direction">{SLOPE_DIRECTION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedSlopeDirection === option.id ? "is-active" : ""} aria-pressed={selectedSlopeDirection === option.id} title={`Paint ${option.label.toLowerCase()} slope`} onClick={() => { setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
+                  <p className="engine-role-note"><b>Occupancy is editor metadata.</b> Sensors and decorations may share a cell with solid bodies. Physics behavior still comes from the C++ role until the generalized state ABI phase.</p>
                 </div>
               ) : null}
             </div>

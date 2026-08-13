@@ -85,3 +85,40 @@ test("clockwise level rotations also rotate rectangular room bounds", () => {
     { x: 0, y: 2, z: -4, blockId: "player", genericId: 712 },
   ]);
 });
+
+test("clockwise level rotations keep a slope's visual direction attached to the room", () => {
+  const world = { width: 4, height: 3 };
+  const slope = [{
+    x: 1,
+    y: 0,
+    z: 0,
+    blockId: "ice-slope",
+    orientation: "up",
+    variantId: 0,
+  }];
+
+  assert.deepEqual(rotateVoxelsClockwise(slope, world, 1), [{
+    x: 2,
+    y: 1,
+    z: 0,
+    blockId: "ice-slope",
+    orientation: "right",
+    variantId: 1,
+  }]);
+  assert.deepEqual(rotateVoxelsClockwise(slope, world, 2)[0], {
+    x: 2,
+    y: 2,
+    z: 0,
+    blockId: "ice-slope",
+    orientation: "down",
+    variantId: 2,
+  });
+  assert.deepEqual(rotateVoxelsClockwise(slope, world, 3)[0], {
+    x: 0,
+    y: 2,
+    z: 0,
+    blockId: "ice-slope",
+    orientation: "left",
+    variantId: 3,
+  });
+});

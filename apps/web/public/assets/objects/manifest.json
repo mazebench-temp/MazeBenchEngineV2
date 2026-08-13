@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "objects": {
+    "mazebench-gem": {
+      "kind": "glb",
+      "url": "/assets/objects/gem.glb",
+      "anchor": "cell-center-bottom",
+      "pickProxy": "cell",
+      "source": {
+        "repository": "MazeBenchEngine",
+        "path": "games/maze/assets_3d/gem.glb"
+      },
+      "loader": {
+        "module": "/vendor/GLTFLoader.js",
+        "three": "/vendor/three.module.js",
+        "threeCore": "/vendor/three.core.js",
+        "utilities": [
+          "/utils/BufferGeometryUtils.js",
+          "/utils/SkeletonUtils.js"
+        ]
+      }
+    }
+  }
+}

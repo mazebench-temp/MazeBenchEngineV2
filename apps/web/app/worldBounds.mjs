@@ -1,3 +1,5 @@
+import { rotateSlopeMetadata } from "./visualVariants.mjs";
+
 /** @typedef {{ width: number, height: number }} HorizontalWorld */
 /** @typedef {{ x: number, y: number }} HorizontalVoxel */
 
@@ -88,9 +90,10 @@ export function rotateWorldClockwise(world, quarterTurns) {
 export function rotateVoxelsClockwise(voxels, world, quarterTurns) {
   const turns = ((quarterTurns % 4) + 4) % 4;
   return cropVoxelsToWorld(voxels, world).map((voxel) => {
-    if (turns === 1) return { ...voxel, x: world.height - 1 - voxel.y, y: voxel.x };
-    if (turns === 2) return { ...voxel, x: world.width - 1 - voxel.x, y: world.height - 1 - voxel.y };
-    if (turns === 3) return { ...voxel, x: voxel.y, y: world.width - 1 - voxel.x };
-    return { ...voxel };
+    const rotated = rotateSlopeMetadata(voxel, turns);
+    if (turns === 1) return { ...rotated, x: world.height - 1 - voxel.y, y: voxel.x };
+    if (turns === 2) return { ...rotated, x: world.width - 1 - voxel.x, y: world.height - 1 - voxel.y };
+    if (turns === 3) return { ...rotated, x: voxel.y, y: world.width - 1 - voxel.x };
+    return rotated;
   });
 }

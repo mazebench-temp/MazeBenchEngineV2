@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { enforceFloorLayer, selectionContainsFloor } from "../app/floorLayer.mjs";
+import { cellObjectSelectionKey } from "../app/cellObjects.mjs";
 
 test("floor tiles are retained only on Row 0", () => {
   const voxels = [
@@ -22,12 +23,12 @@ test("vertical group movement can identify selected floor tiles", () => {
   ];
   assert.equal(selectionContainsFloor(
     voxels,
-    ["2,3,0", "2,3,1"],
+    voxels.map(cellObjectSelectionKey),
     new Set(["floor"]),
   ), true);
   assert.equal(selectionContainsFloor(
     voxels,
-    ["2,3,1"],
+    [cellObjectSelectionKey(voxels[1])],
     new Set(["floor"]),
   ), false);
 });

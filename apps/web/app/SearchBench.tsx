@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MazeBenchCanvas from "./MazeBenchCanvas";
 import { simulateCommandWithCpp } from "./physicsEngine";
+import { blockCanShareCell } from "./cellObjects.mjs";
 
 export type SearchDirection = "up" | "right" | "down" | "left";
 export type SearchVoxel = {
@@ -11,6 +12,11 @@ export type SearchVoxel = {
   z: number;
   blockId: string;
   genericId?: number;
+  groupId?: number;
+  instanceId?: string;
+  orientation?: string;
+  stateId?: number;
+  variantId?: number;
 };
 export type SearchWorld = { width: number; height: number; floorLayer: 0 };
 export type SearchLevel = {
@@ -24,6 +30,8 @@ export type SearchLevel = {
   moves: number;
   expanded: number;
   generated: number;
+  elapsedMs?: number;
+  evaluatedNodes?: number;
   commandTransitions?: number;
   commandTransitionsPerSecond?: number;
   transpositions?: number;
@@ -50,6 +58,8 @@ type BlockDefinition = {
   name: string;
   color: string;
   roleId: string;
+  occupancy: string;
+  visual: { kind: "cube" | "gem"; modelUrl?: string };
 };
 
 type SearchBenchProps = {
@@ -229,7 +239,7 @@ export function normalizeSearchLevels(
   if (!Array.isArray(value)) return [];
   const blockIds = new Set(blocks.map((block) => block.id));
   const floorIds = new Set(blocks.filter((block) => block.roleId === "floor").map((block) => block.id));
-  const goalIds = new Set(blocks.filter((block) => block.roleId === "goal").map((block) => block.id));
+  const shareableIds = new Set(blocks.filter(blockCanShareCell).map((block) => block.id));
   return value.flatMap((item, index) => {
     if (!item || typeof item !== "object") return [];
     const candidate = item as Partial<SearchLevel>;
@@ -249,12 +259,30 @@ export function normalizeSearchLevels(
       const z = finiteInteger(voxel.z, 0);
       const blockId = String(voxel.blockId ?? "");
       const key = `${x},${y},${z}`;
-      const collectible = goalIds.has(blockId);
+      const shareable = shareableIds.has(blockId);
       if (x < 0 || x >= width || y < 0 || y >= height || !blockIds.has(blockId) ||
-          (floorIds.has(blockId) && z !== 0) || (!collectible && seenRigid.has(key))) return [];
-      if (!collectible) seenRigid.add(key);
+          (floorIds.has(blockId) && z !== 0) || (!shareable && seenRigid.has(key))) return [];
+      if (!shareable) seenRigid.add(key);
       const genericId = finiteInteger(voxel.genericId, -1);
-      return [{ x, y, z, blockId, ...(genericId >= 0 ? { genericId } : {}) }];
+      const groupId = finiteInteger(voxel.groupId, -1);
+      const instanceId = String(voxel.instanceId ?? "").trim();
+      const orientation = String(voxel.orientation ?? "").trim();
+      return [{
+        x,
+        y,
+        z,
+        blockId,
+        ...(genericId >= 0 ? { genericId } : {}),
+        ...(groupId >= 0 ? { groupId } : {}),
+        ...(instanceId ? { instanceId } : {}),
+        ...(orientation ? { orientation } : {}),
+        ...(voxel.stateId === undefined ? {} : {
+          stateId: Math.max(0, finiteInteger(voxel.stateId, 0)),
+        }),
+        ...(voxel.variantId === undefined ? {} : {
+          variantId: Math.max(0, finiteInteger(voxel.variantId, 0)),
+        }),
+      }];
     });
     const solution = Array.isArray(candidate.solution)
       ? candidate.solution.flatMap((step) => normalizeDirection(step) ?? [])
@@ -270,6 +298,12 @@ export function normalizeSearchLevels(
       moves: Math.max(0, finiteInteger(candidate.moves, solution.length)),
       expanded: Math.max(0, finiteInteger(candidate.expanded, 0)),
       generated: Math.max(0, finiteInteger(candidate.generated, 0)),
+      ...(candidate.elapsedMs === undefined ? {} : {
+        elapsedMs: Math.max(0, Number(candidate.elapsedMs) || 0),
+      }),
+      ...(candidate.evaluatedNodes === undefined ? {} : {
+        evaluatedNodes: Math.max(0, finiteInteger(candidate.evaluatedNodes, 0)),
+      }),
       commandTransitions: Math.max(0, finiteInteger(candidate.commandTransitions, 0)),
       commandTransitionsPerSecond: Math.max(
         0, finiteInteger(candidate.commandTransitionsPerSecond, 0)),

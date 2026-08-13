@@ -31,6 +31,8 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Select its N tool below, type an object ID, and press Enter before painting/);
   assert.doesNotMatch(html, /Generic object ID/);
   assert.match(html, /Ice/);
+  assert.match(html, /Ice slope/);
+  assert.match(html, /Outlined slope · 4 directions/);
   assert.match(html, /Interactive MazeBench perspective polycube editor/);
   assert.match(html, /Erase tool/);
   assert.match(html, /Block palette · Left and right arrows choose tools/);
@@ -84,4 +86,25 @@ test("MazeBench renderer prints each generic ID on exposed polycube faces", asyn
   );
   assert.match(renderer, /descriptor\.layer\?\.genericLabel/);
   assert.match(renderer, /addWeightlessGroupFaceLabels\([\s\S]*?descriptor\.layer\.genericLabel/);
+  assert.match(renderer, /modelAssetsReady/);
+  assert.match(renderer, /modelAssetsFailed/);
+});
+
+test("the MazeBench GLTF loader has every local module dependency", async () => {
+  const [loader, threeModule, threeCore, geometryUtils, skeletonUtils] = await Promise.all([
+    readFile(new URL("../public/vendor/GLTFLoader.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/vendor/three.module.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/vendor/three.core.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/utils/BufferGeometryUtils.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/utils/SkeletonUtils.js", import.meta.url), "utf8"),
+  ]);
+
+  for (const source of [loader, geometryUtils, skeletonUtils]) {
+    assert.match(source, /from '\/vendor\/three\.module\.js'/);
+    assert.doesNotMatch(source, /from 'three'/);
+  }
+  assert.match(loader, /from '\.\.\/utils\/BufferGeometryUtils\.js'/);
+  assert.match(loader, /from '\.\.\/utils\/SkeletonUtils\.js'/);
+  assert.match(threeModule, /from '\.\/three\.core\.js'/);
+  assert.match(threeCore, /const REVISION = '184'/);
 });

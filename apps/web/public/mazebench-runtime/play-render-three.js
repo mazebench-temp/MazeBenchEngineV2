@@ -13345,7 +13345,19 @@
       renderHoverFrame,
       dispose: disposeRenderer,
       isReady: () => Boolean(THREE && renderer && camera && scene && edgeScene),
-      getRenderStats: () => ({ ...(app.threeRenderStats || {}) }),
+      getRenderStats: () => ({
+        ...(app.threeRenderStats || {}),
+        modelAssetsFailed: Array.from(modelAssetCache.values()).filter(
+          (entry) => entry?.status === "failed"
+        ).length,
+        modelAssetsLoading: Array.from(modelAssetCache.values()).filter(
+          (entry) => entry?.status === "loading"
+        ).length,
+        modelAssetsReady: Array.from(modelAssetCache.values()).filter(
+          (entry) => entry?.status === "ready"
+        ).length,
+        modelAssetsVersion
+      }),
       usesDirectCanvas: () => app.flyoverDirectCanvas === true,
       threeCanvas
     };

@@ -7,21 +7,35 @@ import {
   useRef,
   useState,
 } from "react";
-import * as THREE from "three";
 import { cameraYawQuarterTurns } from "./cameraNavigation.mjs";
 import {
   marqueeRectangle,
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
+import { cellObjectSelectionKey } from "./cellObjects.mjs";
+import { normalizeSlopeDirection } from "./visualVariants.mjs";
 
 type BlockDefinition = {
   id: string;
   name: string;
   color: string;
   roleId: string;
+  occupancy: string;
+  visual: { kind: "cube" | "gem" | "slope"; modelUrl?: string };
 };
 
-type Voxel = { x: number; y: number; z: number; blockId: string; genericId?: number };
+type Voxel = {
+  x: number;
+  y: number;
+  z: number;
+  blockId: string;
+  genericId?: number;
+  groupId?: number;
+  instanceId?: string;
+  orientation?: string;
+  stateId?: number;
+  variantId?: number;
+};
 type Frame = { voxels: Voxel[] };
 type WorldSettings = { width: number; height: number; floorLayer: 0 };
 
@@ -74,6 +88,7 @@ type MazeBenchRenderer = {
   getDebugCameraZoom: () => number;
   invalidateSceneCache: () => void;
   isReady: () => boolean;
+  whenLevelStateModelsReady: (playData: MazeBenchPlayData) => Promise<unknown>;
   pickEditorFace: (
     clientX: number,
     clientY: number,
@@ -108,11 +123,12 @@ type MazeBenchModules = {
 };
 
 type TerrainLayer = {
+  direction?: string;
   elevation: number;
   genericLabel?: string;
   label: string;
   raised: true;
-  type: "wall";
+  type: "wall" | "ice_slope";
   voxelColor: string;
   voxelKey: string;
 };
@@ -125,8 +141,19 @@ type TerrainCell = {
   underlay: null;
 };
 
+type RenderActor = {
+  collectionId: string;
+  elevation: number;
+  label: string;
+  modelUrl?: string;
+  removed: false;
+  type: "gem";
+  x: number;
+  y: number;
+};
+
 type MazeBenchPlayData = {
-  actors: never[];
+  actors: RenderActor[];
   cameraView: { height: number; width: number };
   disableHorizontalNeighborFetches: true;
   editorRender: true;
@@ -186,7 +213,7 @@ type CanvasProps = {
 declare global {
   interface Window {
     PlayModules?: MazeBenchModules;
-    __MAZEBENCH_THREE__?: typeof THREE;
+    __MAZEBENCH_THREE__?: Record<string, unknown>;
     __MAZEBENCH_VOXEL_RUNTIME__?: Promise<MazeBenchModules>;
   }
 }
@@ -262,11 +289,14 @@ function loadScript(source: string) {
   });
 }
 
-function loadMazeBenchRuntime() {
-  // The in-app preview blocks dynamically imported public .js assets. Hand
-  // the renderer the same 0.184.0 Three namespace through the app bundle;
-  // all scene construction remains MazeBench's own play-render-three.js.
-  window.__MAZEBENCH_THREE__ = THREE;
+async function loadMazeBenchRuntime() {
+  // MazeBench and GLTFLoader must share this exact module namespace. Loading
+  // a second bundled Three instance breaks model type identity and emits a
+  // runtime warning even when both copies have the same version.
+  if (!window.__MAZEBENCH_THREE__) {
+    const threeModuleUrl = new URL("vendor/three.module.js", document.baseURI).href;
+    window.__MAZEBENCH_THREE__ = await import(/* @vite-ignore */ threeModuleUrl);
+  }
   if (window.PlayModules?.createPlayCore && window.PlayModules?.registerRenderFunctions) {
     return Promise.resolve(window.PlayModules);
   }
@@ -282,6 +312,22 @@ function loadMazeBenchRuntime() {
     });
   }
   return window.__MAZEBENCH_VOXEL_RUNTIME__;
+}
+
+function lerpHexColor(from: string, to: string, amount: number) {
+  const parse = (value: string) => {
+    const hex = value.replace(/^#/, "");
+    const expanded = hex.length === 3
+      ? hex.split("").map((character) => character + character).join("")
+      : hex.padStart(6, "0").slice(0, 6);
+    return [0, 2, 4].map((offset) => Number.parseInt(expanded.slice(offset, offset + 2), 16));
+  };
+  const start = parse(from);
+  const end = parse(to);
+  const channel = (index: number) => Math.round(
+    start[index] + (end[index] - start[index]) * amount,
+  ).toString(16).padStart(2, "0");
+  return `#${channel(0)}${channel(1)}${channel(2)}`;
 }
 
 function frameToPlayData(
@@ -303,6 +349,20 @@ function frameToPlayData(
   // out of MazeBench's normal camera envelope.
   const layerOffset = 1 - minLayer;
   const definitions = new Map(blocks.map((block) => [block.id, block]));
+  const actors: RenderActor[] = frame.voxels.flatMap((voxel) => {
+    const definition = definitions.get(voxel.blockId);
+    if (!definition || definition.visual.kind !== "gem") return [];
+    return [{
+      collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
+      elevation: voxel.z + layerOffset,
+      label: definition.name,
+      modelUrl: definition.visual.modelUrl,
+      removed: false,
+      type: "gem",
+      x: voxel.x,
+      y: voxel.y,
+    }];
+  });
   const terrain = Array.from({ length: world.height }, (_, y) =>
     Array.from({ length: world.width }, (_, x): TerrainCell => {
       const layers = frame.voxels
@@ -310,18 +370,21 @@ function frameToPlayData(
         .sort((left, right) => left.z - right.z)
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
-          if (!definition) return null;
-          const selected = selectedVoxelKeys.has(`${voxel.x},${voxel.y},${voxel.z}`);
+          if (!definition || (definition.visual.kind !== "cube" && definition.visual.kind !== "slope")) return null;
+          const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           return {
+            ...(definition.visual.kind === "slope"
+              ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
+              : {}),
             elevation: voxel.z + layerOffset,
             genericLabel: genericBlockIds.has(definition.id)
               ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
               : undefined,
             label: definition.name,
             raised: true,
-            type: "wall",
+            type: definition.visual.kind === "slope" ? "ice_slope" : "wall",
             voxelColor: selected
-              ? `#${new THREE.Color(definition.color).lerp(new THREE.Color("#34e7f0"), 0.48).getHexString()}`
+              ? lerpHexColor(definition.color, "#34e7f0", 0.48)
               : definition.color,
             voxelKey: definition.id,
           };
@@ -339,7 +402,7 @@ function frameToPlayData(
   );
 
   const playData: MazeBenchPlayData = {
-    actors: [],
+    actors,
     cameraView: { width: world.width, height: world.height },
     disableHorizontalNeighborFetches: true,
     editorRender: true,
@@ -647,7 +710,9 @@ export default function MazeBenchCanvas({
         });
         app.render();
 
-        return Promise.resolve(app.threeRendererReady).then(() => {
+        return Promise.resolve(app.threeRendererReady).then(async () => {
+          if (cancelled || runtimeRef.current?.app !== app) return;
+          await app.threeRenderer?.whenLevelStateModelsReady(playData);
           if (cancelled || runtimeRef.current?.app !== app) return;
           setCamera();
           app.threeRenderer?.invalidateSceneCache();
@@ -682,9 +747,13 @@ export default function MazeBenchCanvas({
       resetHistory: true,
       resetLevelEntry: true,
     });
-    runtime.app.threeRenderer?.invalidateSceneCache();
-    runtime.app.render();
-    if (canvasRef.current) publishRendererState(runtime.app, canvasRef.current);
+    const app = runtime.app;
+    void Promise.resolve(app.threeRenderer?.whenLevelStateModelsReady(next.playData)).then(() => {
+      if (runtimeRef.current?.app !== app) return;
+      app.threeRenderer?.invalidateSceneCache();
+      app.render();
+      if (canvasRef.current) publishRendererState(app, canvasRef.current);
+    });
   }, [blocks, compact, frame, genericBlockIds, selectedVoxelKeys, world]);
 
   useEffect(() => {
