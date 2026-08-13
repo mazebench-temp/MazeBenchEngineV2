@@ -116,9 +116,11 @@ bool StoreSupportedMandatoryMomentum(
       continue;
     }
     const bool supported_momentum =
-        (g_mandatory_objects[object] != 0 ||
+        (g_inherited_support_motion[object] != 0 ||
+         g_mandatory_objects[object] != 0 ||
          g_object_redirected[object] != 0) &&
-        ObjectIsFullyOnIce(voxels, object, width, height);
+        (g_inherited_support_motion[object] != 0 ||
+         ObjectIsFullyOnIce(voxels, object, width, height));
     bool supported_by_momentum_body = false;
     if (!supported_momentum && g_object_redirected[object] != 0) {
       for (int32_t member = g_object_head[object]; member >= 0;

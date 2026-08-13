@@ -236,6 +236,26 @@ bool ObjectIsFullyOnIce(
   return found_bottom;
 }
 
+bool ObjectIsFullyOnFlatIce(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  bool found_bottom = false;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const Voxel& voxel = voxels[member];
+    if (voxel.z == INT32_MIN) return false;
+    const int32_t support = FindVoxelAt(
+        voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+    if (support >= 0 && g_voxel_object[support] == object) continue;
+    if (support < 0) continue;
+    if (voxels[support].role != kIceRole) return false;
+    found_bottom = true;
+  }
+  return found_bottom;
+}
+
 int32_t ObjectHighestZ(Voxel* voxels, int32_t object) {
   int32_t highest = INT32_MIN;
   for (int32_t member = g_object_head[object]; member >= 0;
