@@ -65,6 +65,10 @@ import {
   normalizeCycleExpectation,
   tickIsInCycle,
 } from "./cycleExpectation.mjs";
+import {
+  decodeProjectPayload,
+  encodeProjectBundle,
+} from "./projectFormat.mjs";
 
 type Direction = "up" | "down" | "left" | "right";
 type FrameKind = "start" | "expected";
@@ -1043,7 +1047,7 @@ export default function VoxelBench() {
 
       for (const saved of candidates) {
         try {
-          const parsed = JSON.parse(saved) as {
+          const parsed = decodeProjectPayload(JSON.parse(saved)) as {
           blocks: StoredBlockDefinition[];
           folders?: StoredTestFolder[];
           roles?: PhysicsRoleDefinition[];
@@ -1104,7 +1108,7 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 11,
+        schemaVersion: 12,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
@@ -1119,7 +1123,7 @@ export default function VoxelBench() {
           expected: { voxels: sortVoxels(test.expected.voxels) },
         })),
       };
-      const serialized = JSON.stringify(project);
+      const serialized = JSON.stringify(encodeProjectBundle(project));
       let browserBackupPreserved = true;
       try {
         localStorage.setItem(STORAGE_KEY, serialized);
@@ -2392,8 +2396,8 @@ export default function VoxelBench() {
 
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
-    const payload = JSON.stringify({
-      schemaVersion: 11,
+    const project = {
+      schemaVersion: 12,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
@@ -2407,14 +2411,15 @@ export default function VoxelBench() {
         })),
         expected: { voxels: sortVoxels(test.expected.voxels) },
       })),
-    }, null, 2);
+    };
+    const payload = JSON.stringify(encodeProjectBundle(project));
     const url = URL.createObjectURL(new Blob([payload], { type: "application/json" }));
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "voxelbench-project.json";
+    anchor.download = "voxelbench-project.compact.json";
     anchor.click();
     URL.revokeObjectURL(url);
-    setToast("Project JSON exported");
+    setToast("Compact project exported");
   };
 
   const importProject = (event: ChangeEvent<HTMLInputElement>) => {
@@ -2422,7 +2427,7 @@ export default function VoxelBench() {
     if (!file) return;
     file.text().then((text) => {
       try {
-        const parsed = JSON.parse(text) as {
+        const parsed = decodeProjectPayload(JSON.parse(text)) as {
           blocks: StoredBlockDefinition[];
           folders?: StoredTestFolder[];
           roles?: PhysicsRoleDefinition[];

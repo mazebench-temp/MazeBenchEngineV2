@@ -8,10 +8,10 @@ import {
   rotateWorldClockwise,
 } from "../../apps/web/app/worldBounds.mjs";
 
-const project = JSON.parse(await readFile(
-  new URL("../../project-data/voxelbench-project.json", import.meta.url),
-  "utf8",
-));
+import { readProjectDirectory } from "../../scripts/lib/project-store.mjs";
+
+const project = await readProjectDirectory(new URL(
+  "../../project-data", import.meta.url));
 const wasm = await readFile(
   new URL("../../apps/web/public/physics/voxel_physics.wasm", import.meta.url),
 );

@@ -1,12 +1,14 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
+import {
+  readProjectBundle,
+  writeProjectDirectory,
+} from "../../../scripts/lib/project-store.mjs";
 
 const ENDPOINT = "/api/local-project";
 const MAX_PROJECT_BYTES = 25 * 1024 * 1024;
-const PROJECT_FILE = fileURLToPath(
-  new URL("../../../project-data/voxelbench-project.json", import.meta.url),
+const PROJECT_DIRECTORY = fileURLToPath(
+  new URL("../../../project-data", import.meta.url),
 );
 
 function sendJson(response: import("node:http").ServerResponse, status: number, body: unknown) {
@@ -28,19 +30,8 @@ async function readRequestBody(request: import("node:http").IncomingMessage) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function isProjectPayload(value: unknown): value is Record<string, unknown> {
-  if (!value || typeof value !== "object") return false;
-  const project = value as Record<string, unknown>;
-  return (
-    Number.isInteger(project.schemaVersion) &&
-    Array.isArray(project.roles) &&
-    Array.isArray(project.blocks) &&
-    Array.isArray(project.folders) &&
-    Array.isArray(project.tests)
-  );
-}
-
 export function localProjectFile(): Plugin {
+  let saveQueue = Promise.resolve();
   return {
     name: "voxelbench-local-project-file",
     apply: "serve",
@@ -54,11 +45,11 @@ export function localProjectFile(): Plugin {
 
         if (request.method === "GET") {
           try {
-            const project = await readFile(PROJECT_FILE, "utf8");
+            const project = await readProjectBundle(PROJECT_DIRECTORY);
             response.statusCode = 200;
             response.setHeader("Cache-Control", "no-store");
             response.setHeader("Content-Type", "application/json; charset=utf-8");
-            response.end(project);
+            response.end(JSON.stringify(project));
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
               sendJson(response, 404, { error: "No repo-backed project exists yet" });
@@ -73,18 +64,17 @@ export function localProjectFile(): Plugin {
           try {
             const body = await readRequestBody(request);
             const project: unknown = JSON.parse(body);
-            if (!isProjectPayload(project)) {
-              sendJson(response, 400, { error: "Invalid VoxelBench project data" });
-              return;
-            }
-            await mkdir(dirname(PROJECT_FILE), { recursive: true });
-            const temporaryFile = `${PROJECT_FILE}.tmp`;
-            await writeFile(temporaryFile, `${JSON.stringify(project, null, 2)}\n`, "utf8");
-            await rename(temporaryFile, PROJECT_FILE);
+            let result: Awaited<ReturnType<typeof writeProjectDirectory>> | undefined;
+            const pendingSave = saveQueue.catch(() => undefined).then(async () => {
+              result = await writeProjectDirectory(PROJECT_DIRECTORY, project);
+            });
+            saveQueue = pendingSave.catch(() => undefined);
+            await pendingSave;
             sendJson(response, 200, {
-              path: "project-data/voxelbench-project.json",
+              path: "project-data/project.json",
               saved: true,
-              tests: project.tests.length,
+              tests: result?.tests ?? 0,
+              changedTests: result?.changedTests ?? 0,
             });
           } catch (error) {
             sendJson(response, 500, {
