@@ -57,6 +57,14 @@ import {
   offsetSlopeDirection,
   slopeDirectionIndex,
 } from "./visualVariants.mjs";
+import {
+  adjustCycleForDeletedTick,
+  clearCycleExpectation,
+  markCycleRepeat,
+  markCycleStart,
+  normalizeCycleExpectation,
+  tickIsInCycle,
+} from "./cycleExpectation.mjs";
 
 type Direction = "up" | "down" | "left" | "right";
 type FrameKind = "start" | "expected";
@@ -110,7 +118,13 @@ type StoredTestFolder = Omit<TestFolder, "collapsed" | "locked"> & {
   collapsed?: boolean;
   locked?: boolean;
 };
+type CycleExpectation = {
+  startTick: number;
+  repeatTick: number;
+  onCycle: "rollback-command";
+};
 type TestCase = {
+  cycle?: CycleExpectation;
   description: string;
   folderId: string;
   id: string;
@@ -123,6 +137,7 @@ type TestCase = {
   world: WorldSettings;
 };
 type StoredTestCase = Omit<TestCase, "description" | "folderId" | "intermediate" | "locked" | "world"> & {
+  cycle?: Partial<CycleExpectation>;
   description?: string;
   folderId?: string;
   intermediate?: Frame[];
@@ -385,6 +400,7 @@ function normalizeTests(
       locked: Boolean(test.locked),
       intermediate: (test.intermediate ?? []).map((frame) =>
         normalizeGenericIds(frame, blocks, roles, legacyBlocks)),
+      cycle: normalizeCycleExpectation(test.cycle, test.intermediate?.length ?? 0) ?? undefined,
       start: normalizeGenericIds(test.start, blocks, roles, legacyBlocks),
       expected: normalizeGenericIds(test.expected, blocks, roles, legacyBlocks),
       world,
@@ -804,6 +820,7 @@ function TestWorldEditor({
 
 function TimelineSnapshotStrip({
   blocks,
+  cycle,
   final,
   frames,
   genericBlockIds,
@@ -812,6 +829,7 @@ function TimelineSnapshotStrip({
   world,
 }: {
   blocks: BlockDefinition[];
+  cycle?: CycleExpectation;
   final: Frame;
   frames: Frame[];
   genericBlockIds: ReadonlySet<string>;
@@ -822,7 +840,9 @@ function TimelineSnapshotStrip({
   const items = frames.length
     ? [{ frame: start, label: "START" }, ...frames.map((frame, index) => ({
       frame,
-      label: `TICK ${index + 1}`,
+      label: cycle && index + 1 > cycle.repeatTick
+        ? "ROLLBACK"
+        : `TICK ${index + 1}`,
     }))]
     : [{ frame: start, label: "START" }, { frame: final, label: "FINAL" }];
   const [snapshots, setSnapshots] = useState<Array<string | undefined>>([]);
@@ -840,7 +860,7 @@ function TimelineSnapshotStrip({
   return (
     <div className="timeline-review__strip">
       {items.map((item, index) => (
-        <article className="timeline-review__card" key={item.label}>
+        <article className={`timeline-review__card ${tickIsInCycle(cycle, index) ? "cycle-span" : ""} ${cycle?.startTick === index ? "cycle-start" : ""} ${cycle?.repeatTick === index ? "cycle-repeat" : ""}`} key={`${item.label}-${index}`}>
           <small>{item.label}</small>
           {snapshots[index] ? (
             // Data URLs are generated locally from the shared sequential
@@ -885,6 +905,7 @@ export default function VoxelBench() {
   const [frameKind, setFrameKind] = useState<FrameKind>("start");
   const [intermediateIndex, setIntermediateIndex] = useState<number | null>(null);
   const [generatedTimeline, setGeneratedTimeline] = useState<{
+    cycle?: CycleExpectation;
     final: Frame;
     frames: Frame[];
     generationId: number;
@@ -937,6 +958,11 @@ export default function VoxelBench() {
   const activeFrame = activeTest
     ? cropFrameToWorld(editableFrame(activeTest, frameKind, intermediateIndex), activeWorld)
     : { voxels: [] };
+  const selectedTimelineTick = frameKind === "start"
+    ? 0
+    : intermediateIndex === null
+      ? null
+      : intermediateIndex + 1;
   const activeGroupSelection = groupSelection &&
     groupSelection.testId === activeTest?.id &&
     groupSelection.frameKind === frameKind &&
@@ -1075,7 +1101,7 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 10,
+        schemaVersion: 11,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
@@ -1165,6 +1191,7 @@ export default function VoxelBench() {
         activeTest.world,
       );
       setGeneratedTimeline({
+        cycle: simulation.cycle,
         final: cropFrameToWorld(simulation.final, activeTest.world),
         frames: simulation.frames.map((frame) =>
           cropFrameToWorld(frame, activeTest.world)),
@@ -1212,6 +1239,7 @@ export default function VoxelBench() {
     setTests((current) => current.map((test) => test.id === activeTest.id
       ? {
         ...test,
+        cycle: generatedTimeline.cycle,
         intermediate: intermediate.map(cloneFrame),
         expected: cloneFrame(final),
       }
@@ -2172,7 +2200,7 @@ export default function VoxelBench() {
     setTests((current) => current.map((test) => {
       if (test.id !== activeTest.id) return test;
       return {
-        ...test,
+        ...adjustCycleForDeletedTick(test, removedTick),
         intermediate: test.intermediate.filter((_, index) => index !== intermediateIndex),
       };
     }));
@@ -2192,6 +2220,51 @@ export default function VoxelBench() {
       setIntermediateIndex(Math.min(intermediateIndex, remainingCount - 1));
     }
     setToast(`Tick ${removedTick} removed from the expected timeline`);
+  };
+
+  const setCycleStartAtSelection = () => {
+    if (!activeTest || activeTestLocked || selectedTimelineTick === null) return;
+    if (selectedTimelineTick >= activeTest.intermediate.length) {
+      setToast("Cycle start must come before a later repeated tick");
+      return;
+    }
+    setTests((current) => current.map((test) =>
+      test.id === activeTest.id ? markCycleStart(test, selectedTimelineTick) : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setToast(`Cycle starts at ${selectedTimelineTick === 0 ? "Start" : `Tick ${selectedTimelineTick}`}`);
+  };
+
+  const setCycleRepeatAtSelection = () => {
+    if (!activeTest || activeTestLocked || selectedTimelineTick === null) return;
+    if (selectedTimelineTick <= 0) {
+      setToast("The repeated cycle state must be an intermediate tick");
+      return;
+    }
+    setTests((current) => current.map((test) =>
+      test.id === activeTest.id ? markCycleRepeat(test, selectedTimelineTick) : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    const startTick = activeTest.cycle?.startTick ?? 0;
+    setToast(`Cycle repeats at Tick ${selectedTimelineTick} · period ${selectedTimelineTick - Math.min(startTick, selectedTimelineTick - 1)}`);
+  };
+
+  const clearCycle = () => {
+    if (!activeTest || activeTestLocked || !activeTest.cycle) return;
+    setTests((current) => current.map((test) =>
+      test.id === activeTest.id ? clearCycleExpectation(test) : test));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[activeTest.id];
+      return next;
+    });
+    setToast("Cycle markers cleared");
   };
 
   const resetRoom = () => {
@@ -2317,7 +2390,7 @@ export default function VoxelBench() {
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
     const payload = JSON.stringify({
-      schemaVersion: 10,
+      schemaVersion: 11,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
@@ -2443,9 +2516,9 @@ export default function VoxelBench() {
           <section className="author-stage" aria-label="Voxel frame editor">
             <div className="stage-chrome stage-chrome--left">
               <div className="frame-switch" role="group" aria-label="Frame to edit">
-                <button className={frameKind === "start" && intermediateIndex === null ? "active" : ""} onClick={() => { setFrameKind("start"); setIntermediateIndex(null); setGroupSelection(null); }}><span>01</span> Start</button>
+                <button className={`${frameKind === "start" && intermediateIndex === null ? "active" : ""} ${tickIsInCycle(activeTest.cycle, 0) ? "cycle-span" : ""} ${activeTest.cycle?.startTick === 0 ? "cycle-start" : ""}`} title={activeTest.cycle?.startTick === 0 ? "Cycle begins here" : undefined} onClick={() => { setFrameKind("start"); setIntermediateIndex(null); setGroupSelection(null); }}><span>01</span> Start</button>
                 {activeTest.intermediate.map((_, index) => (
-                  <button key={index} className={intermediateIndex === index ? "active" : ""} onClick={() => { setFrameKind("expected"); setIntermediateIndex(index); setGroupSelection(null); }}><span>{String(index + 2).padStart(2, "0")}</span> Tick {index + 1}</button>
+                  <button key={index} className={`${intermediateIndex === index ? "active" : ""} ${tickIsInCycle(activeTest.cycle, index + 1) ? "cycle-span" : ""} ${activeTest.cycle?.startTick === index + 1 ? "cycle-start" : ""} ${activeTest.cycle?.repeatTick === index + 1 ? "cycle-repeat" : ""}`} title={activeTest.cycle?.startTick === index + 1 ? "Cycle begins here" : activeTest.cycle?.repeatTick === index + 1 ? "Full state repeats here" : tickIsInCycle(activeTest.cycle, index + 1) ? "Inside expected cycle" : undefined} onClick={() => { setFrameKind("expected"); setIntermediateIndex(index); setGroupSelection(null); }}><span>{String(index + 2).padStart(2, "0")}</span> Tick {index + 1}</button>
                 ))}
                 <button className={frameKind === "expected" && intermediateIndex === null ? "active" : ""} onClick={() => { setFrameKind("expected"); setIntermediateIndex(null); setGroupSelection(null); }}><span>{String(activeTest.intermediate.length + 2).padStart(2, "0")}</span> Expected</button>
               </div>
@@ -2457,6 +2530,9 @@ export default function VoxelBench() {
               <button type="button" className="add-tick-button" title="Insert an expected tick after the selected frame" disabled={activeTestLocked} onClick={addIntermediateFrame}>Add tick</button>
               {frameKind === "expected" && <button type="button" className="copy-previous-button" title="Replace this frame with a copy of the frame immediately before it" disabled={activeTestLocked} onClick={copyPreviousFrame}>Copy previous</button>}
               {intermediateIndex !== null && <button type="button" className="delete-tick-button" title={`Remove expected tick ${intermediateIndex + 1}`} disabled={activeTestLocked} onClick={deleteIntermediateFrame}>Delete tick</button>}
+              {selectedTimelineTick !== null && <button type="button" className="cycle-mark-button cycle-mark-button--start" disabled={activeTestLocked || selectedTimelineTick >= activeTest.intermediate.length} onClick={setCycleStartAtSelection}>Loop starts</button>}
+              {selectedTimelineTick !== null && selectedTimelineTick > 0 && <button type="button" className="cycle-mark-button cycle-mark-button--repeat" disabled={activeTestLocked} onClick={setCycleRepeatAtSelection}>Repeats here</button>}
+              {activeTest.cycle && <button type="button" className="cycle-clear-button" disabled={activeTestLocked} title={`Cycle ${activeTest.cycle.startTick}→${activeTest.cycle.repeatTick} · period ${activeTest.cycle.repeatTick - activeTest.cycle.startTick}`} onClick={clearCycle}>Clear loop</button>}
               <button type="button" className="generate-timeline-button" disabled={activeTestLocked} onClick={generateTimeline}>Auto-generate frames</button>
               <button type="button" className="reset-room-button" disabled={activeTestLocked} onClick={resetRoom}>Reset room</button>
             </div>
@@ -2467,10 +2543,11 @@ export default function VoxelBench() {
             <MazeBenchCanvas frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
             {generatedTimeline?.testId === activeTest.id && (
               <section className="timeline-review" aria-label="Generated C++ timeline review">
-                <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.frames.length} tick {generatedTimeline.frames.length === 1 ? "frame" : "frames"}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>
+                <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.cycle ? `${generatedTimeline.cycle.repeatTick} ticks + rollback · loop ${generatedTimeline.cycle.startTick}→${generatedTimeline.cycle.repeatTick}` : `${generatedTimeline.frames.length} tick ${generatedTimeline.frames.length === 1 ? "frame" : "frames"}`}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>
                 <TimelineSnapshotStrip
                   key={generatedTimeline.generationId}
                   blocks={blocks}
+                  cycle={generatedTimeline.cycle}
                   final={generatedTimeline.final}
                   frames={generatedTimeline.frames}
                   genericBlockIds={genericBlockIds}

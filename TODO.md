@@ -84,7 +84,9 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Gem: real model, editor sensor occupancy, existing C++ player collection, and box overlap.
 - [ ] Pressure button: pressed/released state from overlapping occupants.
 - [ ] Orange wall: raised/lowered state driven by button conditions.
-- [ ] Ice slope: four directions with discrete ramp traversal.
+- [x] Ice slope: four directions with discrete ramp traversal.
+- [x] Detect exact whole-level slope cycles, show their tick interval, and roll the command back.
+- [x] Keep falling momentum when a player or box is caught by a directional slope.
 - [ ] Flat surface/platform: explicit support behavior without full-cell collision.
 - [ ] Puncher: directional fixture and launch behavior.
 - [ ] Player lift: lowered/raised support and rider movement.
@@ -100,9 +102,10 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Removing one occupant preserves every other occupant.
 - [ ] Undo, copy tick, export/import, reset, and resize preserve overlaps.
 - [ ] Frame differences identify the exact missing state/variant/occupant.
-- [ ] Automatic rotations correctly transform ramps, punchers, face symbols, and orientations.
+- [x] Automatic rotations correctly transform authored ramps and their cycle traces.
+- [ ] Automatic rotations correctly transform future punchers, face symbols, and unrestricted orientations.
 - [ ] Search distinguishes identical coordinates with different mechanism states.
 - [ ] A lowered wall does not create support over a void unless its state explicitly says so.
 - [ ] Custom shapes remain pickable from above and below.
-- [x] Existing 133 authored physics tests remain green.
+- [x] All 151 authored physics tests, including three exact cycle traces, remain green.
 - [x] Native C++ tests, WASM API tests, web tests, lint, and production build remain green.

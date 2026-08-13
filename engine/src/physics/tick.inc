@@ -58,8 +58,8 @@ TickResult step_tick(
   const int32_t player_index = state->player_index;
   constexpr int32_t kDx[] = {0, 1, 0, -1};
   constexpr int32_t kDy[] = {-1, 0, 1, 0};
-  const int32_t dx = kDx[state->direction];
-  const int32_t dy = kDy[state->direction];
+  int32_t dx = kDx[state->direction];
+  int32_t dy = kDy[state->direction];
 
   if (!workspace_has_continuation) {
     BuildObjects(voxels, count);
@@ -264,8 +264,14 @@ TickResult step_tick(
     }
     if (!gravity_continues && state->reserved[0] == kResumeObjectIce) {
       state->reserved[0] = kResumeNothing;
+      RestoreMandatoryMomentum(state);
+      if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
+        return store_and_finish(
+            kMotionObjectIce, objects_advanced || player_advanced);
+      }
+      ClearHorizontalMomentum(state, count);
       return store_and_finish(
-          kMotionObjectIce, objects_advanced || player_advanced);
+          kMotionComplete, objects_advanced || player_advanced, true);
     }
     if (!gravity_continues && state->reserved[0] == kResumePlayerIce &&
         IsSupportedByIce(voxels, voxels[player_index], width, height)) {
@@ -282,6 +288,12 @@ TickResult step_tick(
 
   if (state->phase == kMotionObjectIce) {
     RestoreMandatoryMomentum(state);
+    state->direction = RedirectMovingObjectSlopeDirection(
+        voxels, state->direction, width, height);
+    dx = kDx[state->direction];
+    dy = kDy[state->direction];
+    const int32_t object_dz = MovingObjectSlopeVerticalDelta(
+        voxels, state->direction, width, height);
     const bool player_has_ice_momentum =
         IsSupportedByIce(voxels, voxels[player_index], width, height);
     const RiderSnapshot rider =
@@ -293,6 +305,7 @@ TickResult step_tick(
         player_index,
         dx,
         dy,
+        object_dz,
         width,
         height,
         true,
@@ -361,10 +374,19 @@ TickResult step_tick(
       state->reserved[0] = kResumeNothing;
       return store_and_finish(kMotionObjectIce, true);
     }
-    state->reserved[0] = gravity_continues && IsSupportedByIce(
-        voxels, voxels[player_index], width, height)
-        ? kResumePlayerIce
-        : kResumeNothing;
+    if (gravity_continues &&
+        MovingObjectWillLandOnSlope(voxels, count, width)) {
+      // Horizontal momentum pauses while a body drops onto a lower ramp. It
+      // resumes only after the shared gravity phase has settled the body, at
+      // which point a sideways slope may redirect it downhill.
+      StoreMandatoryMomentum(state, voxels, count, width, height);
+      state->reserved[0] = kResumeObjectIce;
+    } else {
+      state->reserved[0] = IsSupportedByIce(
+          voxels, voxels[player_index], width, height)
+          ? kResumePlayerIce
+          : kResumeNothing;
+    }
     return store_and_finish(
         gravity_continues ? kMotionGravity : kMotionComplete,
         true,
@@ -375,18 +397,27 @@ TickResult step_tick(
   const bool records_initial_tick =
       state->phase == kMotionReady && state->tick == 0;
   Voxel& player = voxels[player_index];
+  if (automatic_ice_motion) {
+    state->direction = RedirectSlopeDirection(
+        voxels, player, state->direction, width, height);
+    dx = kDx[state->direction];
+    dy = kDy[state->direction];
+  }
+  const int32_t player_dz = SlopeVerticalDelta(
+      voxels, player, state->direction, width, height);
   const int32_t player_from_x = player.x;
   const int32_t player_from_y = player.y;
   const int32_t player_from_z = player.z;
   const bool started_on_ice = IsSupportedByIce(voxels, player, width, height);
   const int32_t target_x = player.x + dx;
   const int32_t target_y = player.y + dy;
+  const int32_t target_z = player.z + player_dz;
   if (!IsInsideRoom(target_x, target_y, width, height)) {
     return store_and_finish(kMotionComplete, records_initial_tick);
   }
 
   const int32_t target_index =
-      FindVoxelAt(voxels, target_x, target_y, player.z, width, height);
+      FindVoxelAt(voxels, target_x, target_y, target_z, width, height);
   bool pushed = false;
   bool object_keeps_sliding = false;
   bool rode_pushed_object = false;
@@ -396,8 +427,8 @@ TickResult step_tick(
     if (automatic_ice_motion || object < 0) {
       return store_and_finish(kMotionComplete, records_initial_tick);
     }
-    const int32_t target_support = player.z == INT32_MIN ? -1 : FindVoxelAt(
-        voxels, target_x, target_y, player.z - 1, width, height);
+    const int32_t target_support = target_z == INT32_MIN ? -1 : FindVoxelAt(
+        voxels, target_x, target_y, target_z - 1, width, height);
     const bool target_support_stays = target_support >= 0 &&
         g_voxel_object[target_support] != object;
     if (!target_support_stays) {
@@ -425,6 +456,7 @@ TickResult step_tick(
             player_index,
             dx,
             dy,
+            0,
             width,
             height,
             true,
@@ -442,12 +474,12 @@ TickResult step_tick(
     }
     rode_pushed_object =
         MovePlayerWithRider(voxels, player_index, rider, width, height);
-  } else if (player.z != INT32_MIN) {
+  } else if (target_z != INT32_MIN) {
     const int32_t direct_support = FindVoxelAt(
-        voxels, target_x, target_y, player.z - 1, width, height);
+        voxels, target_x, target_y, target_z - 1, width, height);
     if (direct_support < 0) {
       const int32_t lower_support = FindNearestVoxelBelow(
-          voxels, count, target_x, target_y, player.z, -1, width);
+          voxels, count, target_x, target_y, target_z, -1, width);
       const int32_t current_support = FindVoxelAt(
           voxels, player.x, player.y, player.z - 1, width, height);
       const bool may_leave_support = automatic_ice_motion || started_on_ice ||
@@ -467,6 +499,7 @@ TickResult step_tick(
             player_index,
             dx,
             dy,
+            0,
             width,
             height,
             true,
@@ -479,6 +512,7 @@ TickResult step_tick(
   if (!rode_pushed_object) {
     player.x = target_x;
     player.y = target_y;
+    player.z = target_z;
   } else {
     // A rider follows its carrier, not the target cell that was computed
     // before the carrier's translation.
@@ -501,8 +535,9 @@ TickResult step_tick(
     const bool gravity_continues =
         state->player_falling != 0 ||
         ObjectsNeedGravityTick(voxels, count, width, height, false);
-    state->reserved[0] =
-        pushed && IsSupportedByIce(voxels, player, width, height)
+    state->reserved[0] = (automatic_ice_motion &&
+        VoxelWillLandOnSlope(voxels, count, player, -1, width)) ||
+        (pushed && IsSupportedByIce(voxels, player, width, height))
         ? kResumePlayerIce
         : kResumeNothing;
     return store_and_finish(
@@ -521,17 +556,23 @@ TickResult step_tick(
         FindVoxelAt(voxels, run_up_x, run_up_y, player.z, width, height) < 0) {
       const int32_t run_up_support = FindVoxelAt(
           voxels, run_up_x, run_up_y, player.z - 1, width, height);
-      if (run_up_support >= 0 && voxels[run_up_support].role == kIceRole) {
+      if (run_up_support >= 0 && IsIceRole(voxels[run_up_support].role)) {
         return store_and_finish(kMotionPlayerIce, true);
       }
     }
   }
   const bool gravity_continues =
       ObjectsNeedGravityTick(voxels, count, width, height, false);
-  state->reserved[0] = gravity_continues &&
-      IsSupportedByIce(voxels, player, width, height)
-      ? kResumePlayerIce
-      : kResumeNothing;
+  if (gravity_continues && pushed &&
+      MovingObjectWillLandOnSlope(voxels, count, width)) {
+    StoreMandatoryMomentum(state, voxels, count, width, height);
+    state->reserved[0] = kResumeObjectIce;
+  } else {
+    state->reserved[0] = gravity_continues &&
+        IsSupportedByIce(voxels, player, width, height)
+        ? kResumePlayerIce
+        : kResumeNothing;
+  }
   return store_and_finish(
       gravity_continues ? kMotionGravity : kMotionComplete,
       true,

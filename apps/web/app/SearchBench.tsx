@@ -59,7 +59,7 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "cube" | "gem"; modelUrl?: string };
+  visual: { kind: "cube" | "gem" | "slope"; modelUrl?: string };
 };
 
 type SearchBenchProps = {

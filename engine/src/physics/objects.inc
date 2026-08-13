@@ -230,7 +230,7 @@ bool ObjectIsFullyOnIce(
     // motion continues while at least one exposed cell is on Ice and every
     // other actual support is Ice too.
     if (support < 0) continue;
-    if (voxels[support].role != kIceRole) return false;
+    if (!IsIceRole(voxels[support].role)) return false;
     found_bottom = true;
   }
   return found_bottom;

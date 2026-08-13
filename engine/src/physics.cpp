@@ -9,11 +9,13 @@ namespace {
 #include "physics/objects.inc"
 #include "physics/movement.inc"
 #include "physics/command_state.inc"
+#include "physics/cycle.inc"
 
 }  // namespace
 
 #include "physics/public_core.inc"
 #include "physics/tick.inc"
+#include "physics/cycle_public.inc"
 #include "physics/simulate.inc"
 
 }  // namespace voxelbench

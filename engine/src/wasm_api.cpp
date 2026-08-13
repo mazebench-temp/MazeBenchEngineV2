@@ -66,7 +66,7 @@ int32_t step_command_tick(
     int32_t height,
     int32_t direction) {
   EnsureInitialized();
-  return static_cast<int32_t>(voxelbench::step_tick(
+  return static_cast<int32_t>(voxelbench::step_command_tick(
       &g_workspace,
       &g_motion_state,
       g_voxels,
@@ -79,6 +79,21 @@ int32_t step_command_tick(
 int32_t command_tick() {
   EnsureInitialized();
   return g_motion_state.tick;
+}
+
+int32_t command_cycle_detected() {
+  EnsureInitialized();
+  return g_motion_state.cycle_start_tick >= 0 ? 1 : 0;
+}
+
+int32_t command_cycle_start_tick() {
+  EnsureInitialized();
+  return g_motion_state.cycle_start_tick;
+}
+
+int32_t command_cycle_repeat_tick() {
+  EnsureInitialized();
+  return g_motion_state.cycle_repeat_tick;
 }
 
 uint32_t role_code(int32_t length) {

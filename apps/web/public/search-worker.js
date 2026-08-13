@@ -1832,10 +1832,17 @@ function roleCodes(physics, roles) {
     physics.role_buffer_capacity(),
   );
   const codes = new Map();
-  for (const role of roles) {
-    const bytes = encoder.encode(role.id);
+  const roleIds = [
+    ...roles.map((role) => role.id),
+    "ice-slope-up",
+    "ice-slope-right",
+    "ice-slope-down",
+    "ice-slope-left",
+  ];
+  for (const roleId of roleIds) {
+    const bytes = encoder.encode(roleId);
     buffer.set(bytes.subarray(0, physics.role_buffer_capacity()));
-    codes.set(role.id, physics.role_code(bytes.length));
+    codes.set(roleId, physics.role_code(bytes.length));
   }
   return codes;
 }
@@ -1918,10 +1925,19 @@ async function evaluate(
       `Candidate has ${candidate.voxels.length} voxels; exact search supports ${physics.search_voxel_capacity()}.`,
     );
   }
-  const blockRoles = new Map(configuration.blocks.map((block) => [
-    block.id,
-    codes.get(block.roleId) ?? 0,
-  ]));
+  const blocksById = new Map(configuration.blocks.map((block) => [block.id, block]));
+  const slopeDirections = ["up", "right", "down", "left"];
+  const voxelRole = (voxel) => {
+    const block = blocksById.get(voxel.blockId);
+    if (!block) return 0;
+    if (block.visual?.kind === "slope") {
+      const direction = slopeDirections.includes(voxel.orientation)
+        ? voxel.orientation
+        : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
+      return codes.get(`ice-slope-${direction}`) ?? 0;
+    }
+    return codes.get(block.roleId) ?? 0;
+  };
   const genericRoles = new Set(configuration.roles.filter((role) => role.generic).map((role) => role.id));
   const genericBlocks = new Set(configuration.blocks
     .filter((block) => genericRoles.has(block.roleId)).map((block) => block.id));
@@ -1936,7 +1952,7 @@ async function evaluate(
       voxel.x,
       voxel.y,
       voxel.z,
-      blockRoles.get(voxel.blockId) ?? 0,
+      voxelRole(voxel),
       genericBlocks.has(voxel.blockId) ? Math.max(0, voxel.genericId ?? 0) : -1,
     ], index * stride);
   });

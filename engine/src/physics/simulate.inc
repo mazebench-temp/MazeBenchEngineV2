@@ -13,7 +13,7 @@ int32_t simulate_command(
   constexpr int32_t kMaximumTicks = 1000000;
   for (int32_t iteration = 0; iteration < kMaximumTicks; ++iteration) {
     const int32_t before_tick = state->tick;
-    const TickResult result = step_tick(
+    const TickResult result = step_command_tick(
         workspace, state, voxels, count, width, height, direction);
     if (result == TickResult::kInvalid) return -1;
     if (result == TickResult::kNoPlayer) return -2;

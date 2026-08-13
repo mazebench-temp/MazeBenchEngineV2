@@ -8,6 +8,10 @@ constexpr uint32_t kPlayerRole = HashRoleLiteral("player");
 constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole = HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kIceRole = HashRoleLiteral("ice");
+constexpr uint32_t kIceSlopeUpRole = HashRoleLiteral("ice-slope-up");
+constexpr uint32_t kIceSlopeRightRole = HashRoleLiteral("ice-slope-right");
+constexpr uint32_t kIceSlopeDownRole = HashRoleLiteral("ice-slope-down");
+constexpr uint32_t kIceSlopeLeftRole = HashRoleLiteral("ice-slope-left");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 
@@ -19,6 +23,27 @@ constexpr int32_t kDenseColumnCapacity = 4096;
 constexpr int32_t kLinearSpatialThreshold = 16;
 constexpr uint8_t kNormalObject = 0;
 constexpr uint8_t kWeightlessObject = 1;
+
+bool IsIceSlopeRole(uint32_t role) {
+  return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||
+      role == kIceSlopeDownRole || role == kIceSlopeLeftRole;
+}
+
+bool IsIceRole(uint32_t role) {
+  return role == kIceRole || IsIceSlopeRole(role);
+}
+
+int32_t IceSlopeDirection(uint32_t role) {
+  if (role == kIceSlopeUpRole) return 0;
+  if (role == kIceSlopeRightRole) return 1;
+  if (role == kIceSlopeDownRole) return 2;
+  if (role == kIceSlopeLeftRole) return 3;
+  return -1;
+}
+
+int32_t OppositeDirection(int32_t direction) {
+  return (direction + 2) & 3;
+}
 
 struct HashEntry {
   uint64_t key;
@@ -77,6 +102,7 @@ struct WorkspaceData {
   int32_t prepared_goal_indices[kVoxelCapacity];
   int32_t prepared_goal_count;
   bool prepared_dense_columns;
+  bool prepared_has_ice_slopes;
   bool assume_quiescent_start;
   int32_t motion_voxel_count;
   bool prepared_index_active;

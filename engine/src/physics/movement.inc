@@ -47,7 +47,7 @@ int32_t MovingSupportBelowObject(
     // Ordinary terrain provides an immovable foothold, so one moving contact
     // cannot carry the body. Ice has no such anchoring friction, and contact
     // with a different movable object is resolved by the support graph.
-    if (support_object < 0 && voxels[support].role != kIceRole) return -1;
+    if (support_object < 0 && !IsIceRole(voxels[support].role)) return -1;
   }
   return moving_support;
 }
@@ -87,6 +87,7 @@ bool ResolveCarriedCollisions(
     int32_t player_index,
     int32_t dx,
     int32_t dy,
+    int32_t dz,
     int32_t width,
     int32_t height,
     bool allow_push,
@@ -105,7 +106,7 @@ bool ResolveCarriedCollisions(
         break;
       }
       const int32_t occupant = FindVoxelAt(
-          voxels, next_x, next_y, voxel.z, width, height);
+          voxels, next_x, next_y, voxel.z + dz, width, height);
       if (occupant < 0 || occupant == player_index ||
           g_voxel_object[occupant] == object) {
         continue;
@@ -186,6 +187,7 @@ void TranslateObjectsCarriedByPlayerOneStep(
             player_index,
             dx,
             dy,
+            0,
             width,
             height,
             false,
@@ -448,6 +450,7 @@ bool TranslateMovingObjects(
     int32_t player_index,
     int32_t dx,
     int32_t dy,
+    int32_t dz,
     int32_t width,
     int32_t height,
     bool carry_from_player,
@@ -471,10 +474,13 @@ bool TranslateMovingObjects(
       const int32_t next_y = voxel.y + dy;
       if (!IsInsideRoom(next_x, next_y, width, height)) return false;
       const int32_t occupant = FindVoxelAt(
-          voxels, next_x, next_y, voxel.z, width, height);
-      if (occupant >= 0 && occupant != player_index &&
-          g_voxel_object[occupant] != 0) {
-        return false;
+          voxels, next_x, next_y, voxel.z + dz, width, height);
+      if (occupant >= 0) {
+        if (occupant == player_index) {
+          if (!player_moves_horizontally) return false;
+        } else if (g_voxel_object[occupant] != 0) {
+          return false;
+        }
       }
     }
     g_moving_objects[0] = 1;
@@ -485,6 +491,7 @@ bool TranslateMovingObjects(
          member = g_next_object_voxel[member]) {
       voxels[member].x += dx;
       voxels[member].y += dy;
+      voxels[member].z += dz;
     }
     BuildSpatialIndex(voxels, count, width, height);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
@@ -508,8 +515,12 @@ bool TranslateMovingObjects(
       const int32_t next_y = voxel.y + dy;
       if (!IsInsideRoom(next_x, next_y, width, height)) return false;
       const int32_t occupant = FindVoxelAt(
-          voxels, next_x, next_y, voxel.z, width, height);
-      if (occupant < 0 || occupant == player_index) continue;
+          voxels, next_x, next_y, voxel.z + dz, width, height);
+      if (occupant < 0) continue;
+      if (occupant == player_index) {
+        if (player_moves_horizontally) continue;
+        return false;
+      }
       const int32_t other_object = g_voxel_object[occupant];
       if (other_object == object ||
           (other_object >= 0 && g_mandatory_objects[other_object] != 0)) {
@@ -545,6 +556,7 @@ bool TranslateMovingObjects(
         player_index,
         dx,
         dy,
+        dz,
         width,
         height,
         allow_push,
@@ -570,7 +582,7 @@ bool TranslateMovingObjects(
           const int32_t next_y = voxel.y + dy;
           if (!IsInsideRoom(next_x, next_y, width, height)) return false;
           const int32_t occupant = FindVoxelAt(
-              voxels, next_x, next_y, voxel.z, width, height);
+              voxels, next_x, next_y, voxel.z + dz, width, height);
           if (occupant < 0 || occupant == player_index) continue;
           const int32_t other = g_voxel_object[occupant];
           if (other == object ||
@@ -626,6 +638,7 @@ bool TranslateMovingObjects(
          member = g_next_object_voxel[member]) {
       voxels[member].x += dx;
       voxels[member].y += dy;
+      voxels[member].z += dz;
     }
   }
   BuildSpatialIndex(voxels, count, width, height);
@@ -654,6 +667,7 @@ bool TranslateMovingObjects(
              member = g_next_object_voxel[member]) {
           voxels[member].x -= dx;
           voxels[member].y -= dy;
+          voxels[member].z -= dz;
         }
       }
       g_carried_objects[object] = 0;
@@ -693,7 +707,161 @@ bool IsSupportedByIce(
   if (voxel.z == INT32_MIN) return false;
   const int32_t support = FindVoxelAt(
       voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
-  return support >= 0 && voxels[support].role == kIceRole;
+  return support >= 0 && IsIceRole(voxels[support].role);
+}
+
+int32_t SlopeSupportingVoxel(
+    Voxel* voxels,
+    const Voxel& voxel,
+    int32_t width,
+    int32_t height) {
+  if (voxel.z == INT32_MIN) return -1;
+  const int32_t support = FindVoxelAt(
+      voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+  return support >= 0 && IsIceSlopeRole(voxels[support].role)
+      ? support
+      : -1;
+}
+
+int32_t RedirectSlopeDirection(
+    Voxel* voxels,
+    const Voxel& voxel,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  const int32_t support = SlopeSupportingVoxel(
+      voxels, voxel, width, height);
+  if (support < 0) return direction;
+  const int32_t slope_direction = IceSlopeDirection(voxels[support].role);
+  if (direction != slope_direction &&
+      direction != OppositeDirection(slope_direction)) {
+    return OppositeDirection(slope_direction);
+  }
+  if (direction != slope_direction) return direction;
+
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  const int32_t next_x = voxel.x + kDx[direction];
+  const int32_t next_y = voxel.y + kDy[direction];
+  if (!IsInsideRoom(next_x, next_y, width, height)) {
+    return OppositeDirection(direction);
+  }
+  const int32_t ascending_slope = FindVoxelAt(
+      voxels, next_x, next_y, voxel.z, width, height);
+  if (ascending_slope >= 0 &&
+      IceSlopeDirection(voxels[ascending_slope].role) == direction) {
+    return direction;
+  }
+  const int32_t same_height_occupant = FindVoxelAt(
+      voxels, next_x, next_y, voxel.z, width, height);
+  // The high edge may open into empty space. Momentum carries the body out at
+  // its current elevation and gravity resolves on the following tick. Only a
+  // real obstruction (or the room boundary above) reflects it downhill.
+  return same_height_occupant < 0
+      ? direction
+      : OppositeDirection(direction);
+}
+
+int32_t SlopeVerticalDelta(
+    Voxel* voxels,
+    const Voxel& voxel,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  const int32_t next_x = voxel.x + kDx[direction];
+  const int32_t next_y = voxel.y + kDy[direction];
+  if (IsInsideRoom(next_x, next_y, width, height)) {
+    const int32_t ascending_slope = FindVoxelAt(
+        voxels, next_x, next_y, voxel.z, width, height);
+    if (ascending_slope >= 0 &&
+        IceSlopeDirection(voxels[ascending_slope].role) == direction) {
+      return 1;
+    }
+  }
+  const int32_t support = SlopeSupportingVoxel(
+      voxels, voxel, width, height);
+  if (support >= 0 &&
+      direction == OppositeDirection(IceSlopeDirection(voxels[support].role))) {
+    // A descending wedge followed immediately by an ascending wedge at the
+    // same base elevation keeps the rider level between their touching faces.
+    if (IsInsideRoom(next_x, next_y, width, height) && voxel.z != INT32_MIN) {
+      const int32_t next_support = FindVoxelAt(
+          voxels, next_x, next_y, voxel.z - 1, width, height);
+      if (next_support >= 0 &&
+          IceSlopeDirection(voxels[next_support].role) == direction) {
+        return 0;
+      }
+    }
+    return -1;
+  }
+  return 0;
+}
+
+int32_t RedirectMovingObjectSlopeDirection(
+    Voxel* voxels,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const int32_t redirected = RedirectSlopeDirection(
+          voxels, voxels[member], direction, width, height);
+      if (redirected != direction) return redirected;
+    }
+  }
+  return direction;
+}
+
+int32_t MovingObjectSlopeVerticalDelta(
+    Voxel* voxels,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  int32_t delta = 0;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const int32_t member_delta = SlopeVerticalDelta(
+          voxels, voxels[member], direction, width, height);
+      if (member_delta == 0) continue;
+      if (delta != 0 && delta != member_delta) return 0;
+      delta = member_delta;
+    }
+  }
+  return delta;
+}
+
+bool VoxelWillLandOnSlope(
+    Voxel* voxels,
+    int32_t count,
+    const Voxel& voxel,
+    int32_t ignored_object,
+    int32_t width) {
+  const int32_t support = FindNearestVoxelBelow(
+      voxels, count, voxel.x, voxel.y, voxel.z, ignored_object, width);
+  return support >= 0 && IsIceSlopeRole(voxels[support].role);
+}
+
+bool MovingObjectWillLandOnSlope(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (VoxelWillLandOnSlope(
+              voxels, count, voxels[member], object, width)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void SettleAllObjects(

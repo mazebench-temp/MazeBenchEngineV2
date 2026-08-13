@@ -27,10 +27,22 @@ function roleCode(roleId) {
 }
 
 const roleCodes = new Map(project.roles.map((role) => [role.id, roleCode(role.id)]));
-const blockRoles = new Map(project.blocks.map((block) => [
-  block.id,
-  roleCodes.get(block.roleId) ?? 0,
-]));
+for (const direction of ["up", "right", "down", "left"]) {
+  roleCodes.set(`ice-slope-${direction}`, roleCode(`ice-slope-${direction}`));
+}
+const blocksById = new Map(project.blocks.map((block) => [block.id, block]));
+const slopeDirections = ["up", "right", "down", "left"];
+function voxelRole(voxel) {
+  const block = blocksById.get(voxel.blockId);
+  if (!block) return 0;
+  if (block.visual?.kind === "slope") {
+    const direction = slopeDirections.includes(voxel.orientation)
+      ? voxel.orientation
+      : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
+    return roleCodes.get(`ice-slope-${direction}`) ?? 0;
+  }
+  return roleCodes.get(block.roleId) ?? 0;
+}
 const genericRoles = new Set(project.roles.filter((role) => role.generic).map((role) => role.id));
 const genericBlocks = new Set(
   project.blocks.filter((block) => genericRoles.has(block.roleId)).map((block) => block.id),
@@ -51,7 +63,7 @@ function simulateFrames(voxels, direction, world) {
       voxel.x,
       voxel.y,
       voxel.z,
-      blockRoles.get(voxel.blockId) ?? 0,
+      voxelRole(voxel),
       genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
     ], index * stride);
   });
@@ -62,6 +74,9 @@ function simulateFrames(voxels, direction, world) {
     z: buffer[index * stride + 2],
   }));
   const frames = [];
+  const sameCoordinates = (left, right) => left.length === right.length &&
+    left.every((voxel, index) => voxel.x === right[index].x &&
+      voxel.y === right[index].y && voxel.z === right[index].z);
   let tick = 0;
   engine.reset_command();
   for (;;) {
@@ -72,7 +87,20 @@ function simulateFrames(voxels, direction, world) {
       tick = engine.command_tick();
       frames.push(readFrame());
     }
-    if (status === 0) return frames;
+    if (status === 0) {
+      const final = readFrame();
+      if (engine.command_cycle_detected() ||
+          !sameCoordinates(frames.at(-1) ?? voxels, final)) {
+        frames.push(final);
+      }
+      frames.cycle = engine.command_cycle_detected()
+        ? {
+            startTick: engine.command_cycle_start_tick(),
+            repeatTick: engine.command_cycle_repeat_tick(),
+          }
+        : null;
+      return frames;
+    }
   }
 }
 
@@ -88,7 +116,7 @@ function simulateFinal(voxels, direction, world) {
       voxel.x,
       voxel.y,
       voxel.z,
-      blockRoles.get(voxel.blockId) ?? 0,
+      voxelRole(voxel),
       genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
     ], index * stride);
   });
@@ -133,6 +161,16 @@ for (const authoredTest of project.tests) {
       const expectedIntermediate = (authoredTest.intermediate ?? []).map((frame) =>
         rotateVoxelsClockwise(frame.voxels, authoredTest.world, quarterTurns));
       const actualFrames = simulateFrames(start, quarterTurns, world);
+      const expectedCycle = authoredTest.cycle ?? null;
+      if ((actualFrames.cycle?.startTick ?? null) !==
+            (expectedCycle?.startTick ?? null) ||
+          (actualFrames.cycle?.repeatTick ?? null) !==
+            (expectedCycle?.repeatTick ?? null)) {
+        failures.push(
+          `${quarterTurns * 90}°: expected cycle ${expectedCycle ? `${expectedCycle.startTick}→${expectedCycle.repeatTick}` : "none"}, ` +
+          `engine reported ${actualFrames.cycle ? `${actualFrames.cycle.startTick}→${actualFrames.cycle.repeatTick}` : "none"}`,
+        );
+      }
       const expectedTickCount = expectedIntermediate.length + 1;
       if (actualFrames.length !== expectedTickCount) {
         failures.push(

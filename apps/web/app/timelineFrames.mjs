@@ -1,3 +1,5 @@
+import { adjustCycleForInsertedTick } from "./cycleExpectation.mjs";
+
 export function intermediateInsertionIndex(frameKind, intermediateIndex, length) {
   if (Number.isInteger(intermediateIndex)) {
     return Math.min(length, Math.max(0, intermediateIndex + 1));
@@ -20,7 +22,11 @@ export function insertIntermediateFrame(test, frameKind, intermediateIndex) {
   intermediate.splice(insertionIndex, 0, {
     voxels: source.voxels.map((voxel) => ({ ...voxel })),
   });
-  return { insertionIndex, test: { ...test, intermediate } };
+  const insertedTick = insertionIndex + 1;
+  return {
+    insertionIndex,
+    test: adjustCycleForInsertedTick({ ...test, intermediate }, insertedTick),
+  };
 }
 
 export function previousExpectedFrame(test, frameKind, intermediateIndex) {

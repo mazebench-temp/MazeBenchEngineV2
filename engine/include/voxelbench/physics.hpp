@@ -7,7 +7,7 @@ namespace voxelbench {
 constexpr int32_t kPhysicsAbiVersion = 4;
 constexpr int32_t kVoxelCapacity = 65536;
 constexpr int32_t kRoleBufferCapacity = 256;
-constexpr uint32_t kMotionStateVersion = 1;
+constexpr uint32_t kMotionStateVersion = 2;
 constexpr int32_t kPhysicsWorkspaceBytes = 8 * 1024 * 1024;
 
 struct PhysicsWorkspace {
@@ -36,6 +36,8 @@ struct MotionState {
   uint8_t player_gravity_armed;
   uint8_t player_falling;
   uint8_t reserved[2];
+  int32_t cycle_start_tick;
+  int32_t cycle_repeat_tick;
   uint8_t horizontal_momentum[kVoxelCapacity];
   uint8_t falling[kVoxelCapacity];
   uint8_t gravity_armed[kVoxelCapacity];
@@ -70,6 +72,19 @@ bool prepare_scene(
 // Advances at most one animation tick. Direction is read only when starting a
 // new command; subsequent calls resume the command stored in `state`.
 TickResult step_tick(
+    PhysicsWorkspace* workspace,
+    MotionState* state,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t direction);
+
+// Public command-step wrapper. It advances the same kernel as step_tick, but
+// also recognizes an exact repeated whole-level state. The repeated frame is
+// returned as kMore; the next call restores the command's starting frame and
+// returns kComplete. MotionState records the repeated interval.
+TickResult step_command_tick(
     PhysicsWorkspace* workspace,
     MotionState* state,
     Voxel* voxels,

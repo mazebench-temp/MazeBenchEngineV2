@@ -276,6 +276,9 @@ int32_t TrySimulatePassiveQuiescentTurn(
     int32_t direction,
     bool rebuild_spatial_index) {
   if (!IsPreparedScene(voxels, count, width, height)) return 0;
+  // Directional slopes can change both the motion vector and elevation. They
+  // stay on the generalized command kernel, including exact cycle handling.
+  if (ActiveWorkspace().prepared_has_ice_slopes) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;
   if (player_index < 0 || player_index >= count ||
       voxels[player_index].role != kPlayerRole) {
@@ -339,7 +342,7 @@ int32_t TrySimulatePassiveQuiescentTurn(
     }
     const bool started_on_ice = [&]() {
       const int32_t support = support_at(x, y, z - 1);
-      return support >= 0 && voxels[support].role == kIceRole;
+      return support >= 0 && IsIceRole(voxels[support].role);
     }();
     const int32_t target_x = x + dx;
     const int32_t target_y = y + dy;
@@ -403,7 +406,7 @@ int32_t TrySimulatePassiveQuiescentTurn(
       break;
     }
 
-    const bool now_on_ice = voxels[direct_support].role == kIceRole;
+    const bool now_on_ice = IsIceRole(voxels[direct_support].role);
     if (now_on_ice) {
       automatic_ice_motion = true;
       continue;
@@ -420,7 +423,7 @@ int32_t TrySimulatePassiveQuiescentTurn(
       const int32_t run_up_support = support_at(run_up_x, run_up_y, z - 1);
       if ((run_up_target < 0 || run_up_target == player_index) &&
           run_up_support >= 0 &&
-          voxels[run_up_support].role == kIceRole) {
+          IsIceRole(voxels[run_up_support].role)) {
         automatic_ice_motion = true;
         continue;
       }

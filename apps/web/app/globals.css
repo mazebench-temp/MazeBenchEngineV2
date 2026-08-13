@@ -241,6 +241,10 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .frame-switch button { background: transparent; border: 1px solid transparent; border-radius: 7px; color: var(--muted); cursor: pointer; font: 700 10px var(--font-mono); letter-spacing: .08em; min-height: 34px; padding: 0 12px; text-transform: uppercase; }
 .frame-switch button span { color: rgba(var(--cyan-rgb), .55); margin-right: 6px; }
 .frame-switch button.active { background: rgba(var(--cyan-rgb), .12); border-color: rgba(var(--cyan-rgb), .72); box-shadow: 0 0 13px rgba(var(--cyan-rgb), .2); color: var(--cyan); }
+.frame-switch button.cycle-span { position: relative; }
+.frame-switch button.cycle-span::after { background: #47ef9b; border-radius: 2px; bottom: 1px; box-shadow: 0 0 7px rgba(71,239,155,.72); content: ""; height: 3px; left: 3px; position: absolute; right: 3px; }
+.frame-switch button.cycle-start::before { color: #47ef9b; content: "↻"; font: 900 9px/1 var(--font-mono); position: absolute; right: 3px; top: 2px; }
+.frame-switch button.cycle-repeat::before { color: #47ef9b; content: "●"; font: 900 7px/1 var(--font-mono); position: absolute; right: 3px; top: 3px; }
 .stage-history { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--violet-rgb),.35); border-radius: 10px; display: flex; padding: 4px; }
 .stage-history button { background: transparent; border: 1px solid transparent; border-radius: 7px; color: var(--ink); cursor: pointer; font-size: 20px; height: 34px; line-height: 1; width: 34px; }
 .stage-history button:hover:not(:disabled) { background: rgba(var(--violet-rgb),.16); border-color: rgba(var(--violet-rgb),.55); color: var(--cyan); }
@@ -254,6 +258,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .add-tick-button:disabled, .copy-previous-button:disabled, .copy-start-button:disabled, .delete-tick-button:disabled, .reset-room-button:disabled { box-shadow: none; cursor: not-allowed; opacity: .38; }
 .delete-tick-button { background: rgba(5,8,18,.86); border: 1px solid rgba(255,105,105,.5); border-radius: 10px; color: #ff8585; cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
 .delete-tick-button:hover { background: rgba(255,105,105,.12); border-color: rgba(255,105,105,.85); box-shadow: 0 0 12px rgba(255,105,105,.18); }
+.cycle-mark-button, .cycle-clear-button { background: rgba(5,8,18,.86); border: 1px solid rgba(71,239,155,.48); border-radius: 10px; color: #47ef9b; cursor: pointer; font: 700 8px var(--font-mono); letter-spacing: .07em; padding: 0 10px; text-transform: uppercase; }
+.cycle-mark-button:hover, .cycle-clear-button:hover { background: rgba(71,239,155,.12); border-color: rgba(71,239,155,.9); box-shadow: 0 0 12px rgba(71,239,155,.18); }
+.cycle-mark-button:disabled, .cycle-clear-button:disabled { box-shadow: none; cursor: not-allowed; opacity: .34; }
+.cycle-mark-button--repeat { color: #b6ffd7; }
+.cycle-clear-button { border-color: rgba(151,168,188,.38); color: var(--muted); }
 .reset-room-button { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--amber-rgb),.46); border-radius: 10px; color: var(--amber); cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
 .reset-room-button:hover { background: rgba(var(--amber-rgb),.12); border-color: rgba(var(--amber-rgb),.8); box-shadow: 0 0 12px rgba(var(--amber-rgb),.18); }
 .generate-timeline-button { background: rgba(5,8,18,.86); border: 1px solid rgba(var(--green-rgb),.5); border-radius: 10px; color: var(--green); cursor: pointer; font: 700 9px var(--font-mono); letter-spacing: .08em; padding: 0 12px; text-transform: uppercase; }
@@ -267,6 +276,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .timeline-review__heading strong { font: 700 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; }
 .timeline-review__strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px; }
 .timeline-review__card { background: rgba(12,18,31,.9); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text); flex: 0 0 160px; margin: 0; overflow: hidden; padding: 0; }
+.timeline-review__card.cycle-span { border-bottom: 4px solid #47ef9b; box-shadow: 0 4px 11px rgba(71,239,155,.18); }
+.timeline-review__card.cycle-start small::after { color: #47ef9b; content: "  ↻ LOOP START"; }
+.timeline-review__card.cycle-repeat small::after { color: #47ef9b; content: "  ● REPEAT"; }
 .timeline-review__card small { display: block; font: 700 8px var(--font-mono); letter-spacing: .12em; padding: 7px; text-align: left; }
 .timeline-review__strip canvas { height: 130px !important; }
 .timeline-review__card img, .timeline-review__snapshot-status { background: #05060e; display: block; height: 148px; object-fit: cover; width: 100%; }

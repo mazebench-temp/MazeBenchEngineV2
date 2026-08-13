@@ -22,6 +22,7 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_player_index = -1;
   data->prepared_goal_count = 0;
   data->prepared_dense_columns = false;
+  data->prepared_has_ice_slopes = false;
   data->assume_quiescent_start = false;
   data->motion_voxel_count = -1;
   data->prepared_index_active = false;
@@ -63,7 +64,9 @@ bool prepare_scene(
   BuildObjects(voxels, count);
   data.prepared_player_index = -1;
   data.prepared_goal_count = 0;
+  data.prepared_has_ice_slopes = false;
   for (int32_t index = 0; index < count; ++index) {
+    data.prepared_has_ice_slopes |= IsIceSlopeRole(voxels[index].role);
     if (voxels[index].role == kGoalRole) {
       data.prepared_goal_indices[data.prepared_goal_count++] = index;
     }
@@ -144,4 +147,6 @@ void reset_motion_state(MotionState* state) {
   state->player_falling = 0;
   state->reserved[0] = 0;
   state->reserved[1] = 0;
+  state->cycle_start_tick = -1;
+  state->cycle_repeat_tick = -1;
 }

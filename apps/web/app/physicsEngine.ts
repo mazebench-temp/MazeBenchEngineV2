@@ -1,7 +1,19 @@
 type Direction = "up" | "down" | "left" | "right";
 type PhysicsRole = { id: string; generic: boolean };
-type BlockDefinition = { id: string; roleId: string };
-type Voxel = { x: number; y: number; z: number; blockId: string; genericId?: number };
+type BlockDefinition = {
+  id: string;
+  roleId: string;
+  visual?: { kind?: string };
+};
+type Voxel = {
+  x: number;
+  y: number;
+  z: number;
+  blockId: string;
+  genericId?: number;
+  orientation?: string;
+  variantId?: number;
+};
 type Frame = { voxels: Voxel[] };
 type WorldSettings = { width: number; height: number };
 
@@ -12,6 +24,9 @@ type PhysicsExports = WebAssembly.Exports & {
   role_buffer_capacity: () => number;
   role_code: (length: number) => number;
   command_tick: () => number;
+  command_cycle_detected: () => number;
+  command_cycle_start_tick: () => number;
+  command_cycle_repeat_tick: () => number;
   motion_state_buffer: () => number;
   motion_state_size: () => number;
   reset_command: () => void;
@@ -55,13 +70,20 @@ async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
   const roleBufferCapacity = physics.role_buffer_capacity();
   const codes = new Map<string, number>();
 
-  for (const role of roles) {
-    const bytes = encoder.encode(role.id);
+  const roleIds = [
+    ...roles.map((role) => role.id),
+    "ice-slope-up",
+    "ice-slope-right",
+    "ice-slope-down",
+    "ice-slope-left",
+  ];
+  for (const roleId of roleIds) {
+    const bytes = encoder.encode(roleId);
     if (bytes.length > roleBufferCapacity) {
-      throw new Error(`Physics role key is too long: ${role.id}`);
+      throw new Error(`Physics role key is too long: ${roleId}`);
     }
     new Uint8Array(physics.memory.buffer, roleBufferPointer, bytes.length).set(bytes);
-    codes.set(role.id, physics.role_code(bytes.length));
+    codes.set(roleId, physics.role_code(bytes.length));
   }
   return codes;
 }
@@ -83,7 +105,11 @@ export async function simulateCommandWithCpp(
   blocks: BlockDefinition[],
   roles: PhysicsRole[],
   world: WorldSettings,
-): Promise<{ final: Frame; frames: Frame[] }> {
+): Promise<{
+  final: Frame;
+  frames: Frame[];
+  cycle?: { startTick: number; repeatTick: number; onCycle: "rollback-command" };
+}> {
   const physics = await loadPhysics();
   if (physics.physics_abi_version() !== 4 || physics.voxel_stride() !== 5) {
     throw new Error("The web app and C++ physics engine use different ABI versions");
@@ -93,7 +119,19 @@ export async function simulateCommandWithCpp(
   }
 
   const rolesById = await roleCodesById(physics, roles);
-  const blockRoles = new Map(blocks.map((block) => [block.id, rolesById.get(block.roleId) ?? 0]));
+  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+  const slopeDirections = ["up", "right", "down", "left"];
+  const blockRole = (voxel: Voxel) => {
+    const block = blocksById.get(voxel.blockId);
+    if (!block) return 0;
+    if (block.visual?.kind === "slope") {
+      const orientation = slopeDirections.includes(voxel.orientation ?? "")
+        ? voxel.orientation
+        : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
+      return rolesById.get(`ice-slope-${orientation}`) ?? 0;
+    }
+    return rolesById.get(block.roleId) ?? 0;
+  };
   const genericRoleIds = new Set(roles.filter((role) => role.generic).map((role) => role.id));
   const genericBlockIds = new Set(
     blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id),
@@ -109,7 +147,7 @@ export async function simulateCommandWithCpp(
     voxelBuffer[offset] = voxel.x;
     voxelBuffer[offset + 1] = voxel.y;
     voxelBuffer[offset + 2] = voxel.z;
-    voxelBuffer[offset + 3] = blockRoles.get(voxel.blockId) ?? 0;
+    voxelBuffer[offset + 3] = blockRole(voxel);
     voxelBuffer[offset + 4] = genericBlockIds.has(voxel.blockId)
       ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
       : -1;
@@ -147,8 +185,18 @@ export async function simulateCommandWithCpp(
     if (status === 0) {
       const final = readFrame();
       const lastVisible = frames.at(-1) ?? frame;
-      if (!framesHaveSameCoordinates(lastVisible, final)) frames.push(final);
-      return { final, frames };
+      if (physics.command_cycle_detected() ||
+          !framesHaveSameCoordinates(lastVisible, final)) {
+        frames.push(final);
+      }
+      const cycle = physics.command_cycle_detected()
+        ? {
+            startTick: physics.command_cycle_start_tick(),
+            repeatTick: physics.command_cycle_repeat_tick(),
+            onCycle: "rollback-command" as const,
+          }
+        : undefined;
+      return { final, frames, cycle };
     }
   }
   throw new Error("The C++ command did not become quiescent within 100,000 ticks");
