@@ -15,6 +15,7 @@ void ClearMovingObjects() {
     g_rejected_carriers[object] = 0;
     g_fell_objects[object] = 0;
     g_carrier_parent[object] = -1;
+    g_object_direction[object] = 0xff;
   }
 }
 
@@ -216,7 +217,8 @@ void AdvanceUnmovedGravityOneStep(
     int32_t player_index,
     int32_t dx,
     int32_t dy,
-    bool player_moves_horizontally) {
+    bool player_moves_horizontally,
+    bool immediate_support_loss = false) {
   bool found_pending = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_pending_fall[object] = 0;
@@ -227,7 +229,8 @@ void AdvanceUnmovedGravityOneStep(
         g_object_gravity_armed[object] == 0) {
       continue;
     }
-    if (ObjectHasStableDirectSupport(voxels, object, width, height)) {
+    if (!(immediate_support_loss && g_component_objects[object] != 0) &&
+        ObjectHasStableDirectSupport(voxels, object, width, height)) {
       g_object_falling[object] = 0;
       continue;
     }
@@ -754,6 +757,23 @@ int32_t RedirectSlopeDirection(
   }
   const int32_t same_height_occupant = FindVoxelAt(
       voxels, next_x, next_y, voxel.z, width, height);
+  if (same_height_occupant >= 0) {
+    const int32_t occupant_object = g_voxel_object[same_height_occupant];
+    if (occupant_object >= 0 &&
+        g_mandatory_objects[occupant_object] != 0 &&
+        g_object_direction[occupant_object] == direction) {
+      // A leading momentum body vacates this high-edge cell in the same
+      // direction. The follower is part of the convoy, not obstructed by it.
+      return direction;
+    }
+    if (occupant_object >= 0 && g_object_falling[occupant_object] != 0 &&
+        g_moving_objects[occupant_object] == 0) {
+      // A simultaneous fall vacates the high-edge cell. The following body
+      // continues uphill into that source instead of reflecting from a body
+      // which is no longer there at the end of this tick.
+      return direction;
+    }
+  }
   // The high edge may open into empty space. Momentum carries the body out at
   // its current elevation and gravity resolves on the following tick. Only a
   // real obstruction (or the room boundary above) reflects it downhill.
@@ -834,6 +854,404 @@ int32_t MovingObjectSlopeVerticalDelta(
     }
   }
   return delta;
+}
+
+bool SceneHasIceSlopes(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  const WorkspaceData& workspace = ActiveWorkspace();
+  if (workspace.prepared_voxels == voxels &&
+      workspace.prepared_count == count &&
+      workspace.prepared_width == width &&
+      workspace.prepared_height == height) {
+    return workspace.prepared_has_ice_slopes;
+  }
+  for (int32_t index = 0; index < count; ++index) {
+    if (IsIceSlopeRole(voxels[index].role)) return true;
+  }
+  return false;
+}
+
+void PrepareSlopeObjectProposal(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height,
+    bool allow_redirect) {
+  constexpr int8_t kDx[] = {0, 1, 0, -1};
+  constexpr int8_t kDy[] = {-1, 0, 1, 0};
+  int32_t direction = g_object_direction[object] <= 3
+      ? g_object_direction[object]
+      : 0;
+  if (allow_redirect) {
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const int32_t redirected = RedirectSlopeDirection(
+          voxels, voxels[member], direction, width, height);
+      if (redirected != direction) {
+        direction = redirected;
+        g_object_redirected[object] = 1;
+        break;
+      }
+    }
+  }
+  g_object_direction[object] = static_cast<uint8_t>(direction);
+  g_object_dx[object] = kDx[direction];
+  g_object_dy[object] = kDy[direction];
+  int32_t dz = 0;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const int32_t member_dz = SlopeVerticalDelta(
+        voxels, voxels[member], direction, width, height);
+    if (member_dz == 0) continue;
+    if (dz != 0 && dz != member_dz) {
+      dz = 0;
+      break;
+    }
+    dz = member_dz;
+  }
+  g_object_dz[object] = static_cast<int8_t>(dz);
+}
+
+bool ObjectProposalVacatesCell(
+    Voxel* voxels,
+    int32_t object,
+    int32_t x,
+    int32_t y,
+    int32_t z) {
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    if (voxels[member].x + g_object_dx[object] == x &&
+        voxels[member].y + g_object_dy[object] == y &&
+        voxels[member].z + g_object_dz[object] == z) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool ObjectProposalsSwap(
+    Voxel* voxels,
+    int32_t first,
+    int32_t second) {
+  for (int32_t first_member = g_object_head[first]; first_member >= 0;
+       first_member = g_next_object_voxel[first_member]) {
+    const int32_t first_x = voxels[first_member].x;
+    const int32_t first_y = voxels[first_member].y;
+    const int32_t first_z = voxels[first_member].z;
+    const int32_t first_next_x = first_x + g_object_dx[first];
+    const int32_t first_next_y = first_y + g_object_dy[first];
+    const int32_t first_next_z = first_z + g_object_dz[first];
+    for (int32_t second_member = g_object_head[second]; second_member >= 0;
+         second_member = g_next_object_voxel[second_member]) {
+      const int32_t second_x = voxels[second_member].x;
+      const int32_t second_y = voxels[second_member].y;
+      const int32_t second_z = voxels[second_member].z;
+      if (first_next_x == second_x && first_next_y == second_y &&
+          first_next_z == second_z &&
+          second_x + g_object_dx[second] == first_x &&
+          second_y + g_object_dy[second] == first_y &&
+          second_z + g_object_dz[second] == first_z) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Directional slope motion is transactional at the object level. Each rigid
+// polycube owns its direction and vertical ramp delta; only a head-on contact
+// with a reflected body propagates that reflection through a touching convoy.
+// This keeps separated bodies independent while preventing them from swapping
+// through one another when the lead body bounces off a ramp obstruction.
+bool TranslateSlopeMomentumObjects(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height,
+    bool allow_push,
+    bool player_moves_horizontally,
+    bool& player_was_pushed) {
+  player_was_pushed = false;
+  g_moving_objects_fell = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_fell_objects[object] = 0;
+    g_object_redirected[object] = 0;
+    if (g_mandatory_objects[object] != 0) {
+      g_moving_objects[object] = 1;
+    }
+  }
+
+  // A deliberate push discovers the whole touching weightless chain using
+  // each body's own slope-adjusted destination.
+  bool added = true;
+  while (added) {
+    added = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_mandatory_objects[object] == 0 ||
+          !ObjectIsActive(voxels, object, width, height)) {
+        continue;
+      }
+      PrepareSlopeObjectProposal(voxels, object, width, height, true);
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const int32_t next_x = voxels[member].x + g_object_dx[object];
+        const int32_t next_y = voxels[member].y + g_object_dy[object];
+        const int32_t next_z = voxels[member].z + g_object_dz[object];
+        if (!IsInsideRoom(next_x, next_y, width, height)) continue;
+        const int32_t occupant = FindVoxelAt(
+            voxels, next_x, next_y, next_z, width, height);
+        if (occupant < 0 || occupant == player_index) continue;
+        const int32_t other = g_voxel_object[occupant];
+        if (other < 0 || other == object ||
+            g_mandatory_objects[other] != 0) {
+          continue;
+        }
+        if (g_object_falling[other] != 0) {
+          // A falling body vacates its source vertically; it must not be
+          // recruited into the horizontal push closure.
+          continue;
+        }
+        if (allow_push && g_object_kind[object] == kWeightlessObject &&
+            g_object_kind[other] == kWeightlessObject &&
+            ObjectIsFullyOnIce(voxels, other, width, height)) {
+          g_mandatory_objects[other] = 1;
+          g_moving_objects[other] = 1;
+          g_object_direction[other] = g_object_direction[object];
+          added = true;
+        }
+      }
+    }
+  }
+
+  // A slope reflection propagates through exact head-on contacts. Recompute
+  // after every propagation because adjacent bodies can be on different ramp
+  // elevations even though their horizontal speed is identical.
+  bool propagated = true;
+  while (propagated) {
+    propagated = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_mandatory_objects[object] != 0) {
+        PrepareSlopeObjectProposal(voxels, object, width, height, true);
+      }
+    }
+    for (int32_t first = 0; first < g_object_count; ++first) {
+      if (g_mandatory_objects[first] == 0 ||
+          g_object_redirected[first] == 0) {
+        continue;
+      }
+      for (int32_t second = 0; second < g_object_count; ++second) {
+        if (first == second || g_mandatory_objects[second] == 0 ||
+            g_object_direction[first] == g_object_direction[second] ||
+            !ObjectProposalsSwap(voxels, first, second)) {
+          continue;
+        }
+        g_object_direction[second] = g_object_direction[first];
+        g_object_redirected[second] = 1;
+        PrepareSlopeObjectProposal(voxels, second, width, height, false);
+        propagated = true;
+      }
+    }
+  }
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] != 0) {
+      PrepareSlopeObjectProposal(voxels, object, width, height, false);
+    }
+  }
+
+  int32_t player_push_dx = 0;
+  int32_t player_push_dy = 0;
+  bool has_slope_elevation_proposal = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] != 0 && g_object_dz[object] != 0) {
+      has_slope_elevation_proposal = true;
+      break;
+    }
+  }
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0 ||
+        !ObjectIsActive(voxels, object, width, height)) {
+      continue;
+    }
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const int32_t next_x = voxels[member].x + g_object_dx[object];
+      const int32_t next_y = voxels[member].y + g_object_dy[object];
+      const int32_t next_z = voxels[member].z + g_object_dz[object];
+      if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+      const int32_t occupant = FindVoxelAt(
+          voxels, next_x, next_y, next_z, width, height);
+      if (occupant < 0 || g_voxel_object[occupant] == object) continue;
+      if (occupant == player_index) {
+        if (player_moves_horizontally) continue;
+        if (!has_slope_elevation_proposal) return false;
+        if ((player_push_dx != 0 || player_push_dy != 0) &&
+            (player_push_dx != g_object_dx[object] ||
+             player_push_dy != g_object_dy[object])) {
+          return false;
+        }
+        player_push_dx = g_object_dx[object];
+        player_push_dy = g_object_dy[object];
+        continue;
+      }
+      const int32_t other = g_voxel_object[occupant];
+      if (other >= 0 && g_mandatory_objects[other] != 0 &&
+          ObjectProposalVacatesCell(
+              voxels, other, next_x, next_y, next_z)) {
+        continue;
+      }
+      if (other >= 0 && g_object_falling[other] != 0 &&
+          g_moving_objects[other] == 0 &&
+          !FallingObjectRefillsCell(
+              voxels, next_x, next_y, next_z, width, height)) {
+        continue;
+      }
+      return false;
+    }
+  }
+
+  // Two independent bodies may not claim the same destination.
+  for (int32_t first = 0; first < g_object_count; ++first) {
+    if (g_mandatory_objects[first] == 0) continue;
+    for (int32_t second = first + 1; second < g_object_count; ++second) {
+      if (g_mandatory_objects[second] == 0) continue;
+      for (int32_t first_member = g_object_head[first]; first_member >= 0;
+           first_member = g_next_object_voxel[first_member]) {
+        for (int32_t second_member = g_object_head[second]; second_member >= 0;
+             second_member = g_next_object_voxel[second_member]) {
+          if (voxels[first_member].x + g_object_dx[first] ==
+                  voxels[second_member].x + g_object_dx[second] &&
+              voxels[first_member].y + g_object_dy[first] ==
+                  voxels[second_member].y + g_object_dy[second] &&
+              voxels[first_member].z + g_object_dz[first] ==
+                  voxels[second_member].z + g_object_dz[second]) {
+            return false;
+          }
+        }
+      }
+    }
+  }
+
+  if (player_push_dx != 0 || player_push_dy != 0) {
+    const Voxel& player = voxels[player_index];
+    const int32_t next_x = player.x + player_push_dx;
+    const int32_t next_y = player.y + player_push_dy;
+    if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+    const int32_t occupant = FindVoxelAt(
+        voxels, next_x, next_y, player.z, width, height);
+    if (occupant >= 0) {
+      const int32_t other = g_voxel_object[occupant];
+      if (other < 0 || g_mandatory_objects[other] == 0 ||
+          !ObjectProposalVacatesCell(
+              voxels, other, next_x, next_y, player.z)) {
+        return false;
+      }
+    }
+  }
+
+  int32_t representative_dx = 0;
+  int32_t representative_dy = 0;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    representative_dx = g_object_dx[object];
+    representative_dy = g_object_dy[object];
+    break;
+  }
+
+  // If a turning body slides sideways out from under a stationary stack, the
+  // unsupported stack's downward proposal belongs to this same synchronized
+  // tick. Propagate support loss upward before the gravity resolver so every
+  // member of the stack descends one cell while its former carrier departs.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_component_objects[object] = 0;
+  }
+  bool support_loss_changed = true;
+  while (support_loss_changed) {
+    support_loss_changed = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_mandatory_objects[object] != 0 ||
+          g_component_objects[object] != 0 ||
+          !ObjectIsActive(voxels, object, width, height)) {
+        continue;
+      }
+      bool had_departing_support = false;
+      bool has_stable_support = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const Voxel& voxel = voxels[member];
+        const int32_t support = FindVoxelAt(
+            voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+        if (support < 0) continue;
+        const int32_t support_object = g_voxel_object[support];
+        if (support_object == object) continue;
+        if (support_object >= 0 && g_mandatory_objects[support_object] != 0 &&
+            ObjectProposalVacatesCell(
+                voxels,
+                support_object,
+                voxel.x,
+                voxel.y,
+                voxel.z - 1)) {
+          had_departing_support = true;
+          continue;
+        }
+        if (support_object >= 0 &&
+            g_component_objects[support_object] != 0) {
+          had_departing_support = true;
+          continue;
+        }
+        has_stable_support = true;
+        break;
+      }
+      if (had_departing_support && !has_stable_support) {
+        g_component_objects[object] = 1;
+        g_object_falling[object] = 1;
+        support_loss_changed = true;
+      }
+    }
+  }
+  AdvanceUnmovedGravityOneStep(
+      voxels,
+      count,
+      width,
+      height,
+      player_index,
+      representative_dx,
+      representative_dy,
+      player_moves_horizontally || player_push_dx != 0 || player_push_dy != 0,
+      true);
+
+  bool moved = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    moved = true;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      voxels[member].x += g_object_dx[object];
+      voxels[member].y += g_object_dy[object];
+      voxels[member].z += g_object_dz[object];
+    }
+  }
+  if (!moved) {
+    // A latent-momentum body may have advanced only along gravity and landed
+    // on a lower slope. Report that synchronized movement to the caller so it
+    // can promote the saved direction back to active Ice momentum instead of
+    // completing the command on the landing frame.
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_fell_objects[object] != 0) return true;
+    }
+    return false;
+  }
+  if (player_push_dx != 0 || player_push_dy != 0) {
+    voxels[player_index].x += player_push_dx;
+    voxels[player_index].y += player_push_dy;
+    player_was_pushed = true;
+  }
+  BuildSpatialIndex(voxels, count, width, height);
+  MarkObjectsForDeferredGravity(voxels, width, height, false);
+  return true;
 }
 
 bool VoxelWillLandOnSlope(

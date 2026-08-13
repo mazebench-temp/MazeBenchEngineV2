@@ -18,6 +18,16 @@ uint8_t ReadObjectFlag(
   return 0;
 }
 
+uint8_t ReadObjectMomentum(
+    const uint8_t* flags,
+    int32_t object) {
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    if (flags[member] != 0) return flags[member];
+  }
+  return 0;
+}
+
 void LoadObjectMotion(const MotionState* state) {
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_object_falling[object] = ReadObjectFlag(state->falling, object);
@@ -65,7 +75,8 @@ void StoreMandatoryMomentum(
     Voxel* voxels,
     int32_t count,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    int32_t fallback_direction) {
   ClearHorizontalMomentum(state, count);
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_mandatory_objects[object] == 0 ||
@@ -74,7 +85,11 @@ void StoreMandatoryMomentum(
     }
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
-      state->horizontal_momentum[member] = 1;
+      const int32_t direction = g_object_direction[object] <= 3
+          ? g_object_direction[object]
+          : fallback_direction;
+      state->horizontal_momentum[member] =
+          static_cast<uint8_t>(direction + 1);
     }
   }
 }
@@ -84,31 +99,113 @@ bool StoreSupportedMandatoryMomentum(
     Voxel* voxels,
     int32_t count,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    int32_t fallback_direction) {
+  // Snapshot the incoming serialized momentum before replacing it. A body
+  // can land on a lower slope during the gravity half of this very tick; it
+  // is no longer marked falling or mandatory by then, but its saved direction
+  // must resume on the newly reached ramp.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_object_redirected[object] = ReadObjectMomentum(
+        state->horizontal_momentum, object);
+  }
   ClearHorizontalMomentum(state, count);
   bool stored = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
-    if (g_mandatory_objects[object] == 0 ||
-        !ObjectIsActive(voxels, object, width, height) ||
-        !ObjectIsFullyOnIce(voxels, object, width, height)) {
+    if (!ObjectIsActive(voxels, object, width, height)) {
       continue;
     }
-    stored = true;
+    const bool supported_momentum =
+        (g_mandatory_objects[object] != 0 ||
+         g_object_redirected[object] != 0) &&
+        ObjectIsFullyOnIce(voxels, object, width, height);
+    bool supported_by_momentum_body = false;
+    if (!supported_momentum && g_object_redirected[object] != 0) {
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const Voxel& voxel = voxels[member];
+        const int32_t support = FindVoxelAt(
+            voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+        if (support < 0) continue;
+        const int32_t support_object = g_voxel_object[support];
+        if (support_object >= 0 && support_object != object &&
+            g_object_redirected[support_object] != 0) {
+          supported_by_momentum_body = true;
+          break;
+        }
+      }
+    }
+    bool falling_toward_slope = false;
+    if (!supported_momentum && g_object_falling[object] != 0) {
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        if (VoxelWillLandOnSlope(
+                voxels, count, voxels[member], object, width)) {
+          falling_toward_slope = true;
+          break;
+        }
+      }
+    }
+    if (!supported_momentum && !falling_toward_slope &&
+        !supported_by_momentum_body) {
+      continue;
+    }
+    stored |= supported_momentum;
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
-      state->horizontal_momentum[member] = 1;
+      const int32_t direction = g_object_direction[object] <= 3
+          ? g_object_direction[object]
+          : fallback_direction;
+      state->horizontal_momentum[member] = static_cast<uint8_t>(
+          direction + (supported_momentum ? 1 : 5));
     }
   }
   return stored;
 }
 
-void RestoreMandatoryMomentum(const MotionState* state) {
+void RestoreMandatoryMomentum(
+    const MotionState* state,
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
   ClearMovingObjects();
   for (int32_t object = 0; object < g_object_count; ++object) {
-    if (ReadObjectFlag(state->horizontal_momentum, object) == 0) continue;
+    const uint8_t momentum = ReadObjectMomentum(
+        state->horizontal_momentum, object);
+    if (momentum == 0) continue;
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
+    g_object_direction[object] = static_cast<uint8_t>((momentum - 1) & 3);
+    if ((momentum > 4 &&
+         !ObjectIsFullyOnIce(voxels, object, width, height)) ||
+        g_object_falling[object] != 0) {
+      // Momentum remains serialized while a body falls toward a lower slope,
+      // but it is not a horizontal proposal until the body lands.
+      g_mandatory_objects[object] = 0;
+      g_moving_objects[object] = 0;
+    }
   }
+}
+
+bool StoredMomentumWillLandOnSlope(
+    const MotionState* state,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (ReadObjectMomentum(state->horizontal_momentum, object) == 0 ||
+        g_object_falling[object] == 0) {
+      continue;
+    }
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (VoxelWillLandOnSlope(
+              voxels, count, voxels[member], object, width)) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 struct RiderSnapshot {

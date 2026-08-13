@@ -7,7 +7,7 @@ namespace voxelbench {
 constexpr int32_t kPhysicsAbiVersion = 4;
 constexpr int32_t kVoxelCapacity = 65536;
 constexpr int32_t kRoleBufferCapacity = 256;
-constexpr uint32_t kMotionStateVersion = 2;
+constexpr uint32_t kMotionStateVersion = 3;
 constexpr int32_t kPhysicsWorkspaceBytes = 8 * 1024 * 1024;
 
 struct PhysicsWorkspace {
@@ -38,6 +38,10 @@ struct MotionState {
   uint8_t reserved[2];
   int32_t cycle_start_tick;
   int32_t cycle_repeat_tick;
+  // Zero means stationary; 1..4 encode active horizontal direction 0..3 and
+  // 5..8 encode the same direction while momentum is latent during a fall or
+  // in a supported stack. Keeping direction with each voxel lets independent
+  // polycubes traverse and turn on different parts of a slope network.
   uint8_t horizontal_momentum[kVoxelCapacity];
   uint8_t falling[kVoxelCapacity];
   uint8_t gravity_armed[kVoxelCapacity];

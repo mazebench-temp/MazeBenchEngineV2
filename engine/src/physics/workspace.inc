@@ -65,6 +65,11 @@ struct WorkspaceData {
   uint8_t object_kind[kVoxelCapacity];
   uint8_t moving_objects[kVoxelCapacity];
   uint8_t mandatory_objects[kVoxelCapacity];
+  uint8_t object_direction[kVoxelCapacity];
+  int8_t object_dx[kVoxelCapacity];
+  int8_t object_dy[kVoxelCapacity];
+  int8_t object_dz[kVoxelCapacity];
+  uint8_t object_redirected[kVoxelCapacity];
   uint8_t carried_objects[kVoxelCapacity];
   uint8_t rejected_carriers[kVoxelCapacity];
   uint8_t fell_objects[kVoxelCapacity];
@@ -136,6 +141,11 @@ WorkspaceData& ActiveWorkspace() {
 #define g_object_kind ActiveWorkspace().object_kind
 #define g_moving_objects ActiveWorkspace().moving_objects
 #define g_mandatory_objects ActiveWorkspace().mandatory_objects
+#define g_object_direction ActiveWorkspace().object_direction
+#define g_object_dx ActiveWorkspace().object_dx
+#define g_object_dy ActiveWorkspace().object_dy
+#define g_object_dz ActiveWorkspace().object_dz
+#define g_object_redirected ActiveWorkspace().object_redirected
 #define g_carried_objects ActiveWorkspace().carried_objects
 #define g_rejected_carriers ActiveWorkspace().rejected_carriers
 #define g_fell_objects ActiveWorkspace().fell_objects

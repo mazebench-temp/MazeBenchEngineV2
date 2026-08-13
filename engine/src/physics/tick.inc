@@ -264,7 +264,7 @@ TickResult step_tick(
     }
     if (!gravity_continues && state->reserved[0] == kResumeObjectIce) {
       state->reserved[0] = kResumeNothing;
-      RestoreMandatoryMomentum(state);
+      RestoreMandatoryMomentum(state, voxels, width, height);
       if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
         return store_and_finish(
             kMotionObjectIce, objects_advanced || player_advanced);
@@ -287,30 +287,47 @@ TickResult step_tick(
   }
 
   if (state->phase == kMotionObjectIce) {
-    RestoreMandatoryMomentum(state);
-    state->direction = RedirectMovingObjectSlopeDirection(
-        voxels, state->direction, width, height);
-    dx = kDx[state->direction];
-    dy = kDy[state->direction];
-    const int32_t object_dz = MovingObjectSlopeVerticalDelta(
-        voxels, state->direction, width, height);
+    RestoreMandatoryMomentum(state, voxels, width, height);
+    const bool slope_scene = SceneHasIceSlopes(
+        voxels, count, width, height);
+    if (!slope_scene) {
+      state->direction = RedirectMovingObjectSlopeDirection(
+          voxels, state->direction, width, height);
+      dx = kDx[state->direction];
+      dy = kDy[state->direction];
+    }
+    const int32_t object_dz = slope_scene
+        ? 0
+        : MovingObjectSlopeVerticalDelta(
+              voxels, state->direction, width, height);
     const bool player_has_ice_momentum =
         IsSupportedByIce(voxels, voxels[player_index], width, height);
     const RiderSnapshot rider =
         CapturePlayerRider(voxels, player_index, width, height);
     g_ignored_support_voxel = player_index;
-    const bool translated = TranslateMovingObjects(
-        voxels,
-        count,
-        player_index,
-        dx,
-        dy,
-        object_dz,
-        width,
-        height,
-        true,
-        false,
-        player_has_ice_momentum || rider.object >= 0);
+    bool player_was_pushed = false;
+    const bool translated = slope_scene
+        ? TranslateSlopeMomentumObjects(
+              voxels,
+              count,
+              player_index,
+              width,
+              height,
+              true,
+              player_has_ice_momentum || rider.object >= 0,
+              player_was_pushed)
+        : TranslateMovingObjects(
+              voxels,
+              count,
+              player_index,
+              dx,
+              dy,
+              object_dz,
+              width,
+              height,
+              true,
+              false,
+              player_has_ice_momentum || rider.object >= 0);
     g_ignored_support_voxel = -1;
     if (!translated) {
       MarkObjectsForDeferredGravity(voxels, width, height, false);
@@ -319,7 +336,10 @@ TickResult step_tick(
           state->player_falling != 0 ||
           ObjectsNeedGravityTick(voxels, count, width, height, false);
       if (gravity_continues) {
-        state->reserved[0] = kResumeNothing;
+        state->reserved[0] = StoredMomentumWillLandOnSlope(
+            state, voxels, count, width)
+            ? kResumeObjectIce
+            : kResumeNothing;
       }
       return store_and_finish(
           gravity_continues ? kMotionGravity : kMotionComplete,
@@ -329,8 +349,10 @@ TickResult step_tick(
 
     const bool player_rode_object =
         MovePlayerWithRider(voxels, player_index, rider, width, height);
-    bool player_moved_after_translation = player_rode_object;
-    if (!player_rode_object && player_has_ice_momentum) {
+    bool player_moved_after_translation =
+        player_rode_object || player_was_pushed;
+    if (!player_rode_object && !player_was_pushed &&
+        player_has_ice_momentum) {
       // A deliberate push can put both the body and the player onto Ice. From
       // then on their horizontal proposals happen in the same animation tick:
       // the body vacates its trailing cell and the player slides into it.
@@ -355,13 +377,30 @@ TickResult step_tick(
     if (player_moved_after_translation) {
       BuildSpatialIndex(voxels, count, width, height);
     }
+    if (player_was_pushed) {
+      // A returning ramp convoy may finish its mandatory descent by nudging
+      // the stationary player out of the destination. Contact spends the
+      // convoy's remaining Ice momentum; it must not immediately begin the
+      // same route again and be misclassified as a level-wide cycle.
+      ClearHorizontalMomentum(state, count);
+      MarkObjectsForDeferredGravity(voxels, width, height, false);
+      defer_player_gravity(false, false, true);
+      const bool gravity_continues =
+          state->player_falling != 0 ||
+          ObjectsNeedGravityTick(voxels, count, width, height, false);
+      return store_and_finish(
+          gravity_continues ? kMotionGravity : kMotionComplete,
+          true,
+          true);
+    }
     if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
-      StoreMandatoryMomentum(state, voxels, count, width, height);
+      StoreSupportedMandatoryMomentum(
+          state, voxels, count, width, height, state->direction);
       return store_and_finish(kMotionObjectIce, true);
     }
 
     const bool object_momentum_remains = StoreSupportedMandatoryMomentum(
-        state, voxels, count, width, height);
+        state, voxels, count, width, height, state->direction);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
     defer_player_gravity(false, false, true);
     const bool gravity_continues =
@@ -375,11 +414,17 @@ TickResult step_tick(
       return store_and_finish(kMotionObjectIce, true);
     }
     if (gravity_continues &&
-        MovingObjectWillLandOnSlope(voxels, count, width)) {
+        (MovingObjectWillLandOnSlope(voxels, count, width) ||
+         StoredMomentumWillLandOnSlope(
+             state, voxels, count, width))) {
       // Horizontal momentum pauses while a body drops onto a lower ramp. It
       // resumes only after the shared gravity phase has settled the body, at
       // which point a sideways slope may redirect it downhill.
-      StoreMandatoryMomentum(state, voxels, count, width, height);
+      if (!StoredMomentumWillLandOnSlope(
+              state, voxels, count, width)) {
+        StoreMandatoryMomentum(
+            state, voxels, count, width, height, state->direction);
+      }
       state->reserved[0] = kResumeObjectIce;
     } else {
       state->reserved[0] = IsSupportedByIce(
@@ -424,7 +469,10 @@ TickResult step_tick(
   RiderSnapshot rider;
   if (target_index >= 0) {
     const int32_t object = g_voxel_object[target_index];
-    if (automatic_ice_motion || object < 0) {
+    const bool descending_slope_impact = automatic_ice_motion &&
+        player_dz != 0 && object >= 0 &&
+        g_object_kind[object] == kWeightlessObject;
+    if ((automatic_ice_motion && !descending_slope_impact) || object < 0) {
       return store_and_finish(kMotionComplete, records_initial_tick);
     }
     const int32_t target_support = target_z == INT32_MIN ? -1 : FindVoxelAt(
@@ -449,19 +497,34 @@ TickResult step_tick(
     ClearMovingObjects();
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
+    g_object_direction[object] = static_cast<uint8_t>(state->direction);
     g_ignored_support_voxel = player_index;
-    if (!TranslateMovingObjects(
-            voxels,
-            count,
-            player_index,
-            dx,
-            dy,
-            0,
-            width,
-            height,
-            true,
-            true,
-            true)) {
+    bool player_was_pushed = false;
+    const bool slope_scene = SceneHasIceSlopes(
+        voxels, count, width, height);
+    const bool object_translated = slope_scene
+        ? TranslateSlopeMomentumObjects(
+              voxels,
+              count,
+              player_index,
+              width,
+              height,
+              true,
+              true,
+              player_was_pushed)
+        : TranslateMovingObjects(
+              voxels,
+              count,
+              player_index,
+              dx,
+              dy,
+              0,
+              width,
+              height,
+              true,
+              true,
+              true);
+    if (!object_translated) {
       g_ignored_support_voxel = -1;
       return store_and_finish(kMotionComplete, records_initial_tick);
     }
@@ -470,7 +533,8 @@ TickResult step_tick(
     object_keeps_sliding =
         MovingObjectsAreFullyOnIce(voxels, width, height);
     if (object_keeps_sliding) {
-      StoreMandatoryMomentum(state, voxels, count, width, height);
+      StoreMandatoryMomentum(
+          state, voxels, count, width, height, state->direction);
     }
     rode_pushed_object =
         MovePlayerWithRider(voxels, player_index, rider, width, height);
@@ -565,7 +629,8 @@ TickResult step_tick(
       ObjectsNeedGravityTick(voxels, count, width, height, false);
   if (gravity_continues && pushed &&
       MovingObjectWillLandOnSlope(voxels, count, width)) {
-    StoreMandatoryMomentum(state, voxels, count, width, height);
+    StoreMandatoryMomentum(
+        state, voxels, count, width, height, state->direction);
     state->reserved[0] = kResumeObjectIce;
   } else {
     state->reserved[0] = gravity_continues &&
