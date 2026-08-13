@@ -152,13 +152,1050 @@
       "name": "Box + Ice"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "3d-box-ice",
-      "locked": true,
+      "locked": false,
       "name": "3D Box + Ice"
     }
   ],
-  "searches": [],
+  "searches": [
+    {
+      "id": "saved-search-1786579444894",
+      "name": "406-command 3D puzzle",
+      "createdAt": "2026-08-13T00:04:04.894Z",
+      "world": {
+        "width": 8,
+        "height": 8,
+        "floorLayer": 0
+      },
+      "layers": 3,
+      "voxels": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 2,
+          "blockId": "player"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 2,
+          "blockId": "goal"
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 2
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 2
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 2,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        }
+      ],
+      "solution": [
+        "left",
+        "left",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "left",
+        "left",
+        "left",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "up",
+        "up",
+        "up",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "right",
+        "right",
+        "down",
+        "right",
+        "right",
+        "left",
+        "left",
+        "up",
+        "left",
+        "left",
+        "up",
+        "up",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "left",
+        "down",
+        "left",
+        "down",
+        "down",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "left",
+        "up",
+        "down",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "right",
+        "right",
+        "up",
+        "right",
+        "right",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "left",
+        "left",
+        "left",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "up",
+        "up",
+        "up",
+        "down",
+        "down",
+        "left",
+        "left",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "right",
+        "up",
+        "right",
+        "right",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "left",
+        "left",
+        "left",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "up",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "up",
+        "up",
+        "down",
+        "left",
+        "down",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "right",
+        "up",
+        "right",
+        "right",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "right",
+        "right",
+        "down",
+        "down",
+        "up",
+        "up",
+        "left",
+        "left",
+        "up",
+        "up",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "left",
+        "left",
+        "right",
+        "right",
+        "up",
+        "right",
+        "right",
+        "up",
+        "up",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "right",
+        "right",
+        "down",
+        "up",
+        "left",
+        "left",
+        "down",
+        "down",
+        "down",
+        "right",
+        "down",
+        "down",
+        "right",
+        "up",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "down",
+        "down",
+        "left",
+        "left",
+        "left",
+        "down",
+        "down",
+        "left",
+        "left",
+        "up",
+        "right",
+        "left",
+        "up",
+        "up",
+        "right",
+        "right",
+        "right",
+        "down",
+        "left",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "up",
+        "up",
+        "up",
+        "up",
+        "left",
+        "left",
+        "down",
+        "down",
+        "up",
+        "up",
+        "right",
+        "right",
+        "down",
+        "down",
+        "down",
+        "down",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "left",
+        "up",
+        "right",
+        "right",
+        "down",
+        "right",
+        "up",
+        "right",
+        "right",
+        "up",
+        "up",
+        "left"
+      ],
+      "moves": 406,
+      "expanded": 4111,
+      "generated": 16031,
+      "transpositions": 11896,
+      "pushes": 48,
+      "iceSlides": 0,
+      "boxesDropped": 0,
+      "nodesPerSecond": 94724,
+      "optimal": true,
+      "limitHit": false,
+      "seed": 20260812
+    }
+  ],
   "tests": [
     {
       "id": "push-one",
