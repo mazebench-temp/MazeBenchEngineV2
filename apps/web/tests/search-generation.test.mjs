@@ -375,3 +375,95 @@ test("initial terrain can occupy every horizontal perimeter", () => {
   assert.ok(terrain.some((voxel) => voxel.y === 0));
   assert.ok(terrain.some((voxel) => voxel.y === configuration.depth - 1));
 });
+
+test("MazeBench planar seeds keep Ice flat, sparse, and component-limited", () => {
+  const planar = {
+    ...configuration,
+    layers: 1,
+    terrainMode: "planar",
+    initialIceMax: 18,
+    initialHoleMax: 8,
+    reverseScramblePercent: 0,
+    terrainDensity: 45,
+    seed: 812,
+  };
+  const random = mulberry32(planar.seed);
+  let totalIce = 0;
+  let totalHoles = 0;
+  for (let sample = 0; sample < 32; sample += 1) {
+    const candidate = makeCandidate(planar, random);
+    const ice = candidate.voxels.filter((voxel) => voxel.blockId === "ice");
+    const rowZero = candidate.voxels.filter((voxel) => voxel.z === 0 &&
+      ["floor", "ice"].includes(voxel.blockId));
+    assert.ok(ice.every((voxel) => voxel.z === 0));
+    assert.ok(ice.length <= 18);
+    assert.ok(exactBlockClusters(candidate.voxels, new Set(["ice"])).length <= 3);
+    assert.ok(configuration.width * configuration.depth - rowZero.length <= 8);
+    totalIce += ice.length;
+    totalHoles += configuration.width * configuration.depth - rowZero.length;
+  }
+  assert.ok(totalIce > 0);
+  assert.ok(totalHoles > 0);
+});
+
+test("mixed Ice seeds can reverse-pull boxes before terrain is added", () => {
+  const candidate = makeCandidate({
+    ...configuration,
+    layers: 1,
+    terrainMode: "planar",
+    initialIceMax: 18,
+    initialHoleMax: 8,
+    reverseScramblePercent: 100,
+    minimumScramblePulls: 1,
+    targetMoves: 100,
+    seed: 913,
+  }, mulberry32(913));
+  assert.ok(candidate.scramblePulls >= 1);
+  assert.ok(candidate.voxels.some((voxel) => voxel.blockId === "ice"));
+  assert.ok(candidate.voxels.filter((voxel) => voxel.blockId === "ice")
+    .every((voxel) => voxel.z === 0));
+  assert.notDeepEqual(
+    candidate.voxels.find((voxel) => voxel.blockId === "player"),
+    candidate.voxels.find((voxel) => voxel.blockId === "gem"),
+  );
+});
+
+test("fresh endpoints may require moving a box instead of guaranteeing a box-free route", () => {
+  const planar = {
+    ...configuration,
+    layers: 1,
+    terrainMode: "planar",
+    initialIceMax: 0,
+    initialHoleMax: 0,
+    evolveHoles: false,
+    minWeightlessBoxes: 10,
+    maxWeightlessBoxes: 10,
+    reverseScramblePercent: 0,
+    seed: 1014,
+  };
+  const random = mulberry32(planar.seed);
+  let foundBlockedRoute = false;
+  for (let sample = 0; sample < 48 && !foundBlockedRoute; sample += 1) {
+    const candidate = makeCandidate(planar, random);
+    const rigid = new Set(candidate.voxels.filter((voxel) =>
+      !["player", "gem"].includes(voxel.blockId)).map((voxel) =>
+      `${voxel.x},${voxel.y},${voxel.z}`));
+    const player = candidate.voxels.find((voxel) => voxel.blockId === "player");
+    const gem = candidate.voxels.find((voxel) => voxel.blockId === "gem");
+    const visited = new Set([`${player.x},${player.y},${player.z}`]);
+    const queue = [player];
+    for (let head = 0; head < queue.length; head += 1) {
+      const cell = queue[head];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const key = `${cell.x + dx},${cell.y + dy},${cell.z}`;
+        const support = `${cell.x + dx},${cell.y + dy},${cell.z - 1}`;
+        if (!rigid.has(key) && rigid.has(support) && !visited.has(key)) {
+          visited.add(key);
+          queue.push({ x: cell.x + dx, y: cell.y + dy, z: cell.z });
+        }
+      }
+    }
+    foundBlockedRoute = !visited.has(`${gem.x},${gem.y},${gem.z}`);
+  }
+  assert.equal(foundBlockedRoute, true);
+});

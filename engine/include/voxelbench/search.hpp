@@ -11,9 +11,13 @@ namespace voxelbench {
 // search volume without making each node larger.
 constexpr int32_t kSearchVoxelCapacity = 4096;
 constexpr int32_t kSearchDynamicEntityCapacity = 64;
-constexpr int32_t kSearchNodeCapacity = 50000;
+// Coordinate storage is shared across nodes and sized independently. Rooms
+// with a player plus a typical handful of moving polycubes can therefore use
+// far more states without making a worst-case 64-entity scene enormous.
+constexpr int32_t kSearchNodeCapacity = 180000;
+constexpr int32_t kSearchCoordinateCapacity = 3200000;
 constexpr int32_t kSearchSolutionCapacity = 4096;
-constexpr int32_t kSearchWorkspaceBytes = 24 * 1024 * 1024;
+constexpr int32_t kSearchWorkspaceBytes = 36 * 1024 * 1024;
 
 struct SearchWorkspace {
   bool initialized = false;
@@ -25,6 +29,10 @@ enum class SearchStatus : int32_t {
   kUnsolved = 0,
   kSolved = 1,
   kLimitHit = 2,
+  // A valid route was found after the state budget discarded a competing
+  // state. It is useful as evolutionary fitness, but is not a shortest-path
+  // proof.
+  kSolvedUnproven = 3,
 };
 
 struct SearchResult {

@@ -33,6 +33,7 @@ export type SearchLevel = {
   nodesPerSecond: number;
   solvesPerSecond: number;
   optimal: boolean;
+  provisional?: boolean;
   limitHit?: boolean;
   seed: number;
 };
@@ -61,6 +62,7 @@ type SearchBenchProps = {
 
 type SearchProgress = {
   bestMoves: number;
+  bestProvisionalMoves: number;
   cacheHits: number;
   evaluated: number;
   evaluatorCount: number;
@@ -89,13 +91,33 @@ type SearchOptions = {
   population: number;
   generations: number;
   maxNodes: number;
+  screeningNodes: number;
+  proofCandidates: number;
+  evaluatorWorkers: number;
+  eliteCount: number;
+  reverseScramblePercent: number;
+  minimumScramblePulls: number;
+  endpointMutationPercent: number;
+  escapeStagnation: number;
+  immigrantStagnation: number;
+  initialIceMax: number;
+  initialHoleMax: number;
+  terrainMode: "planar" | "3d";
+  analyzeInteractions: boolean;
+  seedPopulationPercent: number;
   seed: number;
   evolveHoles: boolean;
 };
 
+type NumericSearchOption = Exclude<
+  keyof SearchOptions,
+  "evolveHoles" | "terrainMode" | "analyzeInteractions"
+>;
+
 type SolutionLengthPoint = {
   generation: number;
   length: number;
+  provisional: boolean;
 };
 
 type GenerationTimingPoint = {
@@ -105,23 +127,61 @@ type GenerationTimingPoint = {
 };
 
 const DEFAULT_OPTIONS: SearchOptions = {
-  width: 8,
-  depth: 8,
-  layers: 3,
+  width: 16,
+  depth: 16,
+  layers: 1,
   collectibles: 1,
-  minWeightlessBoxes: 1,
-  maxWeightlessBoxes: 4,
+  minWeightlessBoxes: 3,
+  maxWeightlessBoxes: 10,
   terrainDensity: 45,
-  targetMoves: 500,
+  targetMoves: 600,
   population: 256,
   generations: 500,
-  maxNodes: 50000,
+  maxNodes: 180000,
+  screeningNodes: 2000,
+  proofCandidates: 24,
+  evaluatorWorkers: 0,
+  eliteCount: 24,
+  reverseScramblePercent: 34,
+  minimumScramblePulls: 1,
+  endpointMutationPercent: 0,
+  escapeStagnation: 50,
+  immigrantStagnation: 100,
+  initialIceMax: 18,
+  initialHoleMax: 8,
+  terrainMode: "planar",
+  analyzeInteractions: false,
+  seedPopulationPercent: 75,
   seed: 20260812,
   evolveHoles: true,
 };
 
 const SEARCH_VOXEL_CAPACITY = 4096;
+const SEARCH_NODE_CAPACITY = 180000;
 const SEARCH_COORDINATE_MAX = 32767;
+
+const SEARCH_PRESETS = {
+  "mbe3-planar": {
+    label: "MazeBench 16×16×2",
+    values: DEFAULT_OPTIONS,
+  },
+  "general-3d": {
+    label: "General 3D",
+    values: {
+      ...DEFAULT_OPTIONS,
+      width: 8,
+      depth: 8,
+      layers: 3,
+      minWeightlessBoxes: 1,
+      maxWeightlessBoxes: 4,
+      terrainMode: "3d" as const,
+      initialIceMax: 0,
+      initialHoleMax: 12,
+      endpointMutationPercent: 8,
+      targetMoves: 500,
+    },
+  },
+};
 
 function finiteInteger(value: unknown, fallback: number) {
   const parsed = Number(value);
@@ -219,6 +279,7 @@ export function normalizeSearchLevels(
       boxesDropped: Math.max(0, finiteInteger(candidate.boxesDropped, 0)),
       nodesPerSecond: Math.max(0, finiteInteger(candidate.nodesPerSecond, 0)),
       optimal: Boolean(candidate.optimal),
+      provisional: Boolean(candidate.provisional),
       limitHit: Boolean(candidate.limitHit),
       seed: finiteInteger(candidate.seed, 0) >>> 0,
     }];
@@ -257,16 +318,17 @@ function SolutionLengthChart({
     ? `${left},${top + plotHeight} ${line} ${coordinate(history.at(-1)!).x},${top + plotHeight}`
     : "";
   const latest = history.at(-1)?.length ?? 0;
+  const latestProvisional = history.at(-1)?.provisional ?? false;
 
   return (
     <section className="solution-length-chart" aria-label="Solution length history">
       <header>
         <div><span>EVOLUTION TRACE</span><strong>Solution length by generation</strong></div>
-        <em>{latest > 0 ? `${latest} commands` : running ? "Searching…" : history.length ? "No proven solution" : "No run yet"}</em>
+        <em>{latest > 0 ? `${latest} ${latestProvisional ? "provisional " : ""}commands` : running ? "Searching…" : history.length ? "No route found" : "No run yet"}</em>
       </header>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={latest > 0
-        ? `Best proven solution length is ${latest} commands after generation ${lastGeneration}`
-        : `No proven solution after generation ${lastGeneration}`} preserveAspectRatio="none">
+        ? `Best ${latestProvisional ? "provisional route" : "proven solution"} is ${latest} commands after generation ${lastGeneration}`
+        : `No solution route after generation ${lastGeneration}`} preserveAspectRatio="none">
         <defs>
           <linearGradient id="solution-history-fill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--cyan)" stopOpacity=".28" />
@@ -370,10 +432,14 @@ export default function SearchBench({
   onStatus,
 }: SearchBenchProps) {
   const [options, setOptions] = useState(DEFAULT_OPTIONS);
+  const [preset, setPreset] = useState<keyof typeof SEARCH_PRESETS | "custom">(
+    "mbe3-planar",
+  );
   const [enabledBlockIds, setEnabledBlockIds] = useState(() => blocks.map((block) => block.id));
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<SearchProgress>({
     bestMoves: 0,
+    bestProvisionalMoves: 0,
     cacheHits: 0,
     evaluated: 0,
     evaluatorCount: 0,
@@ -469,8 +535,9 @@ export default function SearchBench({
     return () => window.clearInterval(timer);
   }, [playingTrace, solutionFrames.length]);
 
-  const updateOption = (key: Exclude<keyof SearchOptions, "evolveHoles">, value: string) => {
-    const ranges: Record<Exclude<keyof SearchOptions, "evolveHoles">, [number, number]> = {
+  const updateOption = (key: NumericSearchOption, value: string) => {
+    setPreset("custom");
+    const ranges: Record<NumericSearchOption, [number, number]> = {
       width: [4, SEARCH_COORDINATE_MAX + 1],
       depth: [4, SEARCH_COORDINATE_MAX + 1],
       layers: [1, SEARCH_COORDINATE_MAX],
@@ -481,7 +548,19 @@ export default function SearchBench({
       targetMoves: [1, 4096],
       population: [4, 1024],
       generations: [1, 10000],
-      maxNodes: [100, 50000],
+      maxNodes: [100, SEARCH_NODE_CAPACITY],
+      screeningNodes: [100, SEARCH_NODE_CAPACITY],
+      proofCandidates: [1, 256],
+      evaluatorWorkers: [0, 16],
+      eliteCount: [2, 256],
+      reverseScramblePercent: [0, 100],
+      minimumScramblePulls: [1, 1000],
+      endpointMutationPercent: [0, 100],
+      escapeStagnation: [1, 10000],
+      immigrantStagnation: [1, 10000],
+      initialIceMax: [0, 4096],
+      initialHoleMax: [0, 4096],
+      seedPopulationPercent: [0, 100],
       seed: [0, 0xFFFFFFFF],
     };
     const [minimum, maximum] = ranges[key];
@@ -503,6 +582,11 @@ export default function SearchBench({
       }
       return { ...current, [key]: nextValue };
     });
+  };
+
+  const applyPreset = (key: keyof typeof SEARCH_PRESETS) => {
+    setPreset(key);
+    setOptions({ ...SEARCH_PRESETS[key].values });
   };
 
   const toggleBlock = (blockId: string) => {
@@ -532,9 +616,32 @@ export default function SearchBench({
     onStatus("Evolution stopped · current best retained");
   }, [onStatus]);
 
-  const startSearch = () => {
+  const startSearch = (startingCandidate: SearchLevel | null = null) => {
+    const blockRolesById = new Map(blocks.map((block) => [block.id, block.roleId]));
+    const startingCandidateNeeds3D = Boolean(startingCandidate?.voxels.some((voxel) =>
+      voxel.z > 1 ||
+      (voxel.z > 0 && blockRolesById.get(voxel.blockId) === "ice")));
+    const runOptions = startingCandidate
+      ? {
+        ...options,
+        width: startingCandidate.world.width,
+        depth: startingCandidate.world.height,
+        layers: startingCandidate.layers,
+        terrainMode: startingCandidateNeeds3D ? "3d" as const : options.terrainMode,
+      }
+      : options;
+    if (startingCandidate) {
+      setPreset("custom");
+      setOptions(runOptions);
+    }
+    const runEnabledBlockIds = startingCandidate
+      ? [...new Set([
+        ...enabledBlockIds,
+        ...startingCandidate.voxels.map((voxel) => voxel.blockId),
+      ])]
+      : enabledBlockIds;
     const enabledRoles = new Set(blocks
-      .filter((block) => enabledBlockIds.includes(block.id))
+      .filter((block) => runEnabledBlockIds.includes(block.id))
       .map((block) => block.roleId));
     const missing = ["player", "goal"].filter((role) => !enabledRoles.has(role));
     if (!enabledRoles.has("floor") && !enabledRoles.has("ice")) {
@@ -544,10 +651,10 @@ export default function SearchBench({
       onStatus(`Enable Player, Goal, and either Floor or Ice before searching · missing ${missing.join(", ")}`);
       return;
     }
-    const footprint = options.width * options.depth;
-    const minimumSceneVoxels = footprint + 1 + options.collectibles;
+    const footprint = runOptions.width * runOptions.depth;
+    const minimumSceneVoxels = footprint + 1 + runOptions.collectibles;
     if (!Number.isSafeInteger(footprint) || minimumSceneVoxels > SEARCH_VOXEL_CAPACITY) {
-      onStatus(`${options.width}×${options.depth} needs at least ${minimumSceneVoxels.toLocaleString()} voxels · exact search supports ${SEARCH_VOXEL_CAPACITY.toLocaleString()} total scene voxels`);
+      onStatus(`${runOptions.width}×${runOptions.depth} needs at least ${minimumSceneVoxels.toLocaleString()} voxels · exact search supports ${SEARCH_VOXEL_CAPACITY.toLocaleString()} total scene voxels`);
       return;
     }
     workerRef.current?.terminate();
@@ -566,11 +673,12 @@ export default function SearchBench({
     setSelectedSavedId(null);
     setProgress({
       bestMoves: 0,
+      bestProvisionalMoves: 0,
       cacheHits: 0,
       evaluated: 0,
       evaluatorCount: 0,
       generation: 0,
-      generations: options.generations,
+      generations: runOptions.generations,
       elapsedMs: 0,
       generationElapsedMs: 0,
       nodesPerSecond: 0,
@@ -581,14 +689,18 @@ export default function SearchBench({
       stagnation: 0,
       uniqueCandidates: 0,
     });
-    onStatus("Starting 3D evolutionary search in the C++ exact solver…");
+    onStatus(startingCandidate
+      ? `Continuing evolution from ${startingCandidate.name}…`
+      : "Starting evolutionary search in the C++ exact solver…");
     worker.onmessage = (event: MessageEvent) => {
       const message = event.data;
       if (message?.type === "best") {
         setBest(message.candidate as SearchLevel);
         onStatus(message.candidate.optimal
           ? `New proven record · ${message.candidate.moves} commands at generation ${message.generation}`
-          : `New search-effort record · ${message.candidate.expanded} global states explored`);
+          : message.candidate.provisional
+            ? `New provisional route · ${message.candidate.moves} commands · proof budget exhausted`
+            : `New search-effort record · ${message.candidate.expanded} global states explored`);
       } else if (message?.type === "progress") {
         const receivedAt = Date.now();
         runStartedAtRef.current = receivedAt - Math.max(0, Number(message.elapsedMs) || 0);
@@ -602,6 +714,7 @@ export default function SearchBench({
         const point = {
           generation: finiteInteger(message.generation, 0),
           length: Math.max(0, finiteInteger(message.solutionLength, 0)),
+          provisional: Boolean(message.provisional),
         };
         setSolutionLengthHistory((current) => {
           if (point.generation <= 0) return current;
@@ -650,7 +763,9 @@ export default function SearchBench({
         workerRef.current = null;
         onStatus(message.candidate?.optimal
           ? `Evolution complete · best proven puzzle is ${message.candidate.moves} commands`
-          : "Evolution complete · no proven solution found within the selected limits");
+          : message.candidate?.provisional
+            ? `Evolution complete · best route is ${message.candidate.moves} commands but still needs a larger proof budget`
+            : "Evolution complete · no solution found within the selected limits");
       } else if (message?.type === "error") {
         runStartedAtRef.current = null;
         generationStartedAtRef.current = null;
@@ -674,9 +789,17 @@ export default function SearchBench({
       type: "start",
       configuration: {
         ...options,
+        ...runOptions,
         blocks,
         roles,
-        enabledBlockIds,
+        enabledBlockIds: runEnabledBlockIds,
+        startingCandidate: startingCandidate
+          ? {
+            ...startingCandidate,
+            voxels: startingCandidate.voxels.map((voxel) => ({ ...voxel })),
+            solution: [],
+          }
+          : null,
       },
     });
   };
@@ -688,7 +811,9 @@ export default function SearchBench({
       id: `saved-search-${Date.now()}`,
       name: best.optimal
         ? `${best.moves}-command 3D puzzle`
-        : `Unproven 3D candidate`,
+        : best.provisional
+          ? `${best.moves}-command provisional puzzle`
+          : `Unproven 3D candidate`,
       createdAt: new Date().toISOString(),
       voxels: best.voxels.map((voxel) => ({ ...voxel })),
       solution: [...best.solution],
@@ -804,8 +929,27 @@ export default function SearchBench({
         <div className="search-panel-heading">
           <span>EVOLUTION CONFIGURATION</span>
           <h2>Grow a difficult 3D puzzle</h2>
-          <p>Every candidate is solved exactly in C++. Fitness maximizes the shortest proven command sequence.</p>
+          <p>C++ screens each candidate, then exactly proves the strongest routes. Fitness maximizes the shortest proven command sequence.</p>
         </div>
+        <label className="field search-preset">
+          <span>Strategy preset</span>
+          <select
+            value={preset}
+            disabled={running}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (value !== "custom") {
+                applyPreset(value as keyof typeof SEARCH_PRESETS);
+              }
+            }}
+          >
+            {Object.entries(SEARCH_PRESETS).map(([key, definition]) => (
+              <option key={key} value={key}>{definition.label}</option>
+            ))}
+            {preset === "custom" && <option value="custom">Custom</option>}
+          </select>
+        </label>
+        <small className="search-capacity-note">The MazeBench preset recreates its sparse planar terrain and evolution schedule while retaining this project&apos;s one generalized C++ physics solver.</small>
         <div className="search-dimensions">
           <label className="field"><span>Width</span><input type="number" min="4" max={SEARCH_COORDINATE_MAX + 1} value={options.width} disabled={running} onChange={(event) => updateOption("width", event.target.value)} /></label>
           <label className="field"><span>Depth</span><input type="number" min="4" max={SEARCH_COORDINATE_MAX + 1} value={options.depth} disabled={running} onChange={(event) => updateOption("depth", event.target.value)} /></label>
@@ -815,14 +959,14 @@ export default function SearchBench({
         <div className="search-dimensions">
           <label className="field"><span>Population</span><input type="number" min="4" max="1024" value={options.population} disabled={running} onChange={(event) => updateOption("population", event.target.value)} /></label>
           <label className="field"><span>Generations</span><input type="number" min="1" max="10000" value={options.generations} disabled={running} onChange={(event) => updateOption("generations", event.target.value)} /></label>
-          <label className="field"><span>States / candidate</span><input type="number" min="100" max="50000" step="100" value={options.maxNodes} disabled={running} onChange={(event) => updateOption("maxNodes", event.target.value)} /></label>
+          <label className="field"><span>Proof states</span><input type="number" min="100" max={SEARCH_NODE_CAPACITY} step="100" value={options.maxNodes} disabled={running} onChange={(event) => updateOption("maxNodes", event.target.value)} /></label>
         </div>
         <div className="search-dimensions">
           <label className="field"><span>Collectibles</span><input type="number" min="1" max="16" value={options.collectibles} disabled={running} onChange={(event) => updateOption("collectibles", event.target.value)} /></label>
           <label className="field"><span>Target commands</span><input type="number" min="1" max="4096" value={options.targetMoves} disabled={running} onChange={(event) => updateOption("targetMoves", event.target.value)} /></label>
           <label className="field"><span>Deterministic seed</span><input type="number" min="0" max="4294967295" value={options.seed} disabled={running} onChange={(event) => updateOption("seed", event.target.value)} /></label>
         </div>
-        <label className="field search-density"><span>Initial terrain density</span><input type="range" min="5" max="90" value={options.terrainDensity} disabled={running} onChange={(event) => updateOption("terrainDensity", event.target.value)} /><strong>{options.terrainDensity}%</strong></label>
+        <label className="field search-density"><span>Initial wall density</span><input type="range" min="5" max="90" value={options.terrainDensity} disabled={running} onChange={(event) => updateOption("terrainDensity", event.target.value)} /><strong>{options.terrainDensity}%</strong></label>
         {weightlessEnabled && (
           <div className="search-weightless-options">
             <div className="search-dimensions search-dimensions--two">
@@ -833,9 +977,32 @@ export default function SearchBench({
           </div>
         )}
         <label className="search-hole-toggle" htmlFor="search-evolve-holes" aria-label="Evolve holes in the floor">
-          <input id="search-evolve-holes" type="checkbox" checked={options.evolveHoles} disabled={running} onChange={(event) => setOptions((current) => ({ ...current, evolveHoles: event.target.checked }))} />
+          <input id="search-evolve-holes" type="checkbox" checked={options.evolveHoles} disabled={running} onChange={(event) => { setPreset("custom"); setOptions((current) => ({ ...current, evolveHoles: event.target.checked })); }} />
           <span><b>Evolve holes in the floor</b><small>Empty Row-0 cells become bottomless voids; this terrain gets equal mutation opportunity.</small></span>
         </label>
+        <details className="search-advanced">
+          <summary>Advanced evolution controls</summary>
+          <div className="search-dimensions search-dimensions--two">
+            <label className="field"><span>Terrain geometry</span><select value={options.terrainMode} disabled={running} onChange={(event) => { setPreset("custom"); setOptions((current) => ({ ...current, terrainMode: event.target.value as "planar" | "3d" })); }}><option value="planar">Planar / 2D</option><option value="3d">Unrestricted 3D</option></select></label>
+            <label className="field"><span>Evaluator workers</span><input type="number" min="0" max="16" value={options.evaluatorWorkers} disabled={running} onChange={(event) => updateOption("evaluatorWorkers", event.target.value)} /><small>0 = automatic</small></label>
+            <label className="field"><span>Initial Ice max</span><input type="number" min="0" max="4096" value={options.initialIceMax} disabled={running} onChange={(event) => updateOption("initialIceMax", event.target.value)} /></label>
+            <label className="field"><span>Initial holes max</span><input type="number" min="0" max="4096" value={options.initialHoleMax} disabled={running} onChange={(event) => updateOption("initialHoleMax", event.target.value)} /></label>
+            <label className="field"><span>Screening states</span><input type="number" min="100" max={SEARCH_NODE_CAPACITY} step="100" value={options.screeningNodes} disabled={running} onChange={(event) => updateOption("screeningNodes", event.target.value)} /></label>
+            <label className="field"><span>Proofs / generation</span><input type="number" min="1" max="256" value={options.proofCandidates} disabled={running} onChange={(event) => updateOption("proofCandidates", event.target.value)} /></label>
+            <label className="field"><span>Elite survivors</span><input type="number" min="2" max="256" value={options.eliteCount} disabled={running} onChange={(event) => updateOption("eliteCount", event.target.value)} /></label>
+            <label className="field"><span>Reverse seeds %</span><input type="number" min="0" max="100" value={options.reverseScramblePercent} disabled={running} onChange={(event) => updateOption("reverseScramblePercent", event.target.value)} /></label>
+            <label className="field"><span>Minimum reverse pulls</span><input type="number" min="1" max="1000" value={options.minimumScramblePulls} disabled={running} onChange={(event) => updateOption("minimumScramblePulls", event.target.value)} /></label>
+            <label className="field"><span>Endpoint mutation %</span><input type="number" min="0" max="100" value={options.endpointMutationPercent} disabled={running} onChange={(event) => updateOption("endpointMutationPercent", event.target.value)} /></label>
+            <label className="field"><span>Escape after stagnant</span><input type="number" min="1" max="10000" value={options.escapeStagnation} disabled={running} onChange={(event) => updateOption("escapeStagnation", event.target.value)} /></label>
+            <label className="field"><span>More immigrants after</span><input type="number" min="1" max="10000" value={options.immigrantStagnation} disabled={running} onChange={(event) => updateOption("immigrantStagnation", event.target.value)} /></label>
+            <label className="field"><span>Continue-seed population %</span><input type="number" min="0" max="100" value={options.seedPopulationPercent} disabled={running} onChange={(event) => updateOption("seedPopulationPercent", event.target.value)} /></label>
+          </div>
+          <label className="search-hole-toggle" htmlFor="search-score-interactions" aria-label="Reward physics interactions">
+            <input id="search-score-interactions" type="checkbox" checked={options.analyzeInteractions} disabled={running} onChange={(event) => { setPreset("custom"); setOptions((current) => ({ ...current, analyzeInteractions: event.target.checked })); }} />
+            <span><b>Reward physics interactions</b><small>Replays promoted solutions to prefer pushes, Ice slides, and drops. Leave off for maximum throughput.</small></span>
+          </label>
+          <small>Screen every board cheaply, then re-run the strongest routes at the proof budget. A route found after pruning is labeled provisional and never presented as optimal.</small>
+        </details>
         <div className="search-blocks">
           <div><strong>Blocks allowed in evolution</strong><small>Floor stays on Row 0. If Floor is off, enabled Ice fills the starting Row-0 plane.</small></div>
           {blocks.map((block) => (
@@ -849,8 +1016,9 @@ export default function SearchBench({
         <div className="search-primary-actions">
           {running
             ? <button className="tool-button search-stop" onClick={stopSearch}>Stop evolution</button>
-            : <button className="tool-button tool-button--primary" onClick={startSearch}>Start evolution</button>}
+            : <button className="tool-button tool-button--primary" onClick={() => startSearch()}>Start evolution</button>}
           <button className="tool-button" disabled={!best} onClick={saveBest}>Save current best</button>
+          <button className="tool-button" disabled={running || !activeLevel} onClick={() => activeLevel && startSearch(activeLevel)}>Evolve selected</button>
         </div>
       </aside>
 
@@ -858,7 +1026,7 @@ export default function SearchBench({
         <div className="search-metrics">
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
           <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached · {progress.solvesPerSecond}/sec</small></strong></article>
-          <article><span>Solution length</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
+          <article><span>Solution length</span><strong>{activeLevel?.optimal || activeLevel?.provisional ? activeLevel.moves : progress.bestMoves || progress.bestProvisionalMoves || "—"}<small>{activeLevel?.provisional ? " provisional commands" : " commands"}</small></strong></article>
           <article><span>C++ solver</span><strong>{formatRate(progress.solverCommandTransitionsPerSecond || activeLevel?.commandTransitionsPerSecond || 0)}<small> command sims/sec · {formatRate(progress.solverNodesPerSecond || activeLevel?.nodesPerSecond || 0)} global states/sec</small></strong></article>
           <article><span>End-to-end</span><strong>{formatRate(progress.commandTransitionsPerSecond)}<small> command sims/sec · {formatRate(progress.nodesPerSecond)} global states/sec · {Math.max(1, progress.evaluatorCount)} workers</small></strong></article>
           <article className={running ? "search-clock active" : "search-clock"}><span>Run clock</span><strong>{formatClock(elapsedClockMs)}<small>{running ? `● ACTIVE · Gen ${Math.max(1, progress.generation)} · ${formatGenerationDuration(generationClockMs)}` : progress.generation ? `Complete · ${progress.generation} generations` : "Not running"}</small></strong></article>
@@ -923,7 +1091,7 @@ export default function SearchBench({
 
         {activeLevel && (
           <section className="search-record-detail">
-            <div><span>Proof</span><strong>{activeLevel.optimal ? "Shortest path proven" : activeLevel.limitHit ? "State limit reached" : "Not solved"}</strong></div>
+            <div><span>Proof</span><strong>{activeLevel.optimal ? "Shortest path proven" : activeLevel.provisional ? "Valid route · proof incomplete" : activeLevel.limitHit ? "State limit reached" : "Not solved"}</strong></div>
             <div><span>Expanded</span><strong>{activeLevel.expanded.toLocaleString()}</strong></div>
             <div><span>Generated</span><strong>{activeLevel.generated.toLocaleString()}</strong></div>
             <div><span>Pushes</span><strong>{(activeLevel.pushes ?? 0).toLocaleString()}</strong></div>
@@ -938,7 +1106,7 @@ export default function SearchBench({
           {savedLevels.length ? savedLevels.map((level) => (
             <article key={level.id} className={selectedSavedId === level.id ? "active" : ""}>
               <button className="saved-search-select" onClick={() => { setSelectedSavedId(level.id); setViewMode("inspect"); }}>
-                <span className="saved-search-score">{level.optimal ? level.moves : "?"}</span>
+                <span className="saved-search-score">{level.optimal || level.provisional ? level.moves : "?"}</span>
                 <span><strong>{level.name}</strong><small>{level.world.width}×{level.world.height}×{level.layers} · {level.expanded.toLocaleString()} expanded</small></span>
               </button>
               <button className="saved-search-delete" aria-label={`Delete ${level.name}`} onClick={() => deleteSaved(level.id)}>×</button>

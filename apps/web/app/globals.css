@@ -513,6 +513,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .search-density > span { grid-column: 1 / -1; }
 .search-density input[type="range"] { accent-color: var(--cyan); min-width: 0; padding: 0; }
 .search-density strong { color: var(--cyan); font: 700 11px var(--font-mono); padding-left: 10px; }
+.search-preset { margin-bottom: 7px; }
+.search-advanced { background: rgba(var(--cyan-rgb),.035); border: 1px solid rgba(var(--cyan-rgb),.18); border-radius: 8px; margin: 0 0 12px; padding: 8px; }
+.search-advanced summary { color: var(--cyan); cursor: pointer; font: 700 10px var(--font-mono); letter-spacing: .08em; }
+.search-advanced[open] summary { margin-bottom: 9px; }
+.search-advanced > small { color: var(--muted); display: block; font-size: 9px; line-height: 1.45; }
+.search-advanced .field small { color: var(--muted); font-size: 8px; }
 .search-controls > .field { margin-bottom: 12px; }
 .search-controls .field input { min-width: 0; width: 100%; }
 .search-hole-toggle { align-items: start; background: rgba(var(--magenta-rgb),.045); border: 1px solid rgba(var(--magenta-rgb),.22); border-radius: 7px; cursor: pointer; display: grid; gap: 8px; grid-template-columns: 15px 1fr; margin-bottom: 12px; padding: 8px; }

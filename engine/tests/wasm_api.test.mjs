@@ -173,3 +173,47 @@ test("WebAssembly exact search targets collection of a literal gem", async () =>
   assert.equal(engine.search_solution_length(), 2);
   assert.deepEqual([engine.search_solution_step(0), engine.search_solution_step(1)], [0, 0]);
 });
+
+test("WebAssembly distinguishes a capped route from an optimal proof", async () => {
+  const engine = await loadEngine();
+  const voxels = [];
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) {
+      voxels.push({ x, y, z: 0, roleId: "floor" });
+    }
+  }
+  for (let x = 0; x < 5; x += 1) {
+    voxels.push({ x, y: 0, z: 1, roleId: "wall" });
+    voxels.push({ x, y: 4, z: 1, roleId: "wall" });
+  }
+  for (let y = 1; y < 4; y += 1) {
+    voxels.push({ x: 0, y, z: 1, roleId: "wall" });
+    voxels.push({ x: 4, y, z: 1, roleId: "wall" });
+  }
+  voxels.push(
+    { x: 1, y: 2, z: 1, roleId: "weightless-pushable", genericId: 0 },
+    { x: 2, y: 2, z: 1, roleId: "weightless-pushable", genericId: 0 },
+    { x: 1, y: 3, z: 1, roleId: "player" },
+    { x: 1, y: 1, z: 1, roleId: "goal" },
+  );
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(
+    engine.memory.buffer,
+    engine.voxel_buffer(),
+    voxels.length * stride,
+  );
+  const write = () => voxels.forEach((voxel, index) => buffer.set([
+    voxel.x,
+    voxel.y,
+    voxel.z,
+    roleCode(engine, voxel.roleId),
+    voxel.genericId ?? -1,
+  ], index * stride));
+
+  write();
+  assert.equal(engine.search_solve(voxels.length, 5, 5, 5), 3);
+  assert.equal(engine.search_moves(), 6);
+  write();
+  assert.equal(engine.search_solve(voxels.length, 5, 5, 10000), 1);
+  assert.equal(engine.search_moves(), 6);
+});

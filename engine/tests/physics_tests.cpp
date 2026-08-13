@@ -945,6 +945,42 @@ void TestGeneralSearchChecksRaisedPolycubeCollisions() {
         "a raised polycube member may pass above a shorter wall");
 }
 
+void TestCappedSearchDoesNotClaimAnOptimalProof() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[45];
+  int32_t count = 0;
+  for (int32_t y = 0; y < 5; ++y) {
+    for (int32_t x = 0; x < 5; ++x) {
+      voxels[count++] = {x, y, 0, Role("floor"), -1};
+    }
+  }
+  for (int32_t x = 0; x < 5; ++x) {
+    voxels[count++] = {x, 0, 1, Role("wall"), -1};
+    voxels[count++] = {x, 4, 1, Role("wall"), -1};
+  }
+  for (int32_t y = 1; y < 4; ++y) {
+    voxels[count++] = {0, y, 1, Role("wall"), -1};
+    voxels[count++] = {4, y, 1, Role("wall"), -1};
+  }
+  voxels[count++] = {1, 2, 1, Role("weightless-pushable"), 0};
+  voxels[count++] = {2, 2, 1, Role("weightless-pushable"), 0};
+  voxels[count++] = {1, 3, 1, Role("player"), -1};
+  voxels[count++] = {1, 1, 1, Role("goal"), -1};
+
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto screened = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, count, 5, 5, 5);
+  Check(screened.status == voxelbench::SearchStatus::kSolvedUnproven &&
+            screened.moves == 6,
+        "a route found after state pruning must be marked solved-but-unproven");
+
+  const auto proved = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, count, 5, 5, 10000);
+  Check(proved.status == voxelbench::SearchStatus::kSolved && proved.moves == 6,
+        "the same route should become exact when the full frontier is retained");
+}
+
 }  // namespace
 
 int main() {
@@ -985,10 +1021,11 @@ int main() {
   TestSearchCollectsEveryGem();
   TestSearchStoresLargePolycubeAsOneEntity();
   TestGeneralSearchChecksRaisedPolycubeCollisions();
+  TestCappedSearchDoesNotClaimAnOptimalProof();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 37 C++ physics/search tests passed\n";
+  std::cout << "all 38 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

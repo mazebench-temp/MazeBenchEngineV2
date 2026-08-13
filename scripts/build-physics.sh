@@ -46,8 +46,8 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=search_solution_length \
   -Wl,--export=search_solution_step \
   -Wl,--export-memory \
-  -Wl,--initial-memory=67108864 \
-  -Wl,--max-memory=67108864 \
+  -Wl,--initial-memory=100663296 \
+  -Wl,--max-memory=100663296 \
   -o "$output_dir/voxel_physics.wasm" \
   -I"$project_root/engine/include" \
   "$project_root/engine/src/physics.cpp" \

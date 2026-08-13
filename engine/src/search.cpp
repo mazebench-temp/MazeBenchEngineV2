@@ -18,7 +18,7 @@ constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
-constexpr int32_t kHashCapacity = 131072;
+constexpr int32_t kHashCapacity = 262144;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
 constexpr int32_t kSearchGoalCapacity = 64;
@@ -40,8 +40,7 @@ struct SearchData {
   // A search with E moving entities packs node N at N * E. This retains the
   // maximum 64-entity capacity without imposing a 384-byte coordinate stride
   // on the much smaller states used by most evolutionary candidates.
-  int16_t node_coordinates[
-      kSearchNodeCapacity * kSearchDynamicEntityCapacity][3];
+  int16_t node_coordinates[kSearchCoordinateCapacity][3];
   uint64_t hash_keys[kHashCapacity];
   int32_t hash_nodes[kHashCapacity];
   uint32_t hash_stamps[kHashCapacity];
@@ -740,7 +739,9 @@ SearchResult SearchGeneralized(
     data->closed[head] = 1;
     const SearchNode& parent = data->nodes[head];
     if (NodeIsGoal(data, parent)) {
-      result.status = SearchStatus::kSolved;
+      result.status = limit_reached
+          ? SearchStatus::kSolvedUnproven
+          : SearchStatus::kSolved;
       if (!ReconstructGeneralSolution(
               data,
               physics_workspace,
@@ -937,6 +938,11 @@ SearchResult search_shortest(
   if (data->player_index < 0 || data->goal_count <= 0 ||
       data->entity_count <= 0) {
     return InvalidResult();
+  }
+  const int32_t coordinate_limited_nodes =
+      kSearchCoordinateCapacity / data->entity_count;
+  if (maximum_nodes > coordinate_limited_nodes) {
+    maximum_nodes = coordinate_limited_nodes;
   }
   if (!prepare_scene(
           physics_workspace,
