@@ -16,7 +16,7 @@ function roleCode(engine, roleId) {
 }
 
 function simulate(engine, voxels, direction, width = 5, height = 5) {
-  assert.equal(engine.physics_abi_version(), 3);
+  assert.equal(engine.physics_abi_version(), 4);
   const stride = engine.voxel_stride();
   assert.equal(stride, 5);
   const buffer = new Int32Array(engine.memory.buffer, engine.voxel_buffer(), voxels.length * stride);

@@ -10,6 +10,7 @@
     "test:physics": "sh scripts/test-physics.sh",
     "benchmark:physics": "sh scripts/benchmark-physics.sh",
     "benchmark:search": "sh scripts/benchmark-search.sh",
+    "benchmark:search:wasm": "npm run build:physics && node engine/benchmarks/wasm_search_benchmark.mjs",
     "predev": "npm run build:physics",
     "dev": "cd apps/web && WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "prebuild": "npm run build:physics",

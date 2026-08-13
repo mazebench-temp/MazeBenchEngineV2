@@ -17,4 +17,5 @@ clang++ \
   "$project_root/engine/benchmarks/search_benchmark.cpp" \
   -o "$build_dir/search_benchmark"
 
-"$build_dir/search_benchmark"
+"$build_dir/search_benchmark" \
+  "$project_root/engine/benchmarks/fixtures/mixed_3d_427.csv"

@@ -160,6 +160,800 @@
   ],
   "searches": [
     {
+      "id": "saved-search-1786583706087",
+      "name": "73-command 3D puzzle",
+      "createdAt": "2026-08-13T01:15:06.087Z",
+      "world": {
+        "width": 8,
+        "height": 8,
+        "floorLayer": 0
+      },
+      "layers": 1,
+      "voxels": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 0,
+          "blockId": "floor"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 1,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 1,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 3,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 3,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 6,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 6,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 0,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 7,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 4,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 4,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 5,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 5,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 0,
+          "y": 6,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 7,
+          "y": 6,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 3,
+          "y": 4,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 3,
+          "y": 3,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 0
+        },
+        {
+          "x": 4,
+          "y": 1,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 4
+        },
+        {
+          "x": 4,
+          "y": 2,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 4
+        },
+        {
+          "x": 3,
+          "y": 2,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 4
+        },
+        {
+          "x": 1,
+          "y": 3,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 2,
+          "y": 3,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 2
+        },
+        {
+          "x": 2,
+          "y": 4,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 2
+        },
+        {
+          "x": 3,
+          "y": 6,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 5
+        },
+        {
+          "x": 4,
+          "y": 6,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 5
+        },
+        {
+          "x": 3,
+          "y": 5,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 4,
+          "y": 5,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 3
+        },
+        {
+          "x": 1,
+          "y": 4,
+          "z": 1,
+          "blockId": "player"
+        },
+        {
+          "x": 6,
+          "y": 4,
+          "z": 1,
+          "blockId": "goal"
+        },
+        {
+          "x": 1,
+          "y": 1,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 4,
+          "y": 3,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 5,
+          "y": 3,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 5,
+          "y": 4,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 1
+        },
+        {
+          "x": 1,
+          "y": 6,
+          "z": 1,
+          "blockId": "wall"
+        },
+        {
+          "x": 5,
+          "y": 2,
+          "z": 1,
+          "blockId": "weightless-pushbox-1826",
+          "genericId": 4
+        },
+        {
+          "x": 1,
+          "y": 2,
+          "z": 1,
+          "blockId": "wall"
+        }
+      ],
+      "solution": [
+        "down",
+        "right",
+        "right",
+        "right",
+        "up",
+        "right",
+        "down",
+        "left",
+        "left",
+        "left",
+        "left",
+        "up",
+        "right",
+        "up",
+        "up",
+        "right",
+        "left",
+        "down",
+        "down",
+        "down",
+        "right",
+        "right",
+        "right",
+        "up",
+        "left",
+        "down",
+        "left",
+        "left",
+        "up",
+        "right",
+        "up",
+        "up",
+        "up",
+        "left",
+        "down",
+        "down",
+        "down",
+        "right",
+        "down",
+        "right",
+        "right",
+        "up",
+        "left",
+        "down",
+        "left",
+        "up",
+        "right",
+        "up",
+        "left",
+        "down",
+        "left",
+        "up",
+        "right",
+        "up",
+        "up",
+        "right",
+        "down",
+        "up",
+        "right",
+        "right",
+        "down",
+        "left",
+        "left",
+        "down",
+        "left",
+        "right",
+        "down",
+        "down",
+        "right",
+        "up",
+        "down",
+        "right",
+        "up"
+      ],
+      "moves": 73,
+      "expanded": 674,
+      "generated": 1811,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
+      "transpositions": 1124,
+      "pushes": 26,
+      "iceSlides": 0,
+      "boxesDropped": 0,
+      "nodesPerSecond": 68776,
+      "optimal": true,
+      "limitHit": false,
+      "seed": 20260812
+    },
+    {
       "id": "saved-search-1786581903785",
       "name": "153-command 3D puzzle",
       "createdAt": "2026-08-13T00:45:03.785Z",
@@ -857,6 +1651,8 @@
       "moves": 153,
       "expanded": 34,
       "generated": 52,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 15,
       "pushes": 18,
       "iceSlides": 0,
@@ -1385,6 +2181,8 @@
       "moves": 95,
       "expanded": 83,
       "generated": 151,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 58,
       "pushes": 13,
       "iceSlides": 0,
@@ -3591,6 +4389,8 @@
       "moves": 262,
       "expanded": 4554,
       "generated": 9101,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 4490,
       "pushes": 15,
       "iceSlides": 0,
@@ -4628,6 +5428,8 @@
       "moves": 225,
       "expanded": 1977,
       "generated": 3977,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 2001,
       "pushes": 23,
       "iceSlides": 1,
@@ -5761,6 +6563,8 @@
       "moves": 427,
       "expanded": 13257,
       "generated": 29541,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 16275,
       "pushes": 59,
       "iceSlides": 17,
@@ -7123,6 +7927,8 @@
       "moves": 254,
       "expanded": 7578,
       "generated": 34950,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 27295,
       "pushes": 43,
       "iceSlides": 0,
@@ -8553,6 +9359,8 @@
       "moves": 224,
       "expanded": 182,
       "generated": 534,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 330,
       "pushes": 23,
       "iceSlides": 0,
@@ -9584,6 +10392,8 @@
       "moves": 205,
       "expanded": 698,
       "generated": 1368,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 652,
       "pushes": 53,
       "iceSlides": 0,
@@ -10620,6 +11430,8 @@
       "moves": 406,
       "expanded": 4111,
       "generated": 16031,
+      "commandTransitions": 0,
+      "commandTransitionsPerSecond": 0,
       "transpositions": 11896,
       "pushes": 48,
       "iceSlides": 0,

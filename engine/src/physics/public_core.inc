@@ -2,6 +2,8 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   if (workspace == nullptr) return;
   WorkspaceData* data = WorkspaceStorage(workspace);
   data->hash_generation = 1;
+  data->static_hash_generation = 1;
+  data->dynamic_column_generation = 1;
   data->object_count = 0;
   data->weightless_object_count = 0;
   data->dense_columns = false;
@@ -12,9 +14,113 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->continuation_state = nullptr;
   data->continuation_voxels = nullptr;
   data->continuation_tick = -1;
+  data->prepared_voxels = nullptr;
+  data->prepared_count = 0;
+  data->prepared_width = 0;
+  data->prepared_height = 0;
+  data->prepared_dynamic_voxel_count = -1;
+  data->prepared_player_index = -1;
+  data->prepared_goal_count = 0;
+  data->prepared_dense_columns = false;
+  data->assume_quiescent_start = false;
+  data->motion_voxel_count = -1;
+  data->prepared_index_active = false;
   for (int32_t index = 0; index < kHashCapacity; ++index) {
-    data->hash_stamps[index] = 0;
+    data->hash_entries[index].stamp = 0;
+    data->static_hash_entries[index].stamp = 0;
   }
+  for (int32_t cell = 0; cell < kDenseColumnCapacity; ++cell) {
+    data->dynamic_column_stamps[cell] = 0;
+  }
+}
+
+bool prepare_scene(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t dynamic_voxel_count) {
+  const int64_t cell_count = static_cast<int64_t>(width) * height;
+  if (workspace == nullptr || voxels == nullptr || count < 0 ||
+      count > kVoxelCapacity || width <= 0 || height <= 0 ||
+      cell_count <= 0 || cell_count > UINT32_MAX ||
+      dynamic_voxel_count < 0 || dynamic_voxel_count > count) {
+    return false;
+  }
+  WorkspaceScope workspace_scope(workspace);
+  WorkspaceData& data = ActiveWorkspace();
+  data.prepared_voxels = nullptr;
+  data.prepared_index_active = false;
+  for (int32_t index = dynamic_voxel_count; index < count; ++index) {
+    const uint32_t role = voxels[index].role;
+    if (role == kPlayerRole || role == kPushableRole ||
+        role == kWeightlessPushableRole) {
+      data.prepared_dynamic_voxel_count = -1;
+      return false;
+    }
+  }
+  BuildObjects(voxels, count);
+  data.prepared_player_index = -1;
+  data.prepared_goal_count = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kGoalRole) {
+      data.prepared_goal_indices[data.prepared_goal_count++] = index;
+    }
+  }
+  for (int32_t index = 0; index < dynamic_voxel_count; ++index) {
+    if (voxels[index].role != kPlayerRole) continue;
+    if (data.prepared_player_index >= 0) return false;
+    data.prepared_player_index = index;
+  }
+  if (data.prepared_player_index < 0) return false;
+  ResetStaticHash();
+  data.prepared_dense_columns = cell_count <= kDenseColumnCapacity;
+  if (data.prepared_dense_columns) {
+    for (int32_t cell = 0; cell < static_cast<int32_t>(cell_count); ++cell) {
+      g_static_column_heads[cell] = -1;
+    }
+  }
+  for (int32_t index = dynamic_voxel_count; index < count; ++index) {
+    g_next_static_column_voxel[index] = -1;
+    const Voxel& voxel = voxels[index];
+    if (voxel.role == kGoalRole ||
+        !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+    if (!StaticHashInsert(
+            SpatialKey(voxel.x, voxel.y, voxel.z, width), index)) {
+      data.prepared_dynamic_voxel_count = -1;
+      return false;
+    }
+    if (data.prepared_dense_columns) {
+      const int32_t cell = voxel.y * width + voxel.x;
+      g_next_static_column_voxel[index] = g_static_column_heads[cell];
+      g_static_column_heads[cell] = index;
+    }
+  }
+  data.prepared_voxels = voxels;
+  data.prepared_count = count;
+  data.prepared_width = width;
+  data.prepared_height = height;
+  data.prepared_dynamic_voxel_count = dynamic_voxel_count;
+  data.assume_quiescent_start = false;
+  data.continuation_state = nullptr;
+  data.continuation_voxels = nullptr;
+  data.continuation_tick = -1;
+  return true;
+}
+
+bool prepare_quiescent_snapshot(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  if (workspace == nullptr || voxels == nullptr) return false;
+  WorkspaceScope workspace_scope(workspace);
+  if (!IsPreparedScene(voxels, count, width, height)) return false;
+  ResetObjectMotion();
+  BuildSpatialIndex(voxels, count, width, height);
+  return true;
 }
 
 uint32_t hash_role(const uint8_t* bytes, int32_t length) {

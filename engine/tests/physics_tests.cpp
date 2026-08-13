@@ -1,8 +1,10 @@
 #include "voxelbench/physics.hpp"
 #include "voxelbench/search.hpp"
 
+#include <cstring>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 
 namespace {
 
@@ -19,6 +21,30 @@ uint32_t Role(const char* value) {
   int32_t length = 0;
   while (value[length] != '\0') ++length;
   return voxelbench::hash_role(reinterpret_cast<const uint8_t*>(value), length);
+}
+
+struct ObserverTrace {
+  int32_t calls = 0;
+  int32_t ticks[4]{};
+  int32_t goal_x[4]{};
+};
+
+void CaptureObserverFrame(
+    const voxelbench::Voxel* voxels,
+    int32_t count,
+    const voxelbench::MotionState* state,
+    void* context) {
+  ObserverTrace* trace = static_cast<ObserverTrace*>(context);
+  if (trace->calls >= 4) return;
+  const int32_t frame = trace->calls++;
+  trace->ticks[frame] = state->tick;
+  trace->goal_x[frame] = -1;
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == Role("goal")) {
+      trace->goal_x[frame] = voxels[index].x;
+      break;
+    }
+  }
 }
 
 void TestSimplePush() {
@@ -177,6 +203,123 @@ void TestTickTraceAndWorkspaceIsolation() {
         "the resumed Ice trace should contain four committed ticks");
   Check(first_state.version == voxelbench::kMotionStateVersion,
         "motion state should carry its serializable format version");
+}
+
+void TestObserverReceivesNoMovementCompletionFrame() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("ice"), -1},
+      {1, 1, 0, Role("ice"), -1},
+      {1, 1, 1, Role("wall"), -1},
+      {1, 2, 1, Role("goal"), -1},
+  };
+  ObserverTrace trace;
+  voxelbench::reset_workspace(&workspace);
+  Check(voxelbench::simulate_command(
+            &workspace,
+            &state,
+            voxels,
+            6,
+            4,
+            4,
+            0,
+            CaptureObserverFrame,
+            &trace) == 0,
+        "a blocked Ice completion should simulate successfully");
+  Check(trace.calls == 2 && trace.ticks[0] == 1 && trace.ticks[1] == 1,
+        "the observer should receive both the movement and no-movement final frame");
+  Check(trace.goal_x[0] == 1 && trace.goal_x[1] < 0,
+        "the final observer frame must include end-of-command gem collection");
+}
+
+void TestPreparedMotionStateClearsImmutableSuffix() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 1, 1, Role("player"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {1, 0, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  Check(voxelbench::prepare_scene(&workspace, voxels, 3, 3, 3, 1),
+        "the motion-state fixture should prepare its dynamic prefix");
+  for (int32_t index = 0; index < 3; ++index) {
+    state.horizontal_momentum[index] = 0xff;
+    state.falling[index] = 0xff;
+    state.gravity_armed[index] = 0xff;
+  }
+  Check(voxelbench::simulate_command(
+            &workspace, &state, voxels, 3, 3, 3, 0) == 0,
+        "the prepared motion-state command should complete");
+  bool suffix_is_clear = true;
+  for (int32_t index = 1; index < 3; ++index) {
+    suffix_is_clear = suffix_is_clear &&
+        state.horizontal_momentum[index] == 0 &&
+        state.falling[index] == 0 && state.gravity_armed[index] == 0;
+  }
+  Check(suffix_is_clear,
+        "serialized motion flags for immutable prepared voxels must be deterministic");
+}
+
+void TestPreparedSceneRejectsMovableStaticSuffix() {
+  static voxelbench::PhysicsWorkspace workspace;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("weightless-pushable"), 0},
+      {1, 2, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  Check(!voxelbench::prepare_scene(&workspace, voxels, 3, 4, 4, 1),
+        "prepared scenes must reject movable voxels in the immutable suffix");
+}
+
+void TestPreparedIndexesDoNotLeakToDifferentSceneShape() {
+  static voxelbench::PhysicsWorkspace workspace;
+  voxelbench::Voxel voxels[18];
+  int32_t count = 0;
+  voxels[count++] = {2, 3, 1, Role("player"), -1};
+  voxels[count++] = {2, 3, 0, Role("floor"), -1};
+  voxels[count++] = {2, 2, 0, Role("floor"), -1};
+  for (int32_t y = 0; y < 5 && count < 17; ++y) {
+    for (int32_t x = 0; x < 5 && count < 17; ++x) {
+      if ((x == 2 && y == 3) || (x == 2 && y == 2)) continue;
+      voxels[count++] = {x, y, 0, Role("floor"), -1};
+    }
+  }
+  voxels[17] = {2, 2, 1, Role("solid"), -1};
+  voxelbench::reset_workspace(&workspace);
+  Check(voxelbench::prepare_scene(&workspace, voxels, 18, 5, 5, 1),
+        "the full scene should prepare successfully");
+  Check(voxelbench::simulate_turn(&workspace, voxels, 17, 5, 5, 0) == 0,
+        "a differently sized scene using the same buffer should run normally");
+  Check(voxels[0].x == 2 && voxels[0].y == 2,
+        "an excluded stale wall must not remain in the prepared spatial index");
+}
+
+void TestInvalidQuiescentCallDoesNotLeakItsAssumption() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 2, Role("player"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  Check(voxelbench::prepare_scene(&workspace, voxels, 3, 4, 4, 1),
+        "the floating-player scene should prepare successfully");
+  Check(voxelbench::simulate_quiescent_turn(
+            &workspace, voxels, 3, 4, 4, 9) == -1,
+        "an invalid quiescent command should be rejected");
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 3, 4, 4, 0) ==
+            voxelbench::TickResult::kMore,
+        "the next ordinary command should begin by settling the player");
+  Check(voxels[0].x == 1 && voxels[0].y == 2 && voxels[0].z == 1,
+        "an invalid quiescent call must not skip initial gravity later");
 }
 
 void TestPlayerGetsVisibleRowZeroVoidFrame() {
@@ -453,7 +596,7 @@ void TestFlatIceSearchKeepsExactCommandSemantics() {
         "flat Ice search should reconstruct the exact Up slide");
 }
 
-void TestMacroSearchSupportsBoardsWiderThanSixteen() {
+void TestGeneralSearchSupportsBoardsWiderThanSixteen() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
   voxelbench::Voxel voxels[22];
@@ -467,12 +610,12 @@ void TestMacroSearchSupportsBoardsWiderThanSixteen() {
   const auto result = voxelbench::search_shortest(
       &search_workspace, &physics_workspace, voxels, count, 20, 4, 1000);
   Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 17,
-        "macro search should support footprints wider than sixteen cells");
+        "generalized search should support footprints wider than sixteen cells");
   Check(result.solution_length == 17,
         "wide-board search should reconstruct every exact command");
 }
 
-void TestMacroSearchCollapsesWalkingBeforePushes() {
+void TestGeneralSearchCollapsesWalkingBeforePushes() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
   voxelbench::Voxel voxels[] = {
@@ -491,16 +634,16 @@ void TestMacroSearchCollapsesWalkingBeforePushes() {
   const auto result = voxelbench::search_shortest(
       &search_workspace, &physics_workspace, voxels, 10, 7, 3, 1000);
   Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 4,
-        "macro search should preserve the exact walk-plus-push command cost");
+        "generalized search should preserve the exact walk-plus-push command cost");
   Check(result.solution_length == 4 && result.solution[0] == 1 &&
             result.solution[1] == 1 && result.solution[2] == 1 &&
             result.solution[3] == 1,
-        "macro search should reconstruct walking commands before both pushes");
+        "generalized search should reconstruct walking commands before both pushes");
   Check(result.expanded <= 3,
         "ordinary corridor walking should not occupy global search nodes");
 }
 
-void TestMacroSearchMatchesMazeBenchEngine3LongRoom() {
+void TestGeneralSearchMatchesMazeBenchEngine3LongRoom() {
   static constexpr const char* kRows[16] = {
       "################",
       "#......#...#...#",
@@ -543,9 +686,29 @@ void TestMacroSearchMatchesMazeBenchEngine3LongRoom() {
   const auto result = voxelbench::search_shortest(
       &search_workspace, &physics_workspace, voxels, count, 16, 16, 50000);
   Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 317,
-        "macro A* should retain MazeBenchEngine3's 317-command optimum");
+        "generalized exact search should retain MazeBenchEngine3's 317-command optimum");
   Check(result.expanded < 1000,
-        "macro A* should solve the long 16x16 room without footstep-state explosion");
+        "collapsed local reachability should avoid global footstep-state explosion");
+}
+
+void TestSearchInitializesFreshWorkspace() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  std::unique_ptr<voxelbench::SearchWorkspace> search_workspace(
+      new voxelbench::SearchWorkspace);
+  std::memset(
+      search_workspace->storage, 0x5a, sizeof(search_workspace->storage));
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {1, 0, 0, Role("floor"), -1},
+      {1, 0, 1, Role("goal"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      search_workspace.get(), &physics_workspace, voxels, 5, 3, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 2,
+        "a freshly constructed search workspace must initialize its hash stamps");
 }
 
 void TestSearchPrunesPlayerGameOverBranches() {
@@ -755,6 +918,33 @@ void TestSearchStoresLargePolycubeAsOneEntity() {
         "a polycube larger than the old moving-voxel cap should remain searchable");
 }
 
+void TestGeneralSearchChecksRaisedPolycubeCollisions() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {0, 0, 1, Role("player"), -1},
+      {1, 0, 1, Role("weightless-pushable"), 4},
+      {2, 0, 2, Role("weightless-pushable"), 4},
+      {1, 0, 1, Role("goal"), -1},
+      {3, 0, 1, Role("wall"), -1},
+      {0, 0, 0, Role("floor"), -1},
+      {1, 0, 0, Role("floor"), -1},
+      {2, 0, 0, Role("floor"), -1},
+      {3, 0, 0, Role("floor"), -1},
+      {3, 0, 2, Role("wall"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 10, 4, 1, 1000);
+  Check(result.status == voxelbench::SearchStatus::kUnsolved,
+        "generalized search must collide raised polycube members with raised walls");
+
+  result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 9, 4, 1, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved && result.moves == 1,
+        "a raised polycube member may pass above a shorter wall");
+}
+
 }  // namespace
 
 int main() {
@@ -766,6 +956,11 @@ int main() {
   TestUnknownRoleBlocks();
   TestEveryBoundary();
   TestTickTraceAndWorkspaceIsolation();
+  TestObserverReceivesNoMovementCompletionFrame();
+  TestPreparedMotionStateClearsImmutableSuffix();
+  TestPreparedSceneRejectsMovableStaticSuffix();
+  TestPreparedIndexesDoNotLeakToDifferentSceneShape();
+  TestInvalidQuiescentCallDoesNotLeakItsAssumption();
   TestPlayerGetsVisibleRowZeroVoidFrame();
   TestPushableGetsVisibleRowZeroVoidFrame();
   TestTallPolycubeDisappearsOnlyAfterItsTopPassesRowZero();
@@ -775,9 +970,10 @@ int main() {
   TestObjectAboveDescendingPlayerFallsInSameTick();
   TestExactSearchFindsShortestCommands();
   TestFlatIceSearchKeepsExactCommandSemantics();
-  TestMacroSearchSupportsBoardsWiderThanSixteen();
-  TestMacroSearchCollapsesWalkingBeforePushes();
-  TestMacroSearchMatchesMazeBenchEngine3LongRoom();
+  TestGeneralSearchSupportsBoardsWiderThanSixteen();
+  TestGeneralSearchCollapsesWalkingBeforePushes();
+  TestGeneralSearchMatchesMazeBenchEngine3LongRoom();
+  TestSearchInitializesFreshWorkspace();
   TestSearchPrunesPlayerGameOverBranches();
   TestPlayerCollectsGemOnlyAtCommandEnd();
   TestBoxMayOverlapGemWithoutCollectingIt();
@@ -788,10 +984,11 @@ int main() {
   TestPushCannotWalkPlayerOffWallSupport();
   TestSearchCollectsEveryGem();
   TestSearchStoresLargePolycubeAsOneEntity();
+  TestGeneralSearchChecksRaisedPolycubeCollisions();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 30 C++ physics/search tests passed\n";
+  std::cout << "all 37 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

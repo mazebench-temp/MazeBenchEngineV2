@@ -37,7 +37,7 @@ const genericBlocks = new Set(
 );
 
 function simulateFrames(voxels, direction, world) {
-  assert.equal(engine.physics_abi_version(), 3);
+  assert.equal(engine.physics_abi_version(), 4);
   const stride = engine.voxel_stride();
   assert.equal(stride, 5);
   assert.ok(voxels.length <= engine.voxel_capacity());

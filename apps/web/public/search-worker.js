@@ -1185,6 +1185,8 @@ function makeCandidateAttempt(configuration, random) {
     moves: 0,
     expanded: 0,
     generated: 0,
+    commandTransitions: 0,
+    commandTransitionsPerSecond: 0,
     nodesPerSecond: 0,
     optimal: false,
     seed: configuration.seed,
@@ -1516,6 +1518,7 @@ async function evaluate(candidate, configuration, physics, codes) {
   );
   const elapsedMs = Math.max(0.001, performance.now() - started);
   const expanded = physics.search_expanded();
+  const commandTransitions = physics.search_command_transitions();
   const length = physics.search_solution_length();
   const solution = [];
   for (let index = 0; index < length; index += 1) {
@@ -1539,6 +1542,10 @@ async function evaluate(candidate, configuration, physics, codes) {
     expanded,
     generated: physics.search_generated(),
     transpositions: physics.search_transpositions(),
+    commandTransitions,
+    commandTransitionsPerSecond: Math.round(
+      commandTransitions / (elapsedMs / 1000),
+    ),
     nodesPerSecond: Math.round(expanded / (elapsedMs / 1000)),
     elapsedMs,
     optimal: status === 1,
@@ -1569,6 +1576,8 @@ function evaluationSnapshot(candidate) {
     expanded: candidate.expanded,
     generated: candidate.generated,
     transpositions: candidate.transpositions,
+    commandTransitions: candidate.commandTransitions,
+    commandTransitionsPerSecond: candidate.commandTransitionsPerSecond,
     nodesPerSecond: candidate.nodesPerSecond,
     elapsedMs: candidate.elapsedMs,
     optimal: candidate.optimal,
@@ -1648,6 +1657,7 @@ async function evolve(configuration) {
   let evaluated = 0;
   let cacheHits = 0;
   let totalExpanded = 0;
+  let totalCommandTransitions = 0;
   let totalSolverMs = 0;
   let stagnation = 0;
   const evaluationCache = new Map();
@@ -1675,6 +1685,12 @@ async function evolve(configuration) {
         nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
         solverNodesPerSecond: Math.round(
           totalExpanded / Math.max(0.001, totalSolverMs / 1000),
+        ),
+        commandTransitionsPerSecond: Math.round(
+          totalCommandTransitions / elapsedSeconds,
+        ),
+        solverCommandTransitionsPerSecond: Math.round(
+          totalCommandTransitions / Math.max(0.001, totalSolverMs / 1000),
         ),
         solvesPerSecond: Math.round(evaluated / elapsedSeconds),
         cacheHits,
@@ -1720,6 +1736,7 @@ async function evolve(configuration) {
         evaluationCache.set(job.signature, evaluationSnapshot(result));
         evaluated += 1;
         totalExpanded += result.expanded;
+        totalCommandTransitions += result.commandTransitions;
         totalSolverMs += result.elapsedMs;
       }
       record(job.index, result);
@@ -1814,6 +1831,12 @@ async function evolve(configuration) {
     nodesPerSecond: Math.round(totalExpanded / elapsedSeconds),
     solverNodesPerSecond: Math.round(
       totalExpanded / Math.max(0.001, totalSolverMs / 1000),
+    ),
+    commandTransitionsPerSecond: Math.round(
+      totalCommandTransitions / elapsedSeconds,
+    ),
+    solverCommandTransitionsPerSecond: Math.round(
+      totalCommandTransitions / Math.max(0.001, totalSolverMs / 1000),
     ),
     solvesPerSecond: Math.round(evaluated / elapsedSeconds),
     cacheHits,

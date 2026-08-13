@@ -21,18 +21,33 @@ TickResult step_tick(
       ActiveWorkspace().continuation_voxels == voxels &&
       ActiveWorkspace().continuation_tick == state->tick;
   if (state->direction < 0) {
-    int32_t player_index = -1;
-    for (int32_t index = 0; index < count; ++index) {
-      if (voxels[index].role == kPlayerRole) {
-        player_index = index;
-        break;
+    const bool prepared = IsPreparedScene(voxels, count, width, height);
+    int32_t player_index = prepared
+        ? ActiveWorkspace().prepared_player_index
+        : -1;
+    if (!prepared) {
+      for (int32_t index = 0; index < count; ++index) {
+        if (voxels[index].role == kPlayerRole) {
+          player_index = index;
+          break;
+        }
       }
     }
     if (player_index < 0) return TickResult::kNoPlayer;
-    BuildObjects(voxels, count);
+    if (IsPreparedScene(voxels, count, width, height)) {
+      ResetObjectMotion();
+    } else {
+      BuildObjects(voxels, count);
+    }
     BuildSpatialIndex(voxels, count, width, height);
-    InitializeMotion(
-        state, voxels, count, width, height, player_index, direction);
+    if (prepared && ActiveWorkspace().assume_quiescent_start) {
+      ActiveWorkspace().assume_quiescent_start = false;
+      InitializeQuiescentMotion(state, count, player_index, direction);
+    } else {
+      ActiveWorkspace().assume_quiescent_start = false;
+      InitializeMotion(
+          state, voxels, count, width, height, player_index, direction);
+    }
     workspace_has_continuation = true;
   } else if (state->voxel_count != count || state->player_index < 0 ||
              state->player_index >= count ||
@@ -52,11 +67,22 @@ TickResult step_tick(
     LoadObjectMotion(state);
   }
 
-  auto store_and_finish = [&](int32_t phase, bool advanced) {
+  auto store_and_finish = [&](int32_t phase,
+                              bool advanced,
+                              bool gravity_already_checked = false) {
+    if (phase == kMotionComplete && !gravity_already_checked &&
+        ObjectsNeedGravityTick(voxels, count, width, height)) {
+      // A blocked/boundary-ending Ice proposal can happen immediately after a
+      // carried body lost support. Completion must still drain that gravity;
+      // otherwise the body remains suspended until the next player command.
+      phase = kMotionGravity;
+      state->reserved[0] = kResumeNothing;
+    }
     state->phase = phase;
     if (advanced) ++state->tick;
     if (phase == kMotionComplete) {
-      CollectGoalsAtPlayer(voxels, count, state->player_index);
+      CollectGoalsAtPlayer(
+          voxels, count, state->player_index, width, height);
     }
     StoreObjectMotion(state, count);
     if (phase == kMotionComplete) {
@@ -230,7 +256,7 @@ TickResult step_tick(
     }
     const bool gravity_continues =
         state->player_falling != 0 ||
-        ObjectsNeedGravityTick(voxels, width, height);
+        ObjectsNeedGravityTick(voxels, count, width, height, false);
     if (!gravity_continues && state->reserved[0] == kResumeCommand) {
       state->reserved[0] = kResumeNothing;
       return store_and_finish(
@@ -250,7 +276,8 @@ TickResult step_tick(
     if (!gravity_continues) state->reserved[0] = kResumeNothing;
     return store_and_finish(
         gravity_continues ? kMotionGravity : kMotionComplete,
-        objects_advanced || player_advanced);
+        objects_advanced || player_advanced,
+        true);
   }
 
   if (state->phase == kMotionObjectIce) {
@@ -277,17 +304,19 @@ TickResult step_tick(
       defer_player_gravity(false, false, true);
       const bool gravity_continues =
           state->player_falling != 0 ||
-          ObjectsNeedGravityTick(voxels, width, height);
+          ObjectsNeedGravityTick(voxels, count, width, height, false);
       if (gravity_continues) {
         state->reserved[0] = kResumeNothing;
       }
       return store_and_finish(
           gravity_continues ? kMotionGravity : kMotionComplete,
-          ObjectsAdvancedThisTick());
+          ObjectsAdvancedThisTick(),
+          true);
     }
 
     const bool player_rode_object =
         MovePlayerWithRider(voxels, player_index, rider, width, height);
+    bool player_moved_after_translation = player_rode_object;
     if (!player_rode_object && player_has_ice_momentum) {
       // A deliberate push can put both the body and the player onto Ice. From
       // then on their horizontal proposals happen in the same animation tick:
@@ -307,9 +336,12 @@ TickResult step_tick(
               height) < 0) {
         sliding_player.x = next_x;
         sliding_player.y = next_y;
+        player_moved_after_translation = true;
       }
     }
-    BuildSpatialIndex(voxels, count, width, height);
+    if (player_moved_after_translation) {
+      BuildSpatialIndex(voxels, count, width, height);
+    }
     if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
       StoreMandatoryMomentum(state, voxels, count, width, height);
       return store_and_finish(kMotionObjectIce, true);
@@ -321,7 +353,7 @@ TickResult step_tick(
     defer_player_gravity(false, false, true);
     const bool gravity_continues =
         state->player_falling != 0 ||
-        ObjectsNeedGravityTick(voxels, width, height);
+        ObjectsNeedGravityTick(voxels, count, width, height, false);
     if (object_momentum_remains) {
       // Bodies that remain on Ice keep moving while bodies that have left
       // support fall during the same tick. TranslateMovingObjects advances
@@ -335,6 +367,7 @@ TickResult step_tick(
         : kResumeNothing;
     return store_and_finish(
         gravity_continues ? kMotionGravity : kMotionComplete,
+        true,
         true);
   }
 
@@ -467,13 +500,14 @@ TickResult step_tick(
   if (player_gravity_pending) {
     const bool gravity_continues =
         state->player_falling != 0 ||
-        ObjectsNeedGravityTick(voxels, width, height);
+        ObjectsNeedGravityTick(voxels, count, width, height, false);
     state->reserved[0] =
         pushed && IsSupportedByIce(voxels, player, width, height)
         ? kResumePlayerIce
         : kResumeNothing;
     return store_and_finish(
         gravity_continues ? kMotionGravity : kMotionComplete,
+        true,
         true);
   }
 
@@ -492,12 +526,14 @@ TickResult step_tick(
       }
     }
   }
-  const bool gravity_continues = ObjectsNeedGravityTick(voxels, width, height);
+  const bool gravity_continues =
+      ObjectsNeedGravityTick(voxels, count, width, height, false);
   state->reserved[0] = gravity_continues &&
       IsSupportedByIce(voxels, player, width, height)
       ? kResumePlayerIce
       : kResumeNothing;
   return store_and_finish(
       gravity_continues ? kMotionGravity : kMotionComplete,
+      true,
       true);
 }

@@ -8,14 +8,6 @@ constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;
 constexpr uint8_t kResumeCommand = 3;
 
-void ClearMotionFlags(MotionState* state, int32_t count) {
-  for (int32_t index = 0; index < count; ++index) {
-    state->horizontal_momentum[index] = 0;
-    state->falling[index] = 0;
-    state->gravity_armed[index] = 0;
-  }
-}
-
 uint8_t ReadObjectFlag(
     const uint8_t* flags,
     int32_t object) {
@@ -35,7 +27,8 @@ void LoadObjectMotion(const MotionState* state) {
 }
 
 void StoreObjectMotion(MotionState* state, int32_t count) {
-  for (int32_t index = 0; index < count; ++index) {
+  const int32_t motion_count = MotionVoxelCount(count);
+  for (int32_t index = 0; index < motion_count; ++index) {
     state->falling[index] = 0;
     state->gravity_armed[index] = 0;
   }
@@ -49,8 +42,21 @@ void StoreObjectMotion(MotionState* state, int32_t count) {
 }
 
 void ClearHorizontalMomentum(MotionState* state, int32_t count) {
-  for (int32_t index = 0; index < count; ++index) {
+  const int32_t motion_count = MotionVoxelCount(count);
+  for (int32_t index = 0; index < motion_count; ++index) {
     state->horizontal_momentum[index] = 0;
+  }
+}
+
+void ClearImmutableMotionSuffix(MotionState* state, int32_t count) {
+  // Prepared scenes keep immutable terrain after the dynamic prefix. Physics
+  // never reads motion for that suffix, but MotionState is public and
+  // serializable, so initialize the exposed bytes once per command.
+  const int32_t motion_count = MotionVoxelCount(count);
+  for (int32_t index = motion_count; index < count; ++index) {
+    state->horizontal_momentum[index] = 0;
+    state->falling[index] = 0;
+    state->gravity_armed[index] = 0;
   }
 }
 
@@ -166,7 +172,9 @@ void InitializeMotion(
   state->player_falling = 0;
   state->reserved[0] = kResumeNothing;
   state->reserved[1] = 0;
-  ClearMotionFlags(state, count);
+  // StoreObjectMotion below replaces the falling/gravity arrays completely;
+  // only horizontal momentum needs an independent reset here.
+  ClearHorizontalMomentum(state, count);
   bool needs_initial_gravity = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (ObjectHasDirectSupport(voxels, object, width, height)) {
@@ -198,11 +206,53 @@ void InitializeMotion(
     state->reserved[0] = kResumeCommand;
   }
   StoreObjectMotion(state, count);
+  ClearImmutableMotionSuffix(state, count);
 }
 
-void CollectGoalsAtPlayer(Voxel* voxels, int32_t count, int32_t player_index) {
+void InitializeQuiescentMotion(
+    MotionState* state,
+    int32_t count,
+    int32_t player_index,
+    int32_t direction) {
+  state->version = kMotionStateVersion;
+  state->phase = kMotionReady;
+  state->direction = direction;
+  state->tick = 0;
+  state->voxel_count = count;
+  state->player_index = player_index;
+  state->player_gravity_armed = 1;
+  state->player_falling = 0;
+  state->reserved[0] = kResumeNothing;
+  state->reserved[1] = 0;
+  // StoreObjectMotion below replaces the falling/gravity arrays completely.
+  ClearHorizontalMomentum(state, count);
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_object_gravity_armed[object] = 1;
+    g_object_falling[object] = 0;
+  }
+  StoreObjectMotion(state, count);
+  // This state is private to simulate_quiescent_turn and is never serialized;
+  // unlike the public step_tick path, its immutable suffix need not be stored.
+}
+
+void CollectGoalsAtPlayer(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
   if (player_index < 0 || player_index >= count) return;
   const Voxel& player = voxels[player_index];
+  if (IsPreparedScene(voxels, count, width, height)) {
+    const WorkspaceData& workspace = ActiveWorkspace();
+    for (int32_t goal = 0; goal < workspace.prepared_goal_count; ++goal) {
+      Voxel& voxel = voxels[workspace.prepared_goal_indices[goal]];
+      if (voxel.x == player.x && voxel.y == player.y && voxel.z == player.z) {
+        voxel.x = -1;
+      }
+    }
+    return;
+  }
   for (int32_t index = 0; index < count; ++index) {
     if (voxels[index].role == kGoalRole && voxels[index].x == player.x &&
         voxels[index].y == player.y && voxels[index].z == player.z) {
@@ -211,183 +261,177 @@ void CollectGoalsAtPlayer(Voxel* voxels, int32_t count, int32_t player_index) {
   }
 }
 
-template <bool kEntitiesFirst, int32_t kDirection = -1>
-[[gnu::always_inline]] inline bool TrySimulateFlatSingleCubePushKnownEntities(
+// Exact accelerator for a quiescent command whose only possible moving body is
+// the player. It deliberately declines pushes and carried-body interactions;
+// those continue through the same full command kernel. Keeping this decision
+// in physics (rather than in search) gives every caller identical semantics for
+// walking, elevated supports, Ice, gravity, abyss removal, and collectibles.
+// Returns 1 when handled, 0 when the full kernel is required, and a negative
+// public simulation error for invalid input/no player.
+int32_t TrySimulatePassiveQuiescentTurn(
     Voxel* voxels,
     int32_t count,
     int32_t width,
     int32_t height,
     int32_t direction,
-    int32_t player_index,
-    int32_t pushable_index) {
-  constexpr int32_t kDx[] = {0, 1, 0, -1};
-  constexpr int32_t kDy[] = {-1, 0, 1, 0};
-  const int32_t actual_direction = kDirection >= 0 ? kDirection : direction;
-  const int32_t dx = kDx[actual_direction];
-  const int32_t dy = kDy[actual_direction];
-  const Voxel& player = voxels[player_index];
-  const Voxel& pushable = voxels[pushable_index];
-  if (player.z == INT32_MIN || pushable.z != player.z ||
-      pushable.x != player.x + dx || pushable.y != player.y + dy) {
-    return false;
+    bool rebuild_spatial_index) {
+  if (!IsPreparedScene(voxels, count, width, height)) return 0;
+  const int32_t player_index = ActiveWorkspace().prepared_player_index;
+  if (player_index < 0 || player_index >= count ||
+      voxels[player_index].role != kPlayerRole) {
+    return -2;
+  }
+  Voxel& player = voxels[player_index];
+  if (!IsInsideRoom(player.x, player.y, width, height) ||
+      player.z == INT32_MIN) {
+    return -2;
   }
 
-  const int32_t maximum_step = dx > 0 ? width - 1 - pushable.x
-      : dx < 0 ? pushable.x
-      : dy > 0 ? height - 1 - pushable.y
-      : pushable.y;
-  // A 64-bit lane makes the common editor/search room allocation-free. Huge
-  // rooms retain the fully general spatial-index implementation.
-  if (maximum_step <= 0 || maximum_step > 63) return false;
+  if (rebuild_spatial_index) {
+    ResetObjectMotion();
+    BuildSpatialIndex(voxels, count, width, height);
+  } else if (!ActiveWorkspace().prepared_index_active) {
+    return 0;
+  }
+  g_ignored_support_voxel = player_index;
+  constexpr int32_t kDx[4] = {0, 1, 0, -1};
+  constexpr int32_t kDy[4] = {-1, 0, 1, 0};
+  const int32_t dx = kDx[direction];
+  const int32_t dy = kDy[direction];
+  int32_t x = player.x;
+  int32_t y = player.y;
+  int32_t z = player.z;
+  bool automatic_ice_motion = false;
 
-  int32_t obstacle_step = INT32_MAX;
-  uint64_t ice_supports = 0;
-  uint64_t other_supports = 0;
-  bool vacated_support_found = false;
-  bool vacated_support_is_ice = false;
-  bool player_support_found = false;
-  bool lower_vacated_voxel = false;
-  bool lower_player_voxel = false;
-  constexpr int32_t kFirstVoxel = kEntitiesFirst ? 2 : 0;
-  for (int32_t index = kFirstVoxel; index < count; ++index) {
-    if constexpr (!kEntitiesFirst) {
-      if (index == pushable_index) continue;
-    }
-    const Voxel& voxel = voxels[index];
-    if (voxel.role == kGoalRole) continue;
-    if constexpr (kEntitiesFirst) {
-      if (voxel.role == kPlayerRole || voxel.role == kPushableRole ||
-          voxel.role == kWeightlessPushableRole) {
-        return false;
+  auto support_at = [&](int32_t support_x, int32_t support_y, int32_t support_z) {
+    const int32_t support = FindVoxelAt(
+        voxels, support_x, support_y, support_z, width, height);
+    return support == player_index ? -1 : support;
+  };
+  auto has_carried_body = [&]() {
+    if (z == INT32_MAX) return false;
+    const int32_t above = FindVoxelAt(voxels, x, y, z + 1, width, height);
+    return above >= 0 && g_voxel_object[above] >= 0;
+  };
+  auto fall_until_settled = [&]() {
+    for (;;) {
+      if (z == INT32_MIN) {
+        x = -1;
+        return;
+      }
+      if (support_at(x, y, z - 1) >= 0) return;
+      const int32_t lower_support = FindNearestVoxelBelow(
+          voxels, count, x, y, z, -1, width);
+      const int32_t previous_z = z;
+      --z;
+      if (lower_support < 0 && previous_z < LowestOtherActiveZ(
+              voxels, count, width, height, -1, player_index, false, true)) {
+        x = -1;
+        return;
       }
     }
-    if (voxel.x == pushable.x && voxel.y == pushable.y) {
-      if (voxel.z == pushable.z - 1) {
-        vacated_support_found = true;
-        vacated_support_is_ice = voxel.role == kIceRole;
-      } else if (voxel.z < pushable.z) {
-        lower_vacated_voxel = true;
+  };
+
+  for (;;) {
+    if (has_carried_body()) {
+      g_ignored_support_voxel = -1;
+      return 0;
+    }
+    const bool started_on_ice = [&]() {
+      const int32_t support = support_at(x, y, z - 1);
+      return support >= 0 && voxels[support].role == kIceRole;
+    }();
+    const int32_t target_x = x + dx;
+    const int32_t target_y = y + dy;
+    if (!IsInsideRoom(target_x, target_y, width, height)) break;
+
+    const int32_t target = FindVoxelAt(
+        voxels, target_x, target_y, z, width, height);
+    if (target >= 0 && target != player_index) {
+      const int32_t target_object = g_voxel_object[target];
+      if (!automatic_ice_motion && target_object >= 0) {
+        // Reject only collisions that no carrier/chain rule can rescue. This
+        // avoids entering the full multi-body kernel for pushes directly into
+        // room boundaries or immutable terrain while leaving every ambiguous
+        // dynamic interaction to that kernel.
+        bool definitely_blocked = false;
+        for (int32_t member = g_object_head[target_object]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          const int32_t member_x = voxels[member].x + dx;
+          const int32_t member_y = voxels[member].y + dy;
+          if (!IsInsideRoom(member_x, member_y, width, height)) {
+            definitely_blocked = true;
+            break;
+          }
+          const int32_t occupant = FindVoxelAt(
+              voxels,
+              member_x,
+              member_y,
+              voxels[member].z,
+              width,
+              height);
+          if (occupant >= 0 && occupant != player_index &&
+              g_voxel_object[occupant] < 0) {
+            definitely_blocked = true;
+            break;
+          }
+        }
+        if (!definitely_blocked) {
+          g_ignored_support_voxel = -1;
+          return 0;
+        }
+        break;
+      }
+      break;
+    }
+
+    const int32_t direct_support = support_at(target_x, target_y, z - 1);
+    if (direct_support < 0) {
+      const int32_t lower_support = FindNearestVoxelBelow(
+          voxels, count, target_x, target_y, z, -1, width);
+      const int32_t current_support = support_at(x, y, z - 1);
+      const bool may_leave_support = automatic_ice_motion || started_on_ice ||
+          (current_support >= 0 &&
+           voxels[current_support].role == kFloorRole && lower_support < 0);
+      if (!may_leave_support) break;
+    }
+
+    x = target_x;
+    y = target_y;
+    if (direct_support < 0) {
+      fall_until_settled();
+      break;
+    }
+
+    const bool now_on_ice = voxels[direct_support].role == kIceRole;
+    if (now_on_ice) {
+      automatic_ice_motion = true;
+      continue;
+    }
+    if (automatic_ice_motion) break;
+
+    // A normal first step gets Ice momentum when the next unobstructed cell is
+    // supported by Ice, matching the full kernel's one-cell run-up rule.
+    const int32_t run_up_x = x + dx;
+    const int32_t run_up_y = y + dy;
+    if (IsInsideRoom(run_up_x, run_up_y, width, height)) {
+      const int32_t run_up_target = FindVoxelAt(
+          voxels, run_up_x, run_up_y, z, width, height);
+      const int32_t run_up_support = support_at(run_up_x, run_up_y, z - 1);
+      if ((run_up_target < 0 || run_up_target == player_index) &&
+          run_up_support >= 0 &&
+          voxels[run_up_support].role == kIceRole) {
+        automatic_ice_motion = true;
+        continue;
       }
     }
-    if (voxel.x == player.x && voxel.y == player.y &&
-        voxel.z < player.z) {
-      if (voxel.z == player.z - 1) player_support_found = true;
-      else lower_player_voxel = true;
-    }
-
-    const bool in_lane = dx != 0
-        ? voxel.y == pushable.y
-        : voxel.x == pushable.x;
-    if (!in_lane) continue;
-    const int32_t step = dx != 0
-        ? (voxel.x - pushable.x) * dx
-        : (voxel.y - pushable.y) * dy;
-    if (step <= 0 || step > maximum_step) continue;
-    if (voxel.z == pushable.z) {
-      if (step < obstacle_step) obstacle_step = step;
-    } else if (voxel.z == pushable.z - 1) {
-      const uint64_t bit = uint64_t{1} << (step - 1);
-      if (voxel.role == kIceRole) {
-        ice_supports |= bit;
-      } else {
-        other_supports |= bit;
-      }
-    }
+    break;
   }
 
-  const int32_t last_open_step = obstacle_step == INT32_MAX
-      ? maximum_step
-      : obstacle_step - 1;
-  if (last_open_step <= 0) return false;
-  const uint64_t open_lane =
-      (uint64_t{1} << last_open_step) - uint64_t{1};
-  const uint64_t first_other_candidates = other_supports & open_lane;
-  int32_t final_step = last_open_step;
-  if (first_other_candidates != 0) {
-    final_step = static_cast<int32_t>(
-        __builtin_ctzll(first_other_candidates)) + 1;
-    const uint64_t prior_lane = final_step == 1
-        ? uint64_t{0}
-        : (uint64_t{1} << (final_step - 1)) - uint64_t{1};
-    if ((ice_supports & prior_lane) != prior_lane) return false;
-  } else if ((ice_supports & open_lane) != open_lane) {
-    // A missing support begins a fall, whose timing belongs to step_tick.
-    return false;
-  }
-
-  // The optimized lane is only valid for already-settled entities. Floating
-  // inputs must enter the tick engine's initial gravity phase first.
-  if (!vacated_support_found || !player_support_found) return false;
-
-  if (vacated_support_found) {
-    // A player entering an Ice-supported vacated cell gains its own momentum
-    // and must remain on the synchronized tick path.
-    if (vacated_support_is_ice) return false;
-  } else if (lower_vacated_voxel || lower_player_voxel) {
-    // Falling and ledge timing stays in the general discrete solver.
-    return false;
-  }
-
-  voxels[player_index].x = pushable.x;
-  voxels[player_index].y = pushable.y;
-  voxels[pushable_index].x += dx * final_step;
-  voxels[pushable_index].y += dy * final_step;
-  return true;
-}
-
-[[gnu::always_inline]] inline bool TrySimulateFlatSingleCubePush(
-    Voxel* voxels,
-    int32_t count,
-    int32_t width,
-    int32_t height,
-    int32_t direction) {
-  if (voxels == nullptr || count <= 0 || width <= 0 || height <= 0 ||
-      direction < 0 || direction > 3) {
-    return false;
-  }
-
-  // Search states normally keep their two dynamic entities first. Compiling
-  // that layout separately removes entity discovery and dead branches from the
-  // hot A*/evolutionary-search transition. Editor-sorted arrays use the fully
-  // order-independent path below.
-  if (count >= 2 && voxels[0].role == kPlayerRole &&
-      voxels[1].role == kPushableRole) {
-    switch (direction) {
-      case 0:
-        return TrySimulateFlatSingleCubePushKnownEntities<true, 0>(
-            voxels, count, width, height, direction, 0, 1);
-      case 1:
-        return TrySimulateFlatSingleCubePushKnownEntities<true, 1>(
-            voxels, count, width, height, direction, 0, 1);
-      case 2:
-        return TrySimulateFlatSingleCubePushKnownEntities<true, 2>(
-            voxels, count, width, height, direction, 0, 1);
-      default:
-        return TrySimulateFlatSingleCubePushKnownEntities<true, 3>(
-            voxels, count, width, height, direction, 0, 1);
-    }
-  }
-
-  int32_t player_index = -1;
-  int32_t pushable_index = -1;
-  for (int32_t index = 0; index < count; ++index) {
-    if (voxels[index].role == kPlayerRole) {
-      if (player_index >= 0) return false;
-      player_index = index;
-    } else if (voxels[index].role == kPushableRole) {
-      if (pushable_index >= 0) return false;
-      pushable_index = index;
-    } else if (voxels[index].role == kWeightlessPushableRole) {
-      return false;
-    }
-  }
-  if (player_index < 0 || pushable_index < 0) return false;
-  return TrySimulateFlatSingleCubePushKnownEntities<false>(
-      voxels,
-      count,
-      width,
-      height,
-      direction,
-      player_index,
-      pushable_index);
+  player.x = x;
+  player.y = y;
+  player.z = z;
+  CollectGoalsAtPlayer(voxels, count, player_index, width, height);
+  g_ignored_support_voxel = -1;
+  return 1;
 }

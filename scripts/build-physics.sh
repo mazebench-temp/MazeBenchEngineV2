@@ -13,6 +13,8 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -target wasm32-freestanding \
   -std=c++20 \
   -O3 \
+  -DNDEBUG \
+  -flto \
   -nostdlib \
   -Wl,--no-entry \
   -Wl,--export=physics_abi_version \
@@ -28,6 +30,9 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=step_command_tick \
   -Wl,--export=command_tick \
   -Wl,--export=simulate_turn \
+  -Wl,--export=search_prepare_scene \
+  -Wl,--export=search_prepare_quiescent_snapshot \
+  -Wl,--export=search_try_passive_quiescent_turn \
   -Wl,--export=search_node_capacity \
   -Wl,--export=search_voxel_capacity \
   -Wl,--export=search_solve \
@@ -35,6 +40,9 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=search_expanded \
   -Wl,--export=search_generated \
   -Wl,--export=search_transpositions \
+  -Wl,--export=search_local_expanded \
+  -Wl,--export=search_command_transitions \
+  -Wl,--export=search_full_physics_transitions \
   -Wl,--export=search_solution_length \
   -Wl,--export=search_solution_step \
   -Wl,--export-memory \

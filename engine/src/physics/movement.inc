@@ -710,8 +710,16 @@ void SettleAllObjects(
 
 bool ObjectsNeedGravityTick(
     Voxel* voxels,
+    int32_t count,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    bool rebuild_spatial_index = true) {
+  // Carrier rejection can restore a body after an earlier translation built
+  // the index. Rebuild here so the final quiescence decision never observes a
+  // ghost support at a body's former coordinate.
+  if (rebuild_spatial_index) {
+    BuildSpatialIndex(voxels, count, width, height);
+  }
   bool needs_tick = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (!ObjectIsActive(voxels, object, width, height)) continue;
@@ -733,6 +741,13 @@ bool ObjectsNeedGravityTick(
       g_object_gravity_armed[object] = 1;
       continue;
     }
+    // A command is not quiescent while an active body is unsupported. This
+    // also catches a carried body that was rejected after its support moved:
+    // it must begin falling in the current command, not remain suspended until
+    // the next input happens to initialize gravity again.
+    g_object_gravity_armed[object] = 1;
+    g_object_falling[object] = 1;
+    needs_tick = true;
   }
   return needs_tick;
 }

@@ -11,21 +11,29 @@ constexpr uint32_t kIceRole = HashRoleLiteral("ice");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 
-constexpr int32_t kHashCapacity = 131072;
+// Spatial and rigid-object indexes contain at most kVoxelCapacity entries.
+// The 2x backing table preserves a <= 0.5 load factor at maximum scene size.
+constexpr int32_t kHashCapacity = kVoxelCapacity * 2;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int32_t kDenseColumnCapacity = 4096;
 constexpr int32_t kLinearSpatialThreshold = 16;
 constexpr uint8_t kNormalObject = 0;
 constexpr uint8_t kWeightlessObject = 1;
 
+struct HashEntry {
+  uint64_t key;
+  int32_t value;
+  uint32_t stamp;
+};
+
 // These fixed workspaces keep the freestanding WebAssembly ABI allocation-free.
 // Stamps make rebuilding the spatial index O(voxel count), without clearing its
 // 131k slots between the many unit translations in an Ice move.
 struct WorkspaceData {
-  uint64_t hash_keys[kHashCapacity];
-  int32_t hash_values[kHashCapacity];
-  uint32_t hash_stamps[kHashCapacity];
+  HashEntry hash_entries[kHashCapacity];
   uint32_t hash_generation;
+  HashEntry static_hash_entries[kHashCapacity];
+  uint32_t static_hash_generation;
   int32_t voxel_object[kVoxelCapacity];
   int32_t next_object_voxel[kVoxelCapacity];
   int32_t object_head[kVoxelCapacity];
@@ -44,6 +52,12 @@ struct WorkspaceData {
   int32_t object_queue[kVoxelCapacity];
   int32_t column_heads[kDenseColumnCapacity];
   int32_t next_column_voxel[kVoxelCapacity];
+  int32_t static_column_heads[kDenseColumnCapacity];
+  int32_t dynamic_column_heads[kDenseColumnCapacity];
+  uint32_t dynamic_column_stamps[kDenseColumnCapacity];
+  uint32_t dynamic_column_generation;
+  int32_t next_static_column_voxel[kVoxelCapacity];
+  int32_t next_dynamic_column_voxel[kVoxelCapacity];
   int32_t object_count;
   int32_t weightless_object_count;
   bool dense_columns;
@@ -54,12 +68,30 @@ struct WorkspaceData {
   MotionState* continuation_state;
   Voxel* continuation_voxels;
   int32_t continuation_tick;
+  Voxel* prepared_voxels;
+  int32_t prepared_count;
+  int32_t prepared_width;
+  int32_t prepared_height;
+  int32_t prepared_dynamic_voxel_count;
+  int32_t prepared_player_index;
+  int32_t prepared_goal_indices[kVoxelCapacity];
+  int32_t prepared_goal_count;
+  bool prepared_dense_columns;
+  bool assume_quiescent_start;
+  int32_t motion_voxel_count;
+  bool prepared_index_active;
 };
 
 static_assert(sizeof(WorkspaceData) <= kPhysicsWorkspaceBytes);
 
 #if defined(__wasm__)
 WorkspaceData* g_active_workspace = nullptr;
+#elif (defined(__GNUC__) || defined(__clang__)) && !defined(_WIN32)
+// The native engine is linked into its host rather than loaded as a late TLS
+// plugin, so the initial-exec model avoids a resolver call in every hot
+// collision helper while retaining one independent workspace pointer/thread.
+thread_local __attribute__((tls_model("initial-exec")))
+    WorkspaceData* g_active_workspace = nullptr;
 #else
 thread_local WorkspaceData* g_active_workspace = nullptr;
 #endif
@@ -68,10 +100,10 @@ WorkspaceData& ActiveWorkspace() {
   return *g_active_workspace;
 }
 
-#define g_hash_keys ActiveWorkspace().hash_keys
-#define g_hash_values ActiveWorkspace().hash_values
-#define g_hash_stamps ActiveWorkspace().hash_stamps
+#define g_hash_entries ActiveWorkspace().hash_entries
 #define g_hash_generation ActiveWorkspace().hash_generation
+#define g_static_hash_entries ActiveWorkspace().static_hash_entries
+#define g_static_hash_generation ActiveWorkspace().static_hash_generation
 #define g_voxel_object ActiveWorkspace().voxel_object
 #define g_next_object_voxel ActiveWorkspace().next_object_voxel
 #define g_object_head ActiveWorkspace().object_head
@@ -90,6 +122,12 @@ WorkspaceData& ActiveWorkspace() {
 #define g_object_queue ActiveWorkspace().object_queue
 #define g_column_heads ActiveWorkspace().column_heads
 #define g_next_column_voxel ActiveWorkspace().next_column_voxel
+#define g_static_column_heads ActiveWorkspace().static_column_heads
+#define g_dynamic_column_heads ActiveWorkspace().dynamic_column_heads
+#define g_dynamic_column_stamps ActiveWorkspace().dynamic_column_stamps
+#define g_dynamic_column_generation ActiveWorkspace().dynamic_column_generation
+#define g_next_static_column_voxel ActiveWorkspace().next_static_column_voxel
+#define g_next_dynamic_column_voxel ActiveWorkspace().next_dynamic_column_voxel
 #define g_object_count ActiveWorkspace().object_count
 #define g_weightless_object_count ActiveWorkspace().weightless_object_count
 #define g_dense_columns ActiveWorkspace().dense_columns
@@ -115,40 +153,73 @@ bool IsInsideRoom(int32_t x, int32_t y, int32_t width, int32_t height) {
   return x >= 0 && x < width && y >= 0 && y < height;
 }
 
-uint64_t Mix64(uint64_t value) {
-  value ^= value >> 30u;
-  value *= 0xbf58476d1ce4e5b9ULL;
-  value ^= value >> 27u;
-  value *= 0x94d049bb133111ebULL;
-  return value ^ (value >> 31u);
+int32_t HashSlot(uint64_t key) {
+  // Spatial keys carry z in the upper half and x/y in the lower half. Fold
+  // both halves before one odd 64-bit multiply; the table's low load factor
+  // supplies exact open-addressed lookup without requiring a two-round mixer.
+  uint64_t hash = (key ^ (key >> 32u)) * UINT64_C(0x9e3779b185ebca87);
+  hash ^= hash >> 32u;
+  return static_cast<int32_t>(hash & static_cast<uint64_t>(kHashMask));
 }
 
 void ResetHash() {
   ++g_hash_generation;
   if (g_hash_generation != 0) return;
   for (int32_t index = 0; index < kHashCapacity; ++index) {
-    g_hash_stamps[index] = 0;
+    g_hash_entries[index].stamp = 0;
   }
   g_hash_generation = 1;
 }
 
 int32_t HashFind(uint64_t key) {
-  int32_t slot = static_cast<int32_t>(Mix64(key) & static_cast<uint64_t>(kHashMask));
+  int32_t slot = HashSlot(key);
   for (;;) {
-    if (g_hash_stamps[slot] != g_hash_generation) return -1;
-    if (g_hash_keys[slot] == key) return g_hash_values[slot];
+    const HashEntry& entry = g_hash_entries[slot];
+    if (entry.stamp != g_hash_generation) return -1;
+    if (entry.key == key) return entry.value;
     slot = (slot + 1) & kHashMask;
   }
 }
 
 void HashInsert(uint64_t key, int32_t value) {
-  int32_t slot = static_cast<int32_t>(Mix64(key) & static_cast<uint64_t>(kHashMask));
-  while (g_hash_stamps[slot] == g_hash_generation && g_hash_keys[slot] != key) {
+  int32_t slot = HashSlot(key);
+  while (g_hash_entries[slot].stamp == g_hash_generation &&
+         g_hash_entries[slot].key != key) {
     slot = (slot + 1) & kHashMask;
   }
-  g_hash_stamps[slot] = g_hash_generation;
-  g_hash_keys[slot] = key;
-  g_hash_values[slot] = value;
+  g_hash_entries[slot] = {key, value, g_hash_generation};
+}
+
+void ResetStaticHash() {
+  ++g_static_hash_generation;
+  if (g_static_hash_generation != 0) return;
+  for (int32_t index = 0; index < kHashCapacity; ++index) {
+    g_static_hash_entries[index].stamp = 0;
+  }
+  g_static_hash_generation = 1;
+}
+
+int32_t StaticHashFind(uint64_t key) {
+  int32_t slot = HashSlot(key);
+  for (;;) {
+    const HashEntry& entry = g_static_hash_entries[slot];
+    if (entry.stamp != g_static_hash_generation) return -1;
+    if (entry.key == key) return entry.value;
+    slot = (slot + 1) & kHashMask;
+  }
+}
+
+bool StaticHashInsert(uint64_t key, int32_t value) {
+  int32_t slot = HashSlot(key);
+  while (g_static_hash_entries[slot].stamp == g_static_hash_generation &&
+         g_static_hash_entries[slot].key != key) {
+    slot = (slot + 1) & kHashMask;
+  }
+  if (g_static_hash_entries[slot].stamp == g_static_hash_generation) {
+    return false;
+  }
+  g_static_hash_entries[slot] = {key, value, g_static_hash_generation};
+  return true;
 }
 
 uint64_t SpatialKey(int32_t x, int32_t y, int32_t z, int32_t width) {
@@ -159,8 +230,64 @@ uint64_t SpatialKey(int32_t x, int32_t y, int32_t z, int32_t width) {
          static_cast<uint32_t>(cell);
 }
 
+bool IsPreparedScene(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  const WorkspaceData& workspace = ActiveWorkspace();
+  return workspace.prepared_voxels == voxels &&
+      workspace.prepared_count == count &&
+      workspace.prepared_width == width &&
+      workspace.prepared_height == height &&
+      workspace.prepared_dynamic_voxel_count >= 0 &&
+      workspace.prepared_dynamic_voxel_count <= count;
+}
+
+int32_t MotionVoxelCount(int32_t count) {
+  const int32_t motion_count = ActiveWorkspace().motion_voxel_count;
+  return motion_count >= 0 && motion_count <= count ? motion_count : count;
+}
+
 void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t height) {
   g_spatial_voxel_count = count;
+  if (IsPreparedScene(voxels, count, width, height)) {
+    ActiveWorkspace().prepared_index_active = true;
+    g_linear_spatial = false;
+    const int32_t dynamic_count =
+        ActiveWorkspace().prepared_dynamic_voxel_count;
+    ResetHash();
+    ActiveWorkspace().motion_voxel_count = dynamic_count;
+    g_dense_columns = ActiveWorkspace().prepared_dense_columns;
+    if (g_dense_columns) {
+      ++g_dynamic_column_generation;
+      if (g_dynamic_column_generation == 0) {
+        for (int32_t cell = 0; cell < kDenseColumnCapacity; ++cell) {
+          g_dynamic_column_stamps[cell] = 0;
+        }
+        g_dynamic_column_generation = 1;
+      }
+    }
+    for (int32_t index = 0; index < dynamic_count; ++index) {
+      g_next_dynamic_column_voxel[index] = -1;
+      const Voxel& voxel = voxels[index];
+      if (voxel.role == kGoalRole ||
+          !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+      if (g_dense_columns) {
+        const int32_t cell = voxel.y * width + voxel.x;
+        if (g_dynamic_column_stamps[cell] != g_dynamic_column_generation) {
+          g_dynamic_column_stamps[cell] = g_dynamic_column_generation;
+          g_dynamic_column_heads[cell] = -1;
+        }
+        g_next_dynamic_column_voxel[index] = g_dynamic_column_heads[cell];
+        g_dynamic_column_heads[cell] = index;
+      }
+      HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
+    }
+    return;
+  }
+  ActiveWorkspace().prepared_index_active = false;
+  ActiveWorkspace().motion_voxel_count = count;
   g_linear_spatial = count <= kLinearSpatialThreshold;
   if (g_linear_spatial) {
     g_dense_columns = false;
@@ -179,12 +306,12 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
     const Voxel& voxel = voxels[index];
     if (voxel.role == kGoalRole ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
-    HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
     if (g_dense_columns) {
       const int32_t cell = voxel.y * width + voxel.x;
       g_next_column_voxel[index] = g_column_heads[cell];
       g_column_heads[cell] = index;
     }
+    HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
   }
 }
 
@@ -206,5 +333,10 @@ int32_t FindVoxelAt(
     }
     return -1;
   }
-  return HashFind(SpatialKey(x, y, z, width));
+  const uint64_t key = SpatialKey(x, y, z, width);
+  const int32_t dynamic = HashFind(key);
+  if (dynamic >= 0) return dynamic;
+  return ActiveWorkspace().prepared_index_active
+      ? StaticHashFind(key)
+      : -1;
 }

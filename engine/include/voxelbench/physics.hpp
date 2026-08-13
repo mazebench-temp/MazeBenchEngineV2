@@ -4,11 +4,11 @@
 
 namespace voxelbench {
 
-constexpr int32_t kPhysicsAbiVersion = 3;
+constexpr int32_t kPhysicsAbiVersion = 4;
 constexpr int32_t kVoxelCapacity = 65536;
 constexpr int32_t kRoleBufferCapacity = 256;
 constexpr uint32_t kMotionStateVersion = 1;
-constexpr int32_t kPhysicsWorkspaceBytes = 5 * 1024 * 1024;
+constexpr int32_t kPhysicsWorkspaceBytes = 8 * 1024 * 1024;
 
 struct PhysicsWorkspace {
   alignas(8) uint8_t storage[kPhysicsWorkspaceBytes];
@@ -53,6 +53,20 @@ uint32_t hash_role(const uint8_t* bytes, int32_t length);
 void reset_motion_state(MotionState* state);
 void reset_workspace(PhysicsWorkspace* workspace);
 
+// Compiles invariant object membership and immutable terrain once for repeated
+// command simulation. The first dynamic_voxel_count entries may move; later
+// entries remain immutable (except collectible goals may become inactive).
+// Roles, generic IDs, entry order, and static coordinates must not change until
+// prepare_scene is called again. Search uses this single indexed representation
+// for every supported combination of Ice, holes, gravity, walls, and polycubes.
+bool prepare_scene(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t dynamic_voxel_count);
+
 // Advances at most one animation tick. Direction is read only when starting a
 // new command; subsequent calls resume the command stored in `state`.
 TickResult step_tick(
@@ -87,6 +101,39 @@ int32_t simulate_command(
 // Returns 0 after a valid command, -1 for invalid input, and -2 when no player
 // exists. A command may contain several unit movements when Ice is involved.
 int32_t simulate_turn(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t direction);
+
+// Same generalized command kernel, with the additional invariant that the
+// supplied state is a prior quiescent command result. This avoids re-proving
+// initial support for every successor of an exact search node. The final flag
+// is for search's internal fallthrough only: true is valid exclusively after
+// try_simulate_passive_quiescent_turn returned 0 without mutating the scene.
+int32_t simulate_quiescent_turn(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t direction,
+    bool passive_already_declined = false);
+
+// Low-level batch interface used by graph search. A snapshot indexes one
+// quiescent arrangement of all non-player bodies. The passive evaluator may
+// then be called from many player coordinates without rebuilding that index.
+// It returns 1 when exact player-only physics handled the command, 0 when the
+// full kernel is required, and a negative simulation error for invalid input.
+bool prepare_quiescent_snapshot(
+    PhysicsWorkspace* workspace,
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height);
+int32_t try_simulate_passive_quiescent_turn(
     PhysicsWorkspace* workspace,
     Voxel* voxels,
     int32_t count,

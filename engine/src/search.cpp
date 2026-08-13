@@ -18,31 +18,30 @@ constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
-constexpr uint32_t kIceRole = HashRoleLiteral("ice");
 constexpr int32_t kHashCapacity = 131072;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
 constexpr int32_t kSearchGoalCapacity = 64;
-constexpr int32_t kMacroCellCapacity = kSearchVoxelCapacity;
-constexpr uint8_t kWalkOnlyDirection = 4;
-constexpr uint8_t kNoSupport = 0;
-constexpr uint8_t kFloorSupport = 1;
-constexpr uint8_t kIceSupport = 2;
-constexpr uint8_t kOtherSupport = 3;
+constexpr int32_t kLocalStateCapacity = kSearchVoxelCapacity;
+constexpr int32_t kLocalHashCapacity = kLocalStateCapacity * 2;
+constexpr int32_t kLocalHashMask = kLocalHashCapacity - 1;
 
 struct SearchNode {
-  int16_t coordinates[kSearchDynamicEntityCapacity][3];
+  int16_t (*coordinates)[3];
   uint64_t collected_goals;
   uint32_t parent;
-  uint32_t priority;
   uint16_t cost;
-  uint16_t approach_cell;
+  int16_t approach_coordinates[3];
   uint8_t direction;
-  uint8_t reserved;
 };
 
 struct SearchData {
   SearchNode nodes[kSearchNodeCapacity];
+  // A search with E moving entities packs node N at N * E. This retains the
+  // maximum 64-entity capacity without imposing a 384-byte coordinate stride
+  // on the much smaller states used by most evolutionary candidates.
+  int16_t node_coordinates[
+      kSearchNodeCapacity * kSearchDynamicEntityCapacity][3];
   uint64_t hash_keys[kHashCapacity];
   int32_t hash_nodes[kHashCapacity];
   uint32_t hash_stamps[kHashCapacity];
@@ -67,14 +66,16 @@ struct SearchData {
   int32_t heap_positions[kSearchNodeCapacity];
   int32_t heap_size;
   uint8_t closed[kSearchNodeCapacity];
-  int16_t macro_occupants[kMacroCellCapacity];
-  uint8_t macro_support[kMacroCellCapacity];
-  int16_t walk_distance[kMacroCellCapacity];
-  int16_t walk_parent[kMacroCellCapacity];
-  uint8_t walk_direction[kMacroCellCapacity];
-  uint16_t walk_queue[kMacroCellCapacity];
+  int16_t local_coordinates[kLocalStateCapacity][3];
+  int16_t local_parents[kLocalStateCapacity];
+  uint16_t local_distances[kLocalStateCapacity];
+  uint8_t local_directions[kLocalStateCapacity];
+  uint64_t local_hash_keys[kLocalHashCapacity];
+  uint32_t local_hash_stamps[kLocalHashCapacity];
+  uint32_t local_hash_generation;
+  bool root_is_quiescent;
   int32_t reconstruct_nodes[kSearchSolutionCapacity];
-  uint8_t reconstruct_directions[kMacroCellCapacity];
+  uint8_t reconstruct_directions[kLocalStateCapacity];
 };
 
 static_assert(sizeof(SearchData) <= kSearchWorkspaceBytes);
@@ -94,10 +95,6 @@ uint64_t Mix64(uint64_t value) {
 bool IsDynamic(uint32_t role) {
   return role == kPlayerRole || role == kPushableRole ||
       role == kWeightlessPushableRole;
-}
-
-bool IsPushable(uint32_t role) {
-  return role == kPushableRole || role == kWeightlessPushableRole;
 }
 
 bool EncodeCoordinate(int32_t value, int16_t* output) {
@@ -196,12 +193,36 @@ void StoreNodeCoordinates(
   node->collected_goals = collected_goals;
 }
 
+uint64_t LocalCoordinateKey(const int16_t coordinates[3]) {
+  return (static_cast<uint64_t>(static_cast<uint16_t>(coordinates[0])) << 32u) |
+      (static_cast<uint64_t>(static_cast<uint16_t>(coordinates[1])) << 16u) |
+      static_cast<uint16_t>(coordinates[2]);
+}
+
+void StartLocalHashGeneration(SearchData* data) {
+  ++data->local_hash_generation;
+  if (data->local_hash_generation != 0) return;
+  for (int32_t slot = 0; slot < kLocalHashCapacity; ++slot) {
+    data->local_hash_stamps[slot] = 0;
+  }
+  data->local_hash_generation = 1;
+}
+
+bool InsertLocalStateIfAbsent(
+    SearchData* data,
+    uint64_t key) {
+  int32_t slot = static_cast<int32_t>(Mix64(key)) & kLocalHashMask;
+  while (data->local_hash_stamps[slot] == data->local_hash_generation) {
+    if (data->local_hash_keys[slot] == key) return false;
+    slot = (slot + 1) & kLocalHashMask;
+  }
+  data->local_hash_stamps[slot] = data->local_hash_generation;
+  data->local_hash_keys[slot] = key;
+  return true;
+}
+
 bool HeapLess(const SearchData* data, int32_t left, int32_t right) {
-  const SearchNode& left_node = data->nodes[left];
-  const SearchNode& right_node = data->nodes[right];
-  return left_node.priority != right_node.priority
-      ? left_node.priority < right_node.priority
-      : left_node.cost < right_node.cost;
+  return data->nodes[left].cost < data->nodes[right].cost;
 }
 
 void HeapSwap(SearchData* data, int32_t left, int32_t right) {
@@ -302,6 +323,41 @@ bool CaptureCandidate(SearchData* data) {
   return true;
 }
 
+bool CapturePassivePlayer(
+    SearchData* data,
+    int16_t coordinates[3],
+    uint64_t* collected_goals) {
+  const Voxel& player = data->scene[data->player_index];
+  if (!EncodeCoordinate(player.x < 0 ? -1 : player.x, &coordinates[0]) ||
+      !EncodeCoordinate(player.x < 0 ? 0 : player.y, &coordinates[1]) ||
+      !EncodeCoordinate(player.x < 0 ? 0 : player.z, &coordinates[2])) {
+    return false;
+  }
+  *collected_goals = 0;
+  for (int32_t goal = 0; goal < data->goal_count; ++goal) {
+    if (data->scene[data->goal_indices[goal]].x < 0) {
+      *collected_goals |= uint64_t{1} << goal;
+    }
+  }
+  return true;
+}
+
+void BuildPassiveCandidate(
+    SearchData* data,
+    const SearchNode& parent,
+    const int16_t player_coordinates[3],
+    uint64_t collected_goals) {
+  for (int32_t entity = 0; entity < data->entity_count; ++entity) {
+    for (int32_t axis = 0; axis < 3; ++axis) {
+      data->candidate[entity][axis] = parent.coordinates[entity][axis];
+    }
+  }
+  data->candidate[data->player_entity][0] = player_coordinates[0];
+  data->candidate[data->player_entity][1] = player_coordinates[1];
+  data->candidate[data->player_entity][2] = player_coordinates[2];
+  data->candidate_collected_goals = collected_goals;
+}
+
 bool CandidatePlayerIsActive(
     const SearchData* data,
     int32_t width,
@@ -334,25 +390,6 @@ SearchResult InvalidResult() {
   return result;
 }
 
-void ReconstructCommandSolution(
-    const SearchData* data,
-    int32_t node,
-    SearchResult* result) {
-  result->solution_length = data->nodes[node].cost;
-  result->moves = result->solution_length;
-  int32_t cursor = result->solution_length;
-  while (cursor > 0) {
-    result->solution[--cursor] = data->nodes[node].direction;
-    node = static_cast<int32_t>(data->nodes[node].parent);
-  }
-}
-
-uint64_t AllGoalMask(const SearchData* data) {
-  return data->goal_count == kSearchGoalCapacity
-      ? UINT64_MAX
-      : (uint64_t{1} << data->goal_count) - 1;
-}
-
 bool SceneIsSettled(const SearchData* data, int32_t width, int32_t height) {
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     bool supported = false;
@@ -382,214 +419,6 @@ bool SceneIsSettled(const SearchData* data, int32_t width, int32_t height) {
   return true;
 }
 
-void BuildMacroSurface(
-    SearchData* data,
-    int32_t width,
-    int32_t height,
-    int32_t player_z) {
-  const int32_t cells = width * height;
-  for (int32_t cell = 0; cell < cells; ++cell) {
-    data->macro_occupants[cell] = -1;
-    data->macro_support[cell] = 0;
-  }
-  for (int32_t index = 0; index < data->count; ++index) {
-    const Voxel& voxel = data->scene[index];
-    if (index == data->player_index || voxel.role == kGoalRole ||
-        voxel.x < 0 || voxel.x >= width || voxel.y < 0 || voxel.y >= height) {
-      continue;
-    }
-    const int32_t cell = voxel.y * width + voxel.x;
-    if (voxel.z == player_z) data->macro_occupants[cell] = static_cast<int16_t>(index);
-    if (voxel.z == player_z - 1) data->macro_support[cell] = 1;
-  }
-}
-
-bool BuildFlatStaticIceSurface(
-    SearchData* data,
-    int32_t width,
-    int32_t height,
-    int32_t player_z) {
-  const int64_t cell_count = static_cast<int64_t>(width) * height;
-  if (data->entity_count != 1 || data->player_entity != 0 ||
-      cell_count <= 0 || cell_count > kMacroCellCapacity) {
-    return false;
-  }
-  const int32_t cells = static_cast<int32_t>(cell_count);
-  for (int32_t cell = 0; cell < cells; ++cell) {
-    data->macro_occupants[cell] = -1;
-    data->macro_support[cell] = kNoSupport;
-  }
-  for (int32_t index = 0; index < data->count; ++index) {
-    const Voxel& voxel = data->scene[index];
-    if (index == data->player_index || voxel.role == kGoalRole) continue;
-    if (voxel.x < 0 || voxel.x >= width || voxel.y < 0 || voxel.y >= height) {
-      return false;
-    }
-    const int32_t cell = voxel.y * width + voxel.x;
-    if (voxel.z == player_z) {
-      if (data->macro_occupants[cell] >= 0) return false;
-      data->macro_occupants[cell] = static_cast<int16_t>(index);
-    } else if (voxel.z == player_z - 1) {
-      if (data->macro_support[cell] != kNoSupport) return false;
-      data->macro_support[cell] = voxel.role == kIceRole
-          ? kIceSupport
-          : voxel.role == HashRoleLiteral("floor")
-              ? kFloorSupport
-              : kOtherSupport;
-    } else {
-      // Falling onto lower geometry and raised terrain retain the general
-      // discrete tick engine. This fast path is deliberately flat and exact.
-      return false;
-    }
-  }
-  const Voxel& player = data->scene[data->player_index];
-  const int32_t player_cell = player.y * width + player.x;
-  if (data->macro_support[player_cell] == kNoSupport ||
-      data->macro_occupants[player_cell] >= 0) {
-    return false;
-  }
-  for (int32_t goal = 0; goal < data->goal_count; ++goal) {
-    const int32_t x = data->goal_coordinates[goal][0];
-    const int32_t y = data->goal_coordinates[goal][1];
-    if (x < 0 || x >= width || y < 0 || y >= height ||
-        data->goal_coordinates[goal][2] != player_z ||
-        data->macro_occupants[y * width + x] >= 0) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool AdvanceFlatStaticIce(
-    SearchData* data,
-    const SearchNode& parent,
-    int32_t width,
-    int32_t height,
-    int32_t direction) {
-  constexpr int32_t kDx[4] = {0, 1, 0, -1};
-  constexpr int32_t kDy[4] = {-1, 0, 1, 0};
-  const int32_t dx = kDx[direction];
-  const int32_t dy = kDy[direction];
-  int32_t x = DecodeCoordinate(parent.coordinates[data->player_entity][0]);
-  int32_t y = DecodeCoordinate(parent.coordinates[data->player_entity][1]);
-  const int32_t z = DecodeCoordinate(
-      parent.coordinates[data->player_entity][2]);
-  if (x < 0 || x >= width || y < 0 || y >= height) return false;
-  const int32_t from_x = x;
-  const int32_t from_y = y;
-  uint64_t collected_goals = parent.collected_goals;
-
-  auto can_enter = [&](int32_t next_x, int32_t next_y) {
-    return next_x >= 0 && next_x < width && next_y >= 0 && next_y < height &&
-        data->macro_occupants[next_y * width + next_x] < 0;
-  };
-  auto collect = [&] {
-    for (int32_t goal = 0; goal < data->goal_count; ++goal) {
-      if (data->goal_coordinates[goal][0] == x &&
-          data->goal_coordinates[goal][1] == y &&
-          data->goal_coordinates[goal][2] == z) {
-        collected_goals |= uint64_t{1} << goal;
-      }
-    }
-  };
-
-  int32_t next_x = x + dx;
-  int32_t next_y = y + dy;
-  if (!can_enter(next_x, next_y)) return false;
-  uint8_t support = data->macro_support[next_y * width + next_x];
-  if (support == kNoSupport) return false;
-  x = next_x;
-  y = next_y;
-
-  bool sliding = support == kIceSupport;
-  if (!sliding) {
-    next_x = x + dx;
-    next_y = y + dy;
-    sliding = can_enter(next_x, next_y) &&
-        data->macro_support[next_y * width + next_x] == kIceSupport;
-  }
-  while (sliding) {
-    next_x = x + dx;
-    next_y = y + dy;
-    if (!can_enter(next_x, next_y)) break;
-    support = data->macro_support[next_y * width + next_x];
-    if (support == kNoSupport) return false;
-    x = next_x;
-    y = next_y;
-    if (support != kIceSupport) break;
-  }
-  collect();
-  if (x == from_x && y == from_y && collected_goals == parent.collected_goals) {
-    return false;
-  }
-  for (int32_t entity = 0; entity < data->entity_count; ++entity) {
-    for (int32_t axis = 0; axis < 3; ++axis) {
-      data->candidate[entity][axis] = parent.coordinates[entity][axis];
-    }
-  }
-  EncodeCoordinate(x, &data->candidate[data->player_entity][0]);
-  EncodeCoordinate(y, &data->candidate[data->player_entity][1]);
-  data->candidate_collected_goals = collected_goals;
-  return true;
-}
-
-int32_t BuildWalkReachability(
-    SearchData* data,
-    int32_t width,
-    int32_t height,
-    int32_t start_cell) {
-  const int32_t cells = width * height;
-  for (int32_t cell = 0; cell < cells; ++cell) {
-    data->walk_distance[cell] = -1;
-    data->walk_parent[cell] = -1;
-  }
-  data->walk_distance[start_cell] = 0;
-  data->walk_queue[0] = static_cast<uint16_t>(start_cell);
-  int32_t queue_size = 1;
-  constexpr int32_t kDx[4] = {0, 1, 0, -1};
-  constexpr int32_t kDy[4] = {-1, 0, 1, 0};
-  for (int32_t head = 0; head < queue_size; ++head) {
-    const int32_t cell = data->walk_queue[head];
-    const int32_t x = cell % width;
-    const int32_t y = cell / width;
-    for (int32_t direction = 0; direction < 4; ++direction) {
-      const int32_t next_x = x + kDx[direction];
-      const int32_t next_y = y + kDy[direction];
-      if (next_x < 0 || next_x >= width || next_y < 0 || next_y >= height) {
-        continue;
-      }
-      const int32_t next = next_y * width + next_x;
-      if (data->walk_distance[next] >= 0 ||
-          data->macro_occupants[next] >= 0 || data->macro_support[next] == 0) {
-        continue;
-      }
-      data->walk_distance[next] = static_cast<int16_t>(
-          data->walk_distance[cell] + 1);
-      data->walk_parent[next] = static_cast<int16_t>(cell);
-      data->walk_direction[next] = static_cast<uint8_t>(direction);
-      data->walk_queue[queue_size++] = static_cast<uint16_t>(next);
-    }
-  }
-  return queue_size;
-}
-
-uint32_t MacroPriority(
-    const SearchData* data,
-    const int16_t coordinates[kSearchDynamicEntityCapacity][3],
-    uint64_t collected_goals,
-    uint16_t cost) {
-  if (collected_goals == AllGoalMask(data)) return cost;
-  const int32_t player_x = DecodeCoordinate(
-      coordinates[data->player_entity][0]);
-  const int32_t player_y = DecodeCoordinate(
-      coordinates[data->player_entity][1]);
-  const int32_t goal_x = data->goal_coordinates[0][0];
-  const int32_t goal_y = data->goal_coordinates[0][1];
-  const int32_t dx = player_x > goal_x ? player_x - goal_x : goal_x - player_x;
-  const int32_t dy = player_y > goal_y ? player_y - goal_y : goal_y - player_y;
-  return static_cast<uint32_t>(cost) + static_cast<uint32_t>(dx + dy);
-}
-
 bool DynamicObjectsChangedExceptPlayer(
     const SearchData* data,
     const SearchNode& parent) {
@@ -604,11 +433,11 @@ bool DynamicObjectsChangedExceptPlayer(
   return false;
 }
 
-bool AddMacroNode(
+bool AddGeneralNode(
     SearchData* data,
     int32_t parent,
     uint16_t cost,
-    uint16_t approach_cell,
+    const int16_t approach[3],
     uint8_t direction,
     int32_t maximum_nodes,
     int32_t* node_count,
@@ -625,10 +454,10 @@ bool AddMacroNode(
     if (cost < node.cost && data->closed[existing] == 0) {
       node.parent = static_cast<uint32_t>(parent);
       node.cost = cost;
-      node.approach_cell = approach_cell;
+      node.approach_coordinates[0] = approach[0];
+      node.approach_coordinates[1] = approach[1];
+      node.approach_coordinates[2] = approach[2];
       node.direction = direction;
-      node.priority = MacroPriority(
-          data, node.coordinates, node.collected_goals, cost);
       HeapDecrease(data, existing);
     }
     return false;
@@ -639,6 +468,7 @@ bool AddMacroNode(
   }
   const int32_t index = (*node_count)++;
   SearchNode& child = data->nodes[index];
+  child.coordinates = data->node_coordinates + index * data->entity_count;
   StoreNodeCoordinates(
       &child,
       data->candidate,
@@ -646,10 +476,10 @@ bool AddMacroNode(
       data->candidate_collected_goals);
   child.parent = static_cast<uint32_t>(parent);
   child.cost = cost;
-  child.approach_cell = approach_cell;
+  child.approach_coordinates[0] = approach[0];
+  child.approach_coordinates[1] = approach[1];
+  child.approach_coordinates[2] = approach[2];
   child.direction = direction;
-  child.priority = MacroPriority(
-      data, child.coordinates, child.collected_goals, cost);
   data->closed[index] = 0;
   data->heap_positions[index] = -1;
   InsertState(data, hash, index);
@@ -657,30 +487,207 @@ bool AddMacroNode(
   return true;
 }
 
-bool AppendWalkingPath(
-    SearchData* data,
-    int32_t target_cell,
-    SearchResult* result) {
-  if (target_cell < 0 || target_cell >= kMacroCellCapacity ||
-      data->walk_distance[target_cell] < 0) return false;
-  int32_t length = 0;
-  int32_t cell = target_cell;
-  while (data->walk_parent[cell] >= 0) {
-    if (length >= kMacroCellCapacity) return false;
-    data->reconstruct_directions[length++] = data->walk_direction[cell];
-    cell = data->walk_parent[cell];
+int32_t BeginLocalSearch(SearchData* data, const SearchNode& parent) {
+  StartLocalHashGeneration(data);
+  for (int32_t axis = 0; axis < 3; ++axis) {
+    data->local_coordinates[0][axis] =
+        parent.coordinates[data->player_entity][axis];
   }
-  if (result->solution_length + length > kSearchSolutionCapacity) return false;
-  while (length > 0) {
+  data->local_parents[0] = -1;
+  data->local_distances[0] = 0;
+  data->local_directions[0] = 0;
+  InsertLocalStateIfAbsent(
+      data, LocalCoordinateKey(data->local_coordinates[0]));
+  return 1;
+}
+
+bool CandidateIsPurePlayerMove(
+    const SearchData* data,
+    const SearchNode& parent) {
+  return data->candidate_collected_goals == parent.collected_goals &&
+      !DynamicObjectsChangedExceptPlayer(data, parent);
+}
+
+bool LoadLocalCommandSource(
+    SearchData* data,
+    const SearchNode& parent,
+    int32_t local_state) {
+  LoadNode(data, parent);
+  Voxel& player = data->scene[data->player_index];
+  player.x = DecodeCoordinate(data->local_coordinates[local_state][0]);
+  player.y = DecodeCoordinate(data->local_coordinates[local_state][1]);
+  player.z = DecodeCoordinate(data->local_coordinates[local_state][2]);
+  return player.x >= 0;
+}
+
+bool RestorePassiveLocalCommandSource(
+    SearchData* data,
+    const SearchNode& parent,
+    int32_t local_state) {
+  Voxel& player = data->scene[data->player_index];
+  player.x = DecodeCoordinate(data->local_coordinates[local_state][0]);
+  player.y = DecodeCoordinate(data->local_coordinates[local_state][1]);
+  player.z = DecodeCoordinate(data->local_coordinates[local_state][2]);
+  for (int32_t goal = 0; goal < data->goal_count; ++goal) {
+    Voxel& voxel = data->scene[data->goal_indices[goal]];
+    voxel.x = (parent.collected_goals & (uint64_t{1} << goal)) != 0
+        ? -1
+        : data->goal_coordinates[goal][0];
+    // Passive collection changes only x; y/z were restored with the parent
+    // snapshot and remain invariant throughout this local reachability pass.
+  }
+  return player.x >= 0;
+}
+
+int32_t SimulateSearchTurn(
+    SearchData* data,
+    PhysicsWorkspace* physics_workspace,
+    const SearchNode& parent,
+    int32_t local_state,
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t direction,
+    bool* passive_snapshot_valid) {
+  const bool quiescent = &parent != &data->nodes[0] ||
+      data->root_is_quiescent || local_state > 0;
+  if (!quiescent) {
+    *passive_snapshot_valid = false;
+    if (!LoadLocalCommandSource(data, parent, local_state)) return -2;
+    return simulate_turn(
+        physics_workspace, data->scene, count, width, height, direction);
+  }
+  if (!*passive_snapshot_valid) {
+    if (!LoadLocalCommandSource(data, parent, local_state) ||
+        !prepare_quiescent_snapshot(
+            physics_workspace, data->scene, count, width, height)) {
+      return -1;
+    }
+    *passive_snapshot_valid = true;
+  } else if (!RestorePassiveLocalCommandSource(data, parent, local_state)) {
+    return -2;
+  }
+  const int32_t passive = try_simulate_passive_quiescent_turn(
+      physics_workspace,
+      data->scene,
+      count,
+      width,
+      height,
+      direction);
+  if (passive > 0) return 1;
+  if (passive < 0) return passive;
+
+  // A passive decline is transactional: it has not written player/body/goal
+  // coordinates. The scene therefore already is the requested local source;
+  // avoid reloading every voxel before the full general kernel takes over.
+  *passive_snapshot_valid = false;
+  return simulate_quiescent_turn(
+      physics_workspace,
+      data->scene,
+      count,
+      width,
+      height,
+      direction,
+      true);
+}
+
+bool AppendGeneralLocalPath(
+    SearchData* data,
+    PhysicsWorkspace* physics_workspace,
+    const SearchNode& parent,
+    const int16_t target[3],
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    SearchResult* result) {
+  int32_t local_count = BeginLocalSearch(data, parent);
+  const uint64_t target_key = LocalCoordinateKey(target);
+  int32_t target_state = LocalCoordinateKey(data->local_coordinates[0]) ==
+          target_key
+      ? 0
+      : -1;
+  bool passive_snapshot_valid = false;
+  for (int32_t head = 0; head < local_count && target_state < 0; ++head) {
+    ++result->local_expanded;
+    const uint64_t source_key =
+        LocalCoordinateKey(data->local_coordinates[head]);
+    for (int32_t direction = 0; direction < 4; ++direction) {
+      ++result->command_transitions;
+      const int32_t simulation = SimulateSearchTurn(
+              data,
+              physics_workspace,
+              parent,
+              head,
+              count,
+              width,
+              height,
+              direction,
+              &passive_snapshot_valid);
+      if (simulation == 0) ++result->full_physics_transitions;
+      int16_t coordinates[3];
+      uint64_t collected_goals = 0;
+      if (simulation < 0 ||
+          (simulation > 0 && !CapturePassivePlayer(
+              data, coordinates, &collected_goals)) ||
+          (simulation == 0 &&
+           (!CaptureCandidate(data) ||
+            !CandidatePlayerIsActive(data, width, height) ||
+            !CandidateIsPurePlayerMove(data, parent)))) {
+        continue;
+      }
+      if (simulation > 0) {
+        if (DecodeCoordinate(coordinates[0]) < 0 ||
+            DecodeCoordinate(coordinates[0]) >= width ||
+            DecodeCoordinate(coordinates[1]) < 0 ||
+            DecodeCoordinate(coordinates[1]) >= height ||
+            collected_goals != parent.collected_goals) {
+          continue;
+        }
+      } else {
+        for (int32_t axis = 0; axis < 3; ++axis) {
+          coordinates[axis] = data->candidate[data->player_entity][axis];
+        }
+      }
+      const uint64_t key = LocalCoordinateKey(coordinates);
+      if (key == source_key) continue;
+      if (!InsertLocalStateIfAbsent(data, key)) continue;
+      if (local_count >= kLocalStateCapacity) return false;
+      const int32_t next = local_count++;
+      for (int32_t axis = 0; axis < 3; ++axis) {
+        data->local_coordinates[next][axis] = coordinates[axis];
+      }
+      data->local_parents[next] = static_cast<int16_t>(head);
+      data->local_distances[next] = static_cast<uint16_t>(
+          data->local_distances[head] + 1);
+      data->local_directions[next] = static_cast<uint8_t>(direction);
+      if (key == target_key) {
+        target_state = next;
+        break;
+      }
+    }
+  }
+  if (target_state < 0) return false;
+  int32_t path_length = 0;
+  for (int32_t cursor = target_state; data->local_parents[cursor] >= 0;
+       cursor = data->local_parents[cursor]) {
+    if (path_length >= kLocalStateCapacity) return false;
+    data->reconstruct_directions[path_length++] = data->local_directions[cursor];
+  }
+  if (result->solution_length + path_length > kSearchSolutionCapacity) {
+    return false;
+  }
+  while (path_length > 0) {
     result->solution[result->solution_length++] =
-        data->reconstruct_directions[--length];
+        data->reconstruct_directions[--path_length];
   }
   return true;
 }
 
-bool ReconstructMacroSolution(
+bool ReconstructGeneralSolution(
     SearchData* data,
+    PhysicsWorkspace* physics_workspace,
     int32_t node,
+    int32_t count,
     int32_t width,
     int32_t height,
     SearchResult* result) {
@@ -695,95 +702,25 @@ bool ReconstructMacroSolution(
     const int32_t child_index = data->reconstruct_nodes[--edge_count];
     const SearchNode& child = data->nodes[child_index];
     const SearchNode& parent = data->nodes[child.parent];
-    LoadNode(data, parent);
-    const Voxel& player = data->scene[data->player_index];
-    BuildMacroSurface(data, width, height, player.z);
-    BuildWalkReachability(data, width, height, player.y * width + player.x);
-    if (!AppendWalkingPath(data, child.approach_cell, result)) return false;
-    if (child.direction < 4) {
-      if (result->solution_length >= kSearchSolutionCapacity) return false;
-      result->solution[result->solution_length++] = child.direction;
+    if (!AppendGeneralLocalPath(
+            data,
+            physics_workspace,
+            parent,
+            child.approach_coordinates,
+            count,
+            width,
+            height,
+            result)) {
+      return false;
     }
+    if (result->solution_length >= kSearchSolutionCapacity) return false;
+    result->solution[result->solution_length++] = child.direction;
   }
   result->moves = result->solution_length;
   return result->moves == data->nodes[node].cost;
 }
 
-SearchResult SearchCommands(
-    SearchData* data,
-    PhysicsWorkspace* physics_workspace,
-    int32_t count,
-    int32_t width,
-    int32_t height,
-    int32_t maximum_nodes,
-    int32_t node_count,
-    bool flat_static_ice) {
-  SearchResult result{};
-  for (int32_t head = 0; head < node_count; ++head) {
-    const SearchNode& parent = data->nodes[head];
-    if (parent.cost >= kSearchSolutionCapacity) continue;
-    ++result.expanded;
-    for (int32_t direction = 0; direction < 4; ++direction) {
-      if (flat_static_ice) {
-        if (!AdvanceFlatStaticIce(data, parent, width, height, direction)) {
-          continue;
-        }
-      } else {
-        LoadNode(data, parent);
-        const int32_t status = simulate_turn(
-            physics_workspace,
-            data->scene,
-            count,
-            width,
-            height,
-            direction);
-        if (status != 0 || !CaptureCandidate(data) ||
-            !CandidatePlayerIsActive(data, width, height)) continue;
-      }
-      if (IsGoal(data)) {
-        result.status = SearchStatus::kSolved;
-        ReconstructCommandSolution(data, head, &result);
-        result.solution[result.solution_length++] = direction;
-        result.moves = result.solution_length;
-        return result;
-      }
-      if (CoordinatesEqual(
-              parent,
-              data->candidate,
-              data->entity_count,
-              data->candidate_collected_goals)) continue;
-      ++result.generated;
-      const uint64_t hash = HashState(
-          data->candidate,
-          data->entity_count,
-          data->candidate_collected_goals);
-      if (FindState(
-              data, hash, data->candidate, data->candidate_collected_goals) >= 0) {
-        ++result.transpositions;
-        continue;
-      }
-      if (node_count >= maximum_nodes) {
-        result.status = SearchStatus::kLimitHit;
-        return result;
-      }
-      SearchNode& child = data->nodes[node_count];
-      StoreNodeCoordinates(
-          &child,
-          data->candidate,
-          data->entity_count,
-          data->candidate_collected_goals);
-      child.parent = static_cast<uint32_t>(head);
-      child.cost = static_cast<uint16_t>(parent.cost + 1);
-      child.direction = static_cast<uint8_t>(direction);
-      InsertState(data, hash, node_count);
-      ++node_count;
-    }
-  }
-  result.status = SearchStatus::kUnsolved;
-  return result;
-}
-
-SearchResult SearchMacroMoves(
+SearchResult SearchGeneralized(
     SearchData* data,
     PhysicsWorkspace* physics_workspace,
     int32_t count,
@@ -793,19 +730,10 @@ SearchResult SearchMacroMoves(
     int32_t node_count) {
   SearchResult result{};
   data->heap_size = 0;
-  for (int32_t node = 0; node < maximum_nodes; ++node) {
-    data->heap_positions[node] = -1;
-    data->closed[node] = 0;
-  }
-  data->nodes[0].priority = MacroPriority(
-      data,
-      data->nodes[0].coordinates,
-      data->nodes[0].collected_goals,
-      0);
+  data->heap_positions[0] = -1;
+  data->closed[0] = 0;
   HeapPush(data, 0);
   bool limit_reached = false;
-  constexpr int32_t kDx[4] = {0, 1, 0, -1};
-  constexpr int32_t kDy[4] = {-1, 0, 1, 0};
   while (data->heap_size > 0) {
     const int32_t head = HeapPop(data);
     if (data->closed[head] != 0) continue;
@@ -813,84 +741,101 @@ SearchResult SearchMacroMoves(
     const SearchNode& parent = data->nodes[head];
     if (NodeIsGoal(data, parent)) {
       result.status = SearchStatus::kSolved;
-      if (!ReconstructMacroSolution(data, head, width, height, &result)) {
+      if (!ReconstructGeneralSolution(
+              data,
+              physics_workspace,
+              head,
+              count,
+              width,
+              height,
+              &result)) {
         return InvalidResult();
       }
       return result;
     }
     if (parent.cost >= kSearchSolutionCapacity) continue;
     ++result.expanded;
-    LoadNode(data, parent);
-    const Voxel player = data->scene[data->player_index];
-    if (player.x < 0 || player.x >= width || player.y < 0 || player.y >= height) {
-      continue;
-    }
-    BuildMacroSurface(data, width, height, player.z);
-    const int32_t walk_count = BuildWalkReachability(
-        data, width, height, player.y * width + player.x);
-
-    const int32_t goal_x = data->goal_coordinates[0][0];
-    const int32_t goal_y = data->goal_coordinates[0][1];
-    const int32_t goal_z = data->goal_coordinates[0][2];
-    if (goal_x >= 0 && goal_x < width && goal_y >= 0 && goal_y < height &&
-        goal_z == player.z) {
-      const int32_t goal_cell = goal_y * width + goal_x;
-      const int32_t walk_cost = data->walk_distance[goal_cell];
-      if (walk_cost > 0 &&
-          parent.cost + walk_cost < kSearchSolutionCapacity) {
-        for (int32_t entity = 0; entity < data->entity_count; ++entity) {
-          for (int32_t axis = 0; axis < 3; ++axis) {
-            data->candidate[entity][axis] = parent.coordinates[entity][axis];
-          }
-        }
-        EncodeCoordinate(goal_x, &data->candidate[data->player_entity][0]);
-        EncodeCoordinate(goal_y, &data->candidate[data->player_entity][1]);
-        data->candidate_collected_goals = AllGoalMask(data);
-        AddMacroNode(
-            data,
-            head,
-            static_cast<uint16_t>(parent.cost + walk_cost),
-            static_cast<uint16_t>(goal_cell),
-            kWalkOnlyDirection,
-            maximum_nodes,
-            &node_count,
-            &limit_reached,
-            &result);
-      }
-    }
-
-    for (int32_t walk = 0; walk < walk_count; ++walk) {
-      const int32_t approach_cell = data->walk_queue[walk];
-      const int32_t approach_x = approach_cell % width;
-      const int32_t approach_y = approach_cell / width;
+    int32_t local_count = BeginLocalSearch(data, parent);
+    bool passive_snapshot_valid = false;
+    for (int32_t local_head = 0; local_head < local_count; ++local_head) {
+      ++result.local_expanded;
+      const uint64_t source_key =
+          LocalCoordinateKey(data->local_coordinates[local_head]);
       for (int32_t direction = 0; direction < 4; ++direction) {
-        const int32_t target_x = approach_x + kDx[direction];
-        const int32_t target_y = approach_y + kDy[direction];
-        if (target_x < 0 || target_x >= width ||
-            target_y < 0 || target_y >= height) continue;
-        const int32_t occupant =
-            data->macro_occupants[target_y * width + target_x];
-        if (occupant < 0 || !IsPushable(data->scene[occupant].role)) continue;
-        const int32_t edge_cost = data->walk_distance[approach_cell] + 1;
-        if (parent.cost + edge_cost >= kSearchSolutionCapacity) continue;
-        LoadNode(data, parent);
-        data->scene[data->player_index].x = approach_x;
-        data->scene[data->player_index].y = approach_y;
-        const int32_t status = simulate_turn(
-            physics_workspace,
-            data->scene,
-            count,
-            width,
-            height,
-            direction);
-        if (status != 0 || !CaptureCandidate(data) ||
-            !CandidatePlayerIsActive(data, width, height) ||
-            !DynamicObjectsChangedExceptPlayer(data, parent)) continue;
-        AddMacroNode(
+        ++result.command_transitions;
+        const int32_t simulation = SimulateSearchTurn(
+                data,
+                physics_workspace,
+                parent,
+                local_head,
+                count,
+                width,
+                height,
+                direction,
+                &passive_snapshot_valid);
+        if (simulation == 0) ++result.full_physics_transitions;
+        int16_t player_coordinates[3];
+        uint64_t collected_goals = 0;
+        if (simulation < 0 ||
+            (simulation > 0 && !CapturePassivePlayer(
+                data, player_coordinates, &collected_goals)) ||
+            (simulation == 0 &&
+             (!CaptureCandidate(data) ||
+              !CandidatePlayerIsActive(data, width, height)))) {
+          continue;
+        }
+        if (simulation > 0) {
+          const int32_t player_x = DecodeCoordinate(player_coordinates[0]);
+          const int32_t player_y = DecodeCoordinate(player_coordinates[1]);
+          if (player_x < 0 || player_x >= width ||
+              player_y < 0 || player_y >= height) {
+            continue;
+          }
+        } else {
+          for (int32_t axis = 0; axis < 3; ++axis) {
+            player_coordinates[axis] =
+                data->candidate[data->player_entity][axis];
+          }
+          collected_goals = data->candidate_collected_goals;
+        }
+        const bool pure_player = simulation > 0
+            ? collected_goals == parent.collected_goals
+            : CandidateIsPurePlayerMove(data, parent);
+        if (pure_player) {
+          const uint64_t key = LocalCoordinateKey(player_coordinates);
+          if (key == source_key) {
+            continue;
+          }
+          if (!InsertLocalStateIfAbsent(data, key)) continue;
+          if (local_count >= kLocalStateCapacity) {
+            limit_reached = true;
+            continue;
+          }
+          const int32_t next = local_count++;
+          for (int32_t axis = 0; axis < 3; ++axis) {
+            data->local_coordinates[next][axis] = player_coordinates[axis];
+          }
+          data->local_parents[next] = static_cast<int16_t>(local_head);
+          data->local_distances[next] = static_cast<uint16_t>(
+              data->local_distances[local_head] + 1);
+          data->local_directions[next] = static_cast<uint8_t>(direction);
+          continue;
+        }
+        if (simulation > 0) {
+          BuildPassiveCandidate(
+              data, parent, player_coordinates, collected_goals);
+        }
+        const uint32_t edge_cost =
+            static_cast<uint32_t>(data->local_distances[local_head]) + 1;
+        if (static_cast<uint32_t>(parent.cost) + edge_cost >=
+            kSearchSolutionCapacity) {
+          continue;
+        }
+        AddGeneralNode(
             data,
             head,
             static_cast<uint16_t>(parent.cost + edge_cost),
-            static_cast<uint16_t>(approach_cell),
+            data->local_coordinates[local_head],
             static_cast<uint8_t>(direction),
             maximum_nodes,
             &node_count,
@@ -921,13 +866,23 @@ SearchResult search_shortest(
   if (maximum_nodes > kSearchNodeCapacity) maximum_nodes = kSearchNodeCapacity;
 
   SearchData* data = Data(search_workspace);
+  if (!search_workspace->initialized) {
+    for (int32_t slot = 0; slot < kHashCapacity; ++slot) {
+      data->hash_stamps[slot] = 0;
+    }
+    for (int32_t slot = 0; slot < kLocalHashCapacity; ++slot) {
+      data->local_hash_stamps[slot] = 0;
+    }
+    data->hash_generation = 0;
+    data->local_hash_generation = 0;
+    search_workspace->initialized = true;
+  }
   data->count = count;
   data->dynamic_voxel_count = 0;
   data->entity_count = 0;
   data->player_index = -1;
   data->player_entity = -1;
   data->goal_count = 0;
-  bool has_ice = false;
   int32_t static_count = 0;
 
   // Dynamic entities first enables the physics engine's compact hot paths.
@@ -970,7 +925,6 @@ SearchResult search_shortest(
     if (IsDynamic(voxels[source].role)) continue;
     const int32_t target = static_count++;
     data->scene[target] = voxels[source];
-    if (voxels[source].role == kIceRole) has_ice = true;
     if (voxels[source].role == kGoalRole) {
       if (data->goal_count >= kSearchGoalCapacity) return InvalidResult();
       const int32_t goal = data->goal_count++;
@@ -984,20 +938,32 @@ SearchResult search_shortest(
       data->entity_count <= 0) {
     return InvalidResult();
   }
+  if (!prepare_scene(
+          physics_workspace,
+          data->scene,
+          count,
+          width,
+          height,
+          data->dynamic_voxel_count)) {
+    return InvalidResult();
+  }
+  data->root_is_quiescent = SceneIsSettled(data, width, height);
 
   SearchResult result{};
   if (!CaptureCandidate(data) ||
       !CandidatePlayerIsActive(data, width, height)) return InvalidResult();
   SearchNode& root = data->nodes[0];
+  root.coordinates = data->node_coordinates;
   StoreNodeCoordinates(
       &root,
       data->candidate,
       data->entity_count,
       data->candidate_collected_goals);
   root.parent = 0;
-  root.priority = 0;
   root.cost = 0;
-  root.approach_cell = 0;
+  root.approach_coordinates[0] = root.coordinates[data->player_entity][0];
+  root.approach_coordinates[1] = root.coordinates[data->player_entity][1];
+  root.approach_coordinates[2] = root.coordinates[data->player_entity][2];
   root.direction = 0;
   StartHashGeneration(data);
   InsertState(data, HashState(
@@ -1008,37 +974,14 @@ SearchResult search_shortest(
     result.status = SearchStatus::kSolved;
     return result;
   }
-  const Voxel& root_player = data->scene[data->player_index];
-  const bool player_starts_on_goal = data->goal_count == 1 &&
-      root_player.x == data->goal_coordinates[0][0] &&
-      root_player.y == data->goal_coordinates[0][1] &&
-      root_player.z == data->goal_coordinates[0][2];
-  const int64_t cell_count = static_cast<int64_t>(width) * height;
-  const bool macro_compatible = !has_ice && data->goal_count == 1 &&
-      cell_count <= kMacroCellCapacity &&
-      !player_starts_on_goal && SceneIsSettled(data, width, height);
-  const bool flat_static_ice = has_ice && !player_starts_on_goal &&
-      BuildFlatStaticIceSurface(
-          data, width, height, root_player.z) &&
-      SceneIsSettled(data, width, height);
-  return macro_compatible
-      ? SearchMacroMoves(
-            data,
-            physics_workspace,
-            count,
-            width,
-            height,
-            maximum_nodes,
-            node_count)
-      : SearchCommands(
-            data,
-            physics_workspace,
-            count,
-            width,
-            height,
-            maximum_nodes,
-            node_count,
-            flat_static_ice);
+  return SearchGeneralized(
+      data,
+      physics_workspace,
+      count,
+      width,
+      height,
+      maximum_nodes,
+      node_count);
 }
 
 }  // namespace voxelbench

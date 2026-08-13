@@ -24,6 +24,8 @@ export type SearchLevel = {
   moves: number;
   expanded: number;
   generated: number;
+  commandTransitions?: number;
+  commandTransitionsPerSecond?: number;
   transpositions?: number;
   pushes?: number;
   iceSlides?: number;
@@ -67,6 +69,8 @@ type SearchProgress = {
   elapsedMs: number;
   generationElapsedMs: number;
   nodesPerSecond: number;
+  commandTransitionsPerSecond: number;
+  solverCommandTransitionsPerSecond: number;
   solverNodesPerSecond: number;
   solvesPerSecond: number;
   stagnation: number;
@@ -206,6 +210,9 @@ export function normalizeSearchLevels(
       moves: Math.max(0, finiteInteger(candidate.moves, solution.length)),
       expanded: Math.max(0, finiteInteger(candidate.expanded, 0)),
       generated: Math.max(0, finiteInteger(candidate.generated, 0)),
+      commandTransitions: Math.max(0, finiteInteger(candidate.commandTransitions, 0)),
+      commandTransitionsPerSecond: Math.max(
+        0, finiteInteger(candidate.commandTransitionsPerSecond, 0)),
       transpositions: Math.max(0, finiteInteger(candidate.transpositions, 0)),
       pushes: Math.max(0, finiteInteger(candidate.pushes, 0)),
       iceSlides: Math.max(0, finiteInteger(candidate.iceSlides, 0)),
@@ -375,6 +382,8 @@ export default function SearchBench({
     elapsedMs: 0,
     generationElapsedMs: 0,
     nodesPerSecond: 0,
+    commandTransitionsPerSecond: 0,
+    solverCommandTransitionsPerSecond: 0,
     solverNodesPerSecond: 0,
     solvesPerSecond: 0,
     stagnation: 0,
@@ -565,6 +574,8 @@ export default function SearchBench({
       elapsedMs: 0,
       generationElapsedMs: 0,
       nodesPerSecond: 0,
+      commandTransitionsPerSecond: 0,
+      solverCommandTransitionsPerSecond: 0,
       solverNodesPerSecond: 0,
       solvesPerSecond: 0,
       stagnation: 0,
@@ -577,7 +588,7 @@ export default function SearchBench({
         setBest(message.candidate as SearchLevel);
         onStatus(message.candidate.optimal
           ? `New proven record · ${message.candidate.moves} commands at generation ${message.generation}`
-          : `New search-effort record · ${message.candidate.expanded} nodes explored`);
+          : `New search-effort record · ${message.candidate.expanded} global states explored`);
       } else if (message?.type === "progress") {
         const receivedAt = Date.now();
         runStartedAtRef.current = receivedAt - Math.max(0, Number(message.elapsedMs) || 0);
@@ -848,8 +859,8 @@ export default function SearchBench({
           <article><span>Generation</span><strong>{progress.generation}<small> / {progress.generations}</small></strong></article>
           <article><span>Unique solves</span><strong>{progress.uniqueCandidates.toLocaleString()}<small> · {progress.cacheHits.toLocaleString()} cached · {progress.solvesPerSecond}/sec</small></strong></article>
           <article><span>Solution length</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
-          <article><span>C++ solver</span><strong>{formatRate(progress.solverNodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · average per worker</small></strong></article>
-          <article><span>End-to-end</span><strong>{formatRate(progress.nodesPerSecond)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} workers + evolution</small></strong></article>
+          <article><span>C++ solver</span><strong>{formatRate(progress.solverCommandTransitionsPerSecond || activeLevel?.commandTransitionsPerSecond || 0)}<small> command sims/sec · {formatRate(progress.solverNodesPerSecond || activeLevel?.nodesPerSecond || 0)} global states/sec</small></strong></article>
+          <article><span>End-to-end</span><strong>{formatRate(progress.commandTransitionsPerSecond)}<small> command sims/sec · {formatRate(progress.nodesPerSecond)} global states/sec · {Math.max(1, progress.evaluatorCount)} workers</small></strong></article>
           <article className={running ? "search-clock active" : "search-clock"}><span>Run clock</span><strong>{formatClock(elapsedClockMs)}<small>{running ? `● ACTIVE · Gen ${Math.max(1, progress.generation)} · ${formatGenerationDuration(generationClockMs)}` : progress.generation ? `Complete · ${progress.generation} generations` : "Not running"}</small></strong></article>
         </div>
 

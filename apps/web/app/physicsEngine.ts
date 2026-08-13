@@ -41,6 +41,14 @@ function directionCode(direction: Direction) {
   return { up: 0, right: 1, down: 2, left: 3 }[direction];
 }
 
+function framesHaveSameCoordinates(left: Frame, right: Frame) {
+  return left.voxels.length === right.voxels.length &&
+    left.voxels.every((voxel, index) => {
+      const other = right.voxels[index];
+      return voxel.x === other.x && voxel.y === other.y && voxel.z === other.z;
+    });
+}
+
 async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
   const encoder = new TextEncoder();
   const roleBufferPointer = physics.role_buffer();
@@ -77,7 +85,7 @@ export async function simulateCommandWithCpp(
   world: WorldSettings,
 ): Promise<{ final: Frame; frames: Frame[] }> {
   const physics = await loadPhysics();
-  if (physics.physics_abi_version() !== 3 || physics.voxel_stride() !== 5) {
+  if (physics.physics_abi_version() !== 4 || physics.voxel_stride() !== 5) {
     throw new Error("The web app and C++ physics engine use different ABI versions");
   }
   if (frame.voxels.length > physics.voxel_capacity()) {
@@ -137,7 +145,10 @@ export async function simulateCommandWithCpp(
       previousTick = tick;
     }
     if (status === 0) {
-      return { final: readFrame(), frames };
+      const final = readFrame();
+      const lastVisible = frames.at(-1) ?? frame;
+      if (!framesHaveSameCoordinates(lastVisible, final)) frames.push(final);
+      return { final, frames };
     }
   }
   throw new Error("The C++ command did not become quiescent within 100,000 ticks");

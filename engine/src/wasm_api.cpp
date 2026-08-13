@@ -96,6 +96,40 @@ int32_t simulate_turn(
       &g_workspace, g_voxels, count, width, height, direction);
 }
 
+int32_t search_prepare_scene(
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t dynamic_voxel_count) {
+  EnsureInitialized();
+  return voxelbench::prepare_scene(
+      &g_workspace,
+      g_voxels,
+      count,
+      width,
+      height,
+      dynamic_voxel_count) ? 1 : 0;
+}
+
+int32_t search_prepare_quiescent_snapshot(
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  EnsureInitialized();
+  return voxelbench::prepare_quiescent_snapshot(
+      &g_workspace, g_voxels, count, width, height) ? 1 : 0;
+}
+
+int32_t search_try_passive_quiescent_turn(
+    int32_t count,
+    int32_t width,
+    int32_t height,
+    int32_t direction) {
+  EnsureInitialized();
+  return voxelbench::try_simulate_passive_quiescent_turn(
+      &g_workspace, g_voxels, count, width, height, direction);
+}
+
 int32_t search_node_capacity() {
   return voxelbench::kSearchNodeCapacity;
 }
@@ -135,6 +169,18 @@ int32_t search_generated() {
 
 int32_t search_transpositions() {
   return g_search_result.transpositions;
+}
+
+int32_t search_local_expanded() {
+  return g_search_result.local_expanded;
+}
+
+int32_t search_command_transitions() {
+  return g_search_result.command_transitions;
+}
+
+int32_t search_full_physics_transitions() {
+  return g_search_result.full_physics_transitions;
 }
 
 int32_t search_solution_length() {

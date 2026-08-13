@@ -16,6 +16,7 @@ constexpr int32_t kSearchSolutionCapacity = 4096;
 constexpr int32_t kSearchWorkspaceBytes = 24 * 1024 * 1024;
 
 struct SearchWorkspace {
+  bool initialized = false;
   alignas(8) uint8_t storage[kSearchWorkspaceBytes];
 };
 
@@ -32,6 +33,9 @@ struct SearchResult {
   int32_t expanded;
   int32_t generated;
   int32_t transpositions;
+  int32_t local_expanded;
+  int32_t command_transitions;
+  int32_t full_physics_transitions;
   int32_t solution_length;
   int32_t solution[kSearchSolutionCapacity];
 };
@@ -39,7 +43,7 @@ struct SearchResult {
 // Exact shortest-command search. This compact browser/search backend stores
 // only moving entity translations; immutable terrain and each polycube's
 // relative voxel geometry remain in one scene copy.
-// Uniform command costs make the breadth-first queue A* with h=0.
+// Uniform-cost Dijkstra is equivalent to A* with h=0 over exact command costs.
 SearchResult search_shortest(
     SearchWorkspace* search_workspace,
     PhysicsWorkspace* physics_workspace,

@@ -45,6 +45,8 @@ not complete until all native, WebAssembly, rotation, and web regression tests
 pass.
 
 `npm run benchmark:physics` builds the native benchmark with release LTO and
-the host CPU instruction set. Its `flat_single_push_ice_lane` workload includes
-cloning a six-voxel state, calling the public `simulate_turn` API, and consuming
-the result; it is not an empty engine-only loop.
+the host CPU instruction set. Its `flat_single_push_ice_lane` workload restores
+the two dynamic voxels in a prepared eight-voxel scene, calls the public
+`simulate_turn` API, and consumes the result. A second
+`prepared_passive_floor_step` workload measures the generalized player-only
+evaluator used by exact search. Neither is an empty engine-only loop.

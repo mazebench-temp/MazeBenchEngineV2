@@ -39,6 +39,13 @@ void BuildObjects(Voxel* voxels, int32_t count) {
   }
 }
 
+void ResetObjectMotion() {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_object_gravity_armed[object] = 0;
+    g_object_falling[object] = 0;
+  }
+}
+
 bool ObjectIsActive(Voxel* voxels, int32_t object, int32_t width, int32_t height) {
   const int32_t head = g_object_head[object];
   return head >= 0 && IsInsideRoom(voxels[head].x, voxels[head].y, width, height);
@@ -56,16 +63,34 @@ int32_t FindNearestVoxelBelow(
   int32_t best_z = INT32_MIN;
   if (g_dense_columns) {
     const int32_t cell = y * width + x;
-    for (int32_t index = g_column_heads[cell]; index >= 0;
-         index = g_next_column_voxel[index]) {
+    auto consider = [&](int32_t index) {
       if (index == g_ignored_support_voxel ||
-          voxels[index].role == kGoalRole) continue;
-      if (excluded_object >= 0 && g_voxel_object[index] == excluded_object) continue;
+          voxels[index].role == kGoalRole) return;
+      if (excluded_object >= 0 && g_voxel_object[index] == excluded_object) return;
       const int32_t candidate_z = voxels[index].z;
       if (candidate_z < z && candidate_z > best_z) {
         best = index;
         best_z = candidate_z;
       }
+    };
+    if (ActiveWorkspace().prepared_index_active) {
+      const int32_t dynamic_head =
+          g_dynamic_column_stamps[cell] == g_dynamic_column_generation
+          ? g_dynamic_column_heads[cell]
+          : -1;
+      for (int32_t index = dynamic_head; index >= 0;
+           index = g_next_dynamic_column_voxel[index]) {
+        consider(index);
+      }
+      for (int32_t index = g_static_column_heads[cell]; index >= 0;
+           index = g_next_static_column_voxel[index]) {
+        consider(index);
+      }
+      return best;
+    }
+    for (int32_t index = g_column_heads[cell]; index >= 0;
+         index = g_next_column_voxel[index]) {
+      consider(index);
     }
     return best;
   }
@@ -97,17 +122,36 @@ int32_t FindNearestVoxelBelowComponent(
   int32_t best = -1;
   int32_t best_z = INT32_MIN;
   if (g_dense_columns) {
-    for (int32_t index = g_column_heads[y * width + x]; index >= 0;
-         index = g_next_column_voxel[index]) {
+    const int32_t cell = y * width + x;
+    auto consider = [&](int32_t index) {
       if (index == g_ignored_support_voxel ||
-          voxels[index].role == kGoalRole) continue;
+          voxels[index].role == kGoalRole) return;
       const int32_t object = g_voxel_object[index];
-      if (object >= 0 && g_component_objects[object] != 0) continue;
+      if (object >= 0 && g_component_objects[object] != 0) return;
       const int32_t candidate_z = voxels[index].z;
       if (candidate_z < z && candidate_z > best_z) {
         best = index;
         best_z = candidate_z;
       }
+    };
+    if (ActiveWorkspace().prepared_index_active) {
+      const int32_t dynamic_head =
+          g_dynamic_column_stamps[cell] == g_dynamic_column_generation
+          ? g_dynamic_column_heads[cell]
+          : -1;
+      for (int32_t index = dynamic_head; index >= 0;
+           index = g_next_dynamic_column_voxel[index]) {
+        consider(index);
+      }
+      for (int32_t index = g_static_column_heads[cell]; index >= 0;
+           index = g_next_static_column_voxel[index]) {
+        consider(index);
+      }
+      return best;
+    }
+    for (int32_t index = g_column_heads[cell]; index >= 0;
+         index = g_next_column_voxel[index]) {
+      consider(index);
     }
     return best;
   }
