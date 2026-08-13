@@ -351,6 +351,53 @@ function seedWallTerrain(
     voxels.push({ ...cell, z: 1, blockId: wall.id });
     placed += 1;
   }
+
+  // Seed a few genuinely 3D columns whenever the selected volume permits it.
+  // The amount stays sparse, but taller limits now provide visible vertical
+  // terrain for evolution to extend instead of beginning as a flat wall mask.
+  if (configuration.layers > 1) {
+    const verticalTarget = integer(
+      random,
+      1,
+      Math.max(1, Math.floor(maximumInternalWalls * Math.min(
+        1, (configuration.layers - 1) / 4,
+      ))),
+    );
+    const wallIds = new Set(wallBlocks.map((block) => block.id));
+    for (let growth = 0; growth < verticalTarget; growth += 1) {
+      if (!growWallUpward(
+        voxels, wallIds, configuration, random, blockRoles,
+      )) break;
+    }
+  }
+}
+
+function growWallUpward(
+  voxels,
+  wallIds,
+  configuration,
+  random,
+  blockRoles,
+) {
+  const candidates = voxels.filter((voxel) => wallIds.has(voxel.blockId) &&
+    voxel.z >= 1 && voxel.z < configuration.layers &&
+    !rigidVoxelAt(voxels, voxel.x, voxel.y, voxel.z + 1, blockRoles));
+  if (!candidates.length) return false;
+  const highestZ = Math.max(...candidates.map((voxel) => voxel.z));
+  // Usually continue an existing tall column, but sometimes begin another.
+  // This lets a Row-20 volume actually explore Row 20 without making every
+  // wall column equally tall.
+  const pool = random() < 0.65
+    ? candidates.filter((voxel) => voxel.z === highestZ)
+    : candidates;
+  const origin = choose(random, pool);
+  voxels.push({
+    x: origin.x,
+    y: origin.y,
+    z: origin.z + 1,
+    blockId: origin.blockId,
+  });
+  return true;
 }
 
 function mutateWallTerrain(
@@ -362,7 +409,8 @@ function mutateWallTerrain(
   floorBlock,
 ) {
   const wallIds = new Set(wallBlocks.map((block) => block.id));
-  if (random() < 0.82) {
+  const operation = random();
+  if (operation < 0.65) {
     // MBE3 treats walls as one terrain entity and toggles sparse interior
     // cells instead of growing every disconnected wall as its own blob.
     for (let attempt = 0; attempt < 24; attempt += 1) {
@@ -387,9 +435,13 @@ function mutateWallTerrain(
     return false;
   }
 
-  // A smaller share of wall mutations remains fully 3D. This preserves the
-  // requested ability to build upward without turning the initial room into
-  // one enormous wall mass.
+  if (operation < 0.9 && growWallUpward(
+    voxels, wallIds, configuration, random, blockRoles,
+  )) return true;
+
+  // The remaining share can still grow sideways/downward or shrink a
+  // connected cluster, preserving full polycube editing rather than columns
+  // being the only possible wall shape.
   const clusters = exactBlockClusters(voxels, wallIds);
   if (!clusters.length) return false;
   const members = choose(random, clusters);
@@ -1320,6 +1372,12 @@ function mutateCandidate(candidate, configuration, random) {
     next.voxels = next.voxels.filter((voxel) =>
       voxel.blockId !== floorBlock.id || voxel.z === 0);
   }
+  if (next.voxels.some((voxel) =>
+    voxel.x < 0 || voxel.x >= configuration.width ||
+    voxel.y < 0 || voxel.y >= configuration.depth ||
+    voxel.z < 0 || voxel.z > configuration.layers)) {
+    return cloneCandidate(candidate);
+  }
   if (!dynamicsAreSettled(next.voxels, configuration, blockRoles, pushableBlocks)) {
     return cloneCandidate(candidate);
   }
@@ -1601,6 +1659,7 @@ async function evolve(configuration) {
       return;
     }
     const scoredByIndex = new Array(population.length).fill(null);
+    const generationStartedAt = performance.now();
     let generationImproved = false;
     let processed = 0;
     const reportProgress = () => {
@@ -1622,6 +1681,18 @@ async function evolve(configuration) {
         uniqueCandidates: evaluationCache.size,
         stagnation,
         evaluatorCount: evaluationPool.concurrency,
+        elapsedMs: performance.now() - evolutionStartedAt,
+        generationElapsedMs: performance.now() - generationStartedAt,
+      });
+    };
+    const finishGeneration = () => {
+      const completedAt = performance.now();
+      self.postMessage({
+        type: "generation",
+        generation,
+        solutionLength: best?.optimal ? best.moves : 0,
+        durationMs: completedAt - generationStartedAt,
+        elapsedMs: completedAt - evolutionStartedAt,
       });
     };
     const record = (index, result) => {
@@ -1665,14 +1736,9 @@ async function evolve(configuration) {
       self.postMessage({ type: "best", candidate: best, generation, evaluated });
     }
     stagnation = generationImproved ? 0 : stagnation + 1;
-    self.postMessage({
-      type: "generation",
-      generation,
-      solutionLength: best?.optimal ? best.moves : 0,
-    });
-    reportProgress();
     scored.sort((left, right) => better(left, right) ? -1 : better(right, left) ? 1 : 0);
     if (best?.optimal && best.moves >= Math.max(1, configuration.targetMoves ?? 500)) {
+      finishGeneration();
       break;
     }
     const eliteCount = Math.max(2, Math.min(scored.length, Math.ceil(populationSize * 0.1)));
@@ -1734,6 +1800,7 @@ async function evolve(configuration) {
       next.push(immigrant);
     }
     population = next;
+    finishGeneration();
   }
 
   evaluationPool.close();
@@ -1752,6 +1819,8 @@ async function evolve(configuration) {
     cacheHits,
     uniqueCandidates: evaluationCache.size,
     stagnation,
+    elapsedMs: performance.now() - evolutionStartedAt,
+    generationElapsedMs: 0,
   });
 }
 
@@ -1792,6 +1861,7 @@ export {
   candidateSignature,
   exactBlockClusters,
   growGenericBox,
+  growWallUpward,
   makeCandidate,
   mulberry32,
   mutateCandidate,

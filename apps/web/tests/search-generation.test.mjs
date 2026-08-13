@@ -6,8 +6,10 @@ import {
   candidateSignature,
   exactBlockClusters,
   growGenericBox,
+  growWallUpward,
   makeCandidate,
   mulberry32,
+  mutateCandidate,
   relocateObjectives,
   reverseScrambleCandidate,
   shrinkGenericBox,
@@ -289,16 +291,69 @@ test("reverse scrambling pulls boxes away from a solved classic-room state", () 
 });
 
 test("one row above the floor never generates Row-2 voxels", () => {
-  const candidate = makeCandidate({
+  const oneRowConfiguration = {
     ...configuration,
     layers: 1,
     terrainDensity: 70,
     minWeightlessBoxes: 4,
     maxWeightlessBoxes: 4,
     seed: 31,
-  }, mulberry32(31));
+  };
+  let candidate = makeCandidate(oneRowConfiguration, mulberry32(31));
   assert.ok(candidate.voxels.every((voxel) => voxel.z <= 1));
   assert.ok(candidate.voxels.some((voxel) => voxel.z === 1));
+  const random = mulberry32(32);
+  for (let mutation = 0; mutation < 300; mutation += 1) {
+    candidate = mutateCandidate(candidate, oneRowConfiguration, random);
+    assert.ok(candidate.voxels.every((voxel) => voxel.z <= 1));
+  }
+});
+
+test("initial walls grow upward while respecting the selected Row-20 ceiling", () => {
+  const wallsOnlyBlocks = blocks.filter((block) =>
+    ["floor", "wall", "player", "gem"].includes(block.id));
+  const tallConfiguration = {
+    ...configuration,
+    layers: 20,
+    terrainDensity: 70,
+    minWeightlessBoxes: 0,
+    maxWeightlessBoxes: 0,
+    evolveHoles: false,
+    blocks: wallsOnlyBlocks,
+    enabledBlockIds: wallsOnlyBlocks.map((block) => block.id),
+    seed: 781,
+  };
+  let candidate = makeCandidate(tallConfiguration, mulberry32(781));
+  const initialWalls = candidate.voxels.filter((voxel) => voxel.blockId === "wall");
+  assert.ok(initialWalls.some((voxel) => voxel.z > 1));
+  assert.ok(initialWalls.every((voxel) => voxel.z <= 20));
+
+  const random = mulberry32(782);
+  for (let mutation = 0; mutation < 500; mutation += 1) {
+    candidate = mutateCandidate(candidate, tallConfiguration, random);
+    assert.ok(candidate.voxels.every((voxel) => voxel.z >= 0 && voxel.z <= 20));
+  }
+});
+
+test("explicit upward wall growth may paint Row 20 but never Row 21", () => {
+  const wall = { x: 3, y: 3, z: 19, blockId: "wall" };
+  const voxels = [wall];
+  const blockRoles = new Map(blocks.map((block) => [block.id, block.roleId]));
+  assert.equal(growWallUpward(
+    voxels,
+    new Set(["wall"]),
+    { ...configuration, layers: 20 },
+    () => 0,
+    blockRoles,
+  ), true);
+  assert.ok(voxels.some((voxel) => voxel.z === 20));
+  assert.equal(growWallUpward(
+    voxels.filter((voxel) => voxel.z === 20),
+    new Set(["wall"]),
+    { ...configuration, layers: 20 },
+    () => 0,
+    blockRoles,
+  ), false);
 });
 
 test("initial terrain can occupy every horizontal perimeter", () => {

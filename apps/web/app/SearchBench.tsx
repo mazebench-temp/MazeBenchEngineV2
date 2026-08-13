@@ -64,6 +64,8 @@ type SearchProgress = {
   evaluatorCount: number;
   generation: number;
   generations: number;
+  elapsedMs: number;
+  generationElapsedMs: number;
   nodesPerSecond: number;
   solverNodesPerSecond: number;
   solvesPerSecond: number;
@@ -90,6 +92,12 @@ type SearchOptions = {
 type SolutionLengthPoint = {
   generation: number;
   length: number;
+};
+
+type GenerationTimingPoint = {
+  generation: number;
+  durationMs: number;
+  elapsedMs: number;
 };
 
 const DEFAULT_OPTIONS: SearchOptions = {
@@ -125,6 +133,23 @@ function formatRate(value: number) {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
   return String(Math.round(value));
+}
+
+function formatClock(milliseconds: number) {
+  const tenths = Math.max(0, Math.floor(milliseconds / 100));
+  const hours = Math.floor(tenths / 36000);
+  const minutes = Math.floor((tenths % 36000) / 600);
+  const seconds = Math.floor((tenths % 600) / 10);
+  const decimal = tenths % 10;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${decimal}`
+    : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${decimal}`;
+}
+
+function formatGenerationDuration(milliseconds: number) {
+  return milliseconds < 1000
+    ? `${Math.max(0, Math.round(milliseconds))}ms`
+    : formatClock(milliseconds);
 }
 
 function normalizeDirection(value: unknown): SearchDirection | null {
@@ -263,6 +288,73 @@ function SolutionLengthChart({
   );
 }
 
+function GenerationTimeChart({
+  history,
+  running,
+  activeGeneration,
+  activeDurationMs,
+}: {
+  history: GenerationTimingPoint[];
+  running: boolean;
+  activeGeneration: number;
+  activeDurationMs: number;
+}) {
+  const width = 640;
+  const height = 128;
+  const left = 42;
+  const right = 12;
+  const top = 10;
+  const bottom = 22;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const completedGeneration = history.at(-1)?.generation ?? 0;
+  const hasActivePoint = running && activeGeneration > completedGeneration;
+  const points = hasActivePoint
+    ? [...history, {
+      generation: activeGeneration,
+      durationMs: activeDurationMs,
+      elapsedMs: 0,
+    }]
+    : history;
+  const lastGeneration = Math.max(1, points.at(-1)?.generation ?? 1);
+  const maximumDuration = Math.max(1, ...points.map((point) => point.durationMs));
+  const coordinate = (point: GenerationTimingPoint) => ({
+    x: left + (lastGeneration === 1
+      ? 0
+      : ((point.generation - 1) / (lastGeneration - 1)) * plotWidth),
+    y: top + plotHeight - (point.durationMs / maximumDuration) * plotHeight,
+  });
+  const line = points.map(coordinate).map(({ x, y }) => `${x},${y}`).join(" ");
+  const latestDuration = hasActivePoint
+    ? activeDurationMs
+    : history.at(-1)?.durationMs ?? 0;
+
+  return (
+    <section className="solution-length-chart generation-time-chart" aria-label="Generation wall time history">
+      <header>
+        <div><span>GENERATION CLOCK</span><strong>Wall time per generation</strong></div>
+        <em>{points.length ? formatGenerationDuration(latestDuration) : "No run yet"}</em>
+      </header>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={points.length
+        ? `${lastGeneration} generations timed; latest generation took ${formatGenerationDuration(latestDuration)}`
+        : "No generation timing recorded"} preserveAspectRatio="none">
+        {[0, 0.5, 1].map((ratio) => {
+          const y = top + plotHeight * ratio;
+          const value = maximumDuration * (1 - ratio);
+          return <g key={ratio}><line className="chart-grid-line" x1={left} y1={y} x2={width - right} y2={y} /><text className="chart-axis-label" x={left - 7} y={y + 3} textAnchor="end">{value < 1000 ? `${Math.round(value)}ms` : `${(value / 1000).toFixed(value < 10000 ? 1 : 0)}s`}</text></g>;
+        })}
+        <text className="chart-axis-label" x={left} y={height - 5}>GEN 1</text>
+        <text className="chart-axis-label" x={width - right} y={height - 5} textAnchor="end">GEN {lastGeneration}</text>
+        {points.length > 1 && <polyline className="generation-time-line" points={line} />}
+        {points.map((point) => {
+          const { x, y } = coordinate(point);
+          return <circle className={point.generation > completedGeneration ? "generation-time-point active" : "generation-time-point"} key={point.generation} cx={x} cy={y} r={point.generation === lastGeneration ? 3.2 : 1.8}><title>{`Generation ${point.generation}: ${formatGenerationDuration(point.durationMs)}`}</title></circle>;
+        })}
+      </svg>
+    </section>
+  );
+}
+
 export default function SearchBench({
   blocks,
   roles,
@@ -280,6 +372,8 @@ export default function SearchBench({
     evaluatorCount: 0,
     generation: 0,
     generations: DEFAULT_OPTIONS.generations,
+    elapsedMs: 0,
+    generationElapsedMs: 0,
     nodesPerSecond: 0,
     solverNodesPerSecond: 0,
     solvesPerSecond: 0,
@@ -288,6 +382,10 @@ export default function SearchBench({
   });
   const [best, setBest] = useState<SearchLevel | null>(null);
   const [solutionLengthHistory, setSolutionLengthHistory] = useState<SolutionLengthPoint[]>([]);
+  const [generationTimingHistory, setGenerationTimingHistory] = useState<GenerationTimingPoint[]>([]);
+  const [clockNow, setClockNow] = useState(() => Date.now());
+  const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
   const [selectedSavedId, setSelectedSavedId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"inspect" | "solution" | "play">("inspect");
   const [solutionFrames, setSolutionFrames] = useState<Array<{ voxels: SearchVoxel[] }>>([]);
@@ -298,6 +396,8 @@ export default function SearchBench({
   const [playMoves, setPlayMoves] = useState(0);
   const [playBusy, setPlayBusy] = useState(false);
   const workerRef = useRef<Worker | null>(null);
+  const runStartedAtRef = useRef<number | null>(null);
+  const generationStartedAtRef = useRef<number | null>(null);
 
   const genericRoleIds = useMemo(
     () => new Set(roles.filter((role) => role.generic).map((role) => role.id)),
@@ -321,8 +421,20 @@ export default function SearchBench({
     height: options.depth,
     floorLayer: 0 as const,
   };
+  const elapsedClockMs = running && runStartedAt !== null
+    ? clockNow - runStartedAt
+    : progress.elapsedMs;
+  const generationClockMs = running && generationStartedAt !== null
+    ? clockNow - generationStartedAt
+    : progress.generationElapsedMs;
 
   useEffect(() => () => workerRef.current?.terminate(), []);
+
+  useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setClockNow(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
   useEffect(() => {
     // A newly selected/generated level owns a fresh trace and play session.
@@ -393,6 +505,20 @@ export default function SearchBench({
   const stopSearch = useCallback(() => {
     workerRef.current?.terminate();
     workerRef.current = null;
+    const stoppedAt = Date.now();
+    setProgress((current) => ({
+      ...current,
+      elapsedMs: runStartedAtRef.current === null
+        ? current.elapsedMs
+        : stoppedAt - runStartedAtRef.current,
+      generationElapsedMs: generationStartedAtRef.current === null
+        ? current.generationElapsedMs
+        : stoppedAt - generationStartedAtRef.current,
+    }));
+    runStartedAtRef.current = null;
+    generationStartedAtRef.current = null;
+    setRunStartedAt(null);
+    setGenerationStartedAt(null);
     setRunning(false);
     onStatus("Evolution stopped · current best retained");
   }, [onStatus]);
@@ -419,8 +545,15 @@ export default function SearchBench({
     const worker = new Worker("/search-worker.js", { type: "module" });
     workerRef.current = worker;
     setRunning(true);
+    const startedAt = Date.now();
+    runStartedAtRef.current = startedAt;
+    generationStartedAtRef.current = startedAt;
+    setRunStartedAt(startedAt);
+    setGenerationStartedAt(startedAt);
+    setClockNow(startedAt);
     setBest(null);
     setSolutionLengthHistory([]);
+    setGenerationTimingHistory([]);
     setSelectedSavedId(null);
     setProgress({
       bestMoves: 0,
@@ -429,6 +562,8 @@ export default function SearchBench({
       evaluatorCount: 0,
       generation: 0,
       generations: options.generations,
+      elapsedMs: 0,
+      generationElapsedMs: 0,
       nodesPerSecond: 0,
       solverNodesPerSecond: 0,
       solvesPerSecond: 0,
@@ -444,6 +579,13 @@ export default function SearchBench({
           ? `New proven record · ${message.candidate.moves} commands at generation ${message.generation}`
           : `New search-effort record · ${message.candidate.expanded} nodes explored`);
       } else if (message?.type === "progress") {
+        const receivedAt = Date.now();
+        runStartedAtRef.current = receivedAt - Math.max(0, Number(message.elapsedMs) || 0);
+        generationStartedAtRef.current = receivedAt - Math.max(
+          0, Number(message.generationElapsedMs) || 0,
+        );
+        setRunStartedAt(runStartedAtRef.current);
+        setGenerationStartedAt(generationStartedAtRef.current);
         setProgress(message as SearchProgress);
       } else if (message?.type === "generation") {
         const point = {
@@ -458,6 +600,27 @@ export default function SearchBench({
           }
           return [...current, point];
         });
+        const timingPoint = {
+          generation: finiteInteger(message.generation, 0),
+          durationMs: Math.max(0, Number(message.durationMs) || 0),
+          elapsedMs: Math.max(0, Number(message.elapsedMs) || 0),
+        };
+        setGenerationTimingHistory((current) => {
+          if (timingPoint.generation <= 0) return current;
+          const previous = current.at(-1);
+          if (previous?.generation === timingPoint.generation) {
+            return [...current.slice(0, -1), timingPoint];
+          }
+          return [...current, timingPoint];
+        });
+        setProgress((current) => ({
+          ...current,
+          generation: Math.min(current.generations, timingPoint.generation + 1),
+          elapsedMs: timingPoint.elapsedMs,
+          generationElapsedMs: 0,
+        }));
+        generationStartedAtRef.current = Date.now();
+        setGenerationStartedAt(generationStartedAtRef.current);
       } else if (message?.type === "done") {
         if (message.candidate) setBest(message.candidate as SearchLevel);
         setProgress((current) => ({
@@ -466,19 +629,32 @@ export default function SearchBench({
           generation: current.generation,
           generations: current.generations,
           evaluatorCount: current.evaluatorCount,
+          generationElapsedMs: current.generationElapsedMs,
         }));
+        runStartedAtRef.current = null;
+        generationStartedAtRef.current = null;
+        setRunStartedAt(null);
+        setGenerationStartedAt(null);
         setRunning(false);
         workerRef.current = null;
         onStatus(message.candidate?.optimal
           ? `Evolution complete · best proven puzzle is ${message.candidate.moves} commands`
           : "Evolution complete · no proven solution found within the selected limits");
       } else if (message?.type === "error") {
+        runStartedAtRef.current = null;
+        generationStartedAtRef.current = null;
+        setRunStartedAt(null);
+        setGenerationStartedAt(null);
         setRunning(false);
         workerRef.current = null;
         onStatus(message.message ?? "Search worker failed");
       }
     };
     worker.onerror = (event) => {
+      runStartedAtRef.current = null;
+      generationStartedAtRef.current = null;
+      setRunStartedAt(null);
+      setGenerationStartedAt(null);
       setRunning(false);
       workerRef.current = null;
       onStatus(event.message || "Search worker crashed");
@@ -674,9 +850,18 @@ export default function SearchBench({
           <article><span>Solution length</span><strong>{activeLevel?.optimal ? activeLevel.moves : progress.bestMoves || "—"}<small> commands</small></strong></article>
           <article><span>C++ solver</span><strong>{formatRate(progress.solverNodesPerSecond || activeLevel?.nodesPerSecond || 0)}<small> nodes/sec · average per worker</small></strong></article>
           <article><span>End-to-end</span><strong>{formatRate(progress.nodesPerSecond)}<small> nodes/sec · {Math.max(1, progress.evaluatorCount)} workers + evolution</small></strong></article>
+          <article className={running ? "search-clock active" : "search-clock"}><span>Run clock</span><strong>{formatClock(elapsedClockMs)}<small>{running ? `● ACTIVE · Gen ${Math.max(1, progress.generation)} · ${formatGenerationDuration(generationClockMs)}` : progress.generation ? `Complete · ${progress.generation} generations` : "Not running"}</small></strong></article>
         </div>
 
-        <SolutionLengthChart history={solutionLengthHistory} running={running} />
+        <div className="search-trace-charts">
+          <SolutionLengthChart history={solutionLengthHistory} running={running} />
+          <GenerationTimeChart
+            history={generationTimingHistory}
+            running={running}
+            activeGeneration={Math.max(1, progress.generation)}
+            activeDurationMs={generationClockMs}
+          />
+        </div>
 
         <section className="search-stage">
           <div className="search-stage-toolbar">
