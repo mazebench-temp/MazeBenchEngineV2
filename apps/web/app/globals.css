@@ -274,7 +274,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .timeline-review__heading > div:first-child { align-items: flex-start; flex-direction: column; gap: 2px; }
 .timeline-review__heading span { color: var(--green); font: 700 7px var(--font-mono); letter-spacing: .16em; }
 .timeline-review__heading strong { font: 700 11px var(--font-display); letter-spacing: .05em; text-transform: uppercase; }
-.timeline-review__strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px; }
+.timeline-review__strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px; position: relative; }
+.timeline-review__capture { height: 148px; left: 0; opacity: 0; pointer-events: none; position: absolute; top: 0; width: 160px; z-index: -1; }
 .timeline-review__card { background: rgba(12,18,31,.9); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--text); flex: 0 0 160px; margin: 0; overflow: hidden; padding: 0; }
 .timeline-review__card.cycle-span { border-bottom: 4px solid #47ef9b; box-shadow: 0 4px 11px rgba(71,239,155,.18); }
 .timeline-review__card.cycle-start small::after { color: #47ef9b; content: "  ↻ LOOP START"; }

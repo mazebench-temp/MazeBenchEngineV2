@@ -202,6 +202,7 @@ type CanvasProps = {
   paintable?: boolean;
   compact?: boolean;
   onSnapshot?: (dataUrl: string) => void;
+  snapshotRequestId?: number | string;
   onPaint?: (x: number, y: number, z: number, blockId: string | null) => void;
   onPaintGestureEnd?: () => void;
   onPaintGestureStart?: () => void;
@@ -443,6 +444,7 @@ export default function MazeBenchCanvas({
   paintable = true,
   compact = false,
   onSnapshot,
+  snapshotRequestId,
   onPaint,
   onPaintGestureEnd,
   onPaintGestureStart,
@@ -738,6 +740,7 @@ export default function MazeBenchCanvas({
   useEffect(() => {
     const next = frameToPlayData(frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys);
     currentDataRef.current = next;
+    if (onSnapshotRef.current) snapshotCapturedRef.current = false;
     const runtime = runtimeRef.current;
     if (!runtime) return;
     runtime.layerOffset = next.layerOffset;
@@ -753,8 +756,9 @@ export default function MazeBenchCanvas({
       app.threeRenderer?.invalidateSceneCache();
       app.render();
       if (canvasRef.current) publishRendererState(app, canvasRef.current);
+      if (canvasRef.current) captureSnapshot(app, canvasRef.current);
     });
-  }, [blocks, compact, frame, genericBlockIds, selectedVoxelKeys, world]);
+  }, [blocks, captureSnapshot, compact, frame, genericBlockIds, selectedVoxelKeys, snapshotRequestId, world]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;

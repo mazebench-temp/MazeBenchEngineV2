@@ -859,6 +859,20 @@ function TimelineSnapshotStrip({
 
   return (
     <div className="timeline-review__strip">
+      {capture && (
+        <div className="timeline-review__capture" aria-hidden="true">
+          <MazeBenchCanvas
+            frame={capture.frame}
+            blocks={blocks}
+            genericBlockIds={genericBlockIds}
+            world={world}
+            layer={layer}
+            compact
+            onSnapshot={acceptSnapshot}
+            snapshotRequestId={captureIndex}
+          />
+        </div>
+      )}
       {items.map((item, index) => (
         <article className={`timeline-review__card ${tickIsInCycle(cycle, index) ? "cycle-span" : ""} ${cycle?.startTick === index ? "cycle-start" : ""} ${cycle?.repeatTick === index ? "cycle-repeat" : ""}`} key={`${item.label}-${index}`}>
           <small>{item.label}</small>
@@ -867,17 +881,6 @@ function TimelineSnapshotStrip({
             // WebGL capture; an image optimizer cannot improve this source.
             // eslint-disable-next-line @next/next/no-img-element
             <img alt={`${item.label.toLowerCase()} voxel preview`} draggable={false} src={snapshots[index]} />
-          ) : captureIndex === index && capture ? (
-            <MazeBenchCanvas
-              key={`capture-${index}`}
-              frame={capture.frame}
-              blocks={blocks}
-              genericBlockIds={genericBlockIds}
-              world={world}
-              layer={layer}
-              compact
-              onSnapshot={acceptSnapshot}
-            />
           ) : (
             <span className={`timeline-review__snapshot-status ${snapshots[index] === "" ? "failed" : ""}`}>
               {snapshots[index] === "" ? "Preview unavailable" : "Rendering…"}
