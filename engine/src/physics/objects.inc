@@ -24,6 +24,13 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       AddVoxelToObject(index, CreateObject(kNormalObject));
       continue;
     }
+    if (voxels[index].role == kPlayerLiftRole) {
+      // A lift is an independently stateful fixture, but it is still a body:
+      // when a moving polycube carries it, it translates and falls with that
+      // support. It is not directly player-pushable.
+      AddVoxelToObject(index, CreateObject(kMechanismObject));
+      continue;
+    }
     if (voxels[index].role != kWeightlessPushableRole) continue;
 
     const uint64_t object_key =
@@ -462,7 +469,8 @@ int32_t BuildVerticalComponent(
         if (neighbor < 0) continue;
         const int32_t other = g_voxel_object[neighbor];
         if (other >= 0 && other != object &&
-            g_object_kind[other] == kWeightlessObject &&
+            (g_object_kind[other] == kWeightlessObject ||
+             g_object_kind[other] == kMechanismObject) &&
             g_component_objects[other] == 0) {
           g_component_objects[other] = 1;
           g_object_queue[queue_end++] = other;
@@ -473,6 +481,16 @@ int32_t BuildVerticalComponent(
   return queue_end;
 }
 
+bool ComponentContainsMechanism() {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_component_objects[object] != 0 &&
+        g_object_kind[object] == kMechanismObject) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool SettleSupportComponent(
     Voxel* voxels,
     int32_t count,
@@ -480,7 +498,8 @@ bool SettleSupportComponent(
     int32_t width,
     int32_t height) {
   if (BuildVerticalComponent(voxels, first_object, width, height) <= 1 ||
-      !ComponentContainsSupportCycle(voxels, width, height)) {
+      (!ComponentContainsMechanism() &&
+       !ComponentContainsSupportCycle(voxels, width, height))) {
     return false;
   }
 
@@ -507,7 +526,28 @@ bool SettleSupportComponent(
       const int32_t object_highest = ObjectHighestZ(voxels, object);
       if (object_highest > highest) highest = object_highest;
     }
-    const bool disappears = highest < LowestOtherActiveZ(
+    const bool mechanism_component = ComponentContainsMechanism();
+    int32_t effective_highest_after_drop = highest - 1;
+    if (mechanism_component) {
+      for (int32_t object = 0; object < g_object_count; ++object) {
+        if (g_component_objects[object] == 0 ||
+            g_object_kind[object] != kMechanismObject) {
+          continue;
+        }
+        for (int32_t member = g_object_head[object]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          const int32_t state_height = voxels[member].generic_id > 0 ? 1 : 0;
+          const int32_t top_after_drop = voxels[member].z - 1 + state_height;
+          if (top_after_drop > effective_highest_after_drop) {
+            effective_highest_after_drop = top_after_drop;
+          }
+        }
+      }
+    }
+    const int32_t comparison_height = mechanism_component
+        ? effective_highest_after_drop
+        : highest;
+    const bool disappears = comparison_height < LowestOtherActiveZ(
         voxels, count, width, height, -1, -1, true, true);
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
@@ -548,8 +588,10 @@ void SettleFlaggedObjects(
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_moving_objects[object] == 0 ||
           g_fell_objects[object] != 0 ||
-          g_weightless_object_count <= 1 ||
-          g_object_kind[object] != kWeightlessObject ||
+          (g_object_kind[object] != kWeightlessObject &&
+           g_object_kind[object] != kMechanismObject) ||
+          (g_weightless_object_count <= 1 &&
+           g_object_kind[object] != kMechanismObject) ||
           !ObjectIsActive(voxels, object, width, height)) {
         continue;
       }

@@ -4844,6 +4844,22 @@
       return Math.max(0.75, unit * 0.012);
     }
 
+    function normalizePlayerLiftOrientation(value) {
+      const orientation = String(value || "top").toLowerCase();
+      if (orientation === "front") return "north";
+      if (orientation === "right") return "east";
+      if (orientation === "back") return "south";
+      if (orientation === "left") return "west";
+      return ["north", "east", "south", "west"].includes(orientation)
+        ? orientation
+        : "top";
+    }
+
+    function isSidePlayerLiftLayer(layer) {
+      return layer?.type === "player_lift" &&
+        normalizePlayerLiftOrientation(layer.direction) !== "top";
+    }
+
     function isGridFloorDescriptor(descriptor) {
       return (
         descriptor.terrainHeight === 0 &&
@@ -5723,6 +5739,9 @@
       }
 
       if (layer.type === "player_lift") {
+        if (isSidePlayerLiftLayer(layer)) {
+          return elevation + 1;
+        }
         return elevation + (isLiveState ? app.playerLiftAt(x, y, now) : layer.raised === true ? 1 : 0);
       }
 
@@ -5976,6 +5995,113 @@
       scene.add(triangle);
     }
 
+    function sidePlayerLiftTriangleGeometry(direction) {
+      const key = `side-player-lift-triangle:${direction}`;
+
+      if (geometryCache.has(key)) {
+        return geometryCache.get(key);
+      }
+
+      const pointY = direction > 0 ? unit * 0.22 : -unit * 0.22;
+      const baseY = direction > 0 ? -unit * 0.16 : unit * 0.16;
+      const halfWidth = unit * 0.17;
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+          direction > 0
+            ? [0, pointY, 0, halfWidth, baseY, 0, -halfWidth, baseY, 0]
+            : [0, pointY, 0, -halfWidth, baseY, 0, halfWidth, baseY, 0],
+          3
+        )
+      );
+      geometry.computeVertexNormals();
+      cacheGeometry(key, geometry);
+      return geometry;
+    }
+
+    function addSidePlayerLiftTriangle(center, centerY, orientation, direction, opacity) {
+      const markerOpacity = clamp01(opacity);
+      if (markerOpacity <= 0.015) return;
+
+      const triangle = new THREE.Mesh(
+        sidePlayerLiftTriangleGeometry(direction),
+        material("#050608", markerOpacity, { doubleSide: true })
+      );
+      const bias = Math.max(0.75, unit * 0.012);
+      triangle.position.set(center.x, centerY, center.z);
+      if (orientation === "north") {
+        triangle.position.z -= unit / 2 + bias;
+        triangle.rotation.y = Math.PI;
+      } else if (orientation === "east") {
+        triangle.position.x += unit / 2 + bias;
+        triangle.rotation.y = Math.PI / 2;
+      } else if (orientation === "south") {
+        triangle.position.z += unit / 2 + bias;
+      } else {
+        triangle.position.x -= unit / 2 + bias;
+        triangle.rotation.y = -Math.PI / 2;
+      }
+      triangle.castShadow = false;
+      triangle.receiveShadow = false;
+      scene.add(triangle);
+    }
+
+    function addSidePlayerLiftCell(cell, descriptor, visibility, now) {
+      const orientation = normalizePlayerLiftOrientation(descriptor.layer?.direction);
+      const lift = clamp01(renderTerrainLayerLiftValue(
+        descriptor.layer, cell.gridX, cell.gridY, now));
+      const thickness = playerLiftPlateThickness();
+      const extension = thickness + (unit - thickness) * lift;
+      const center = cellCenter(cell.gridX, cell.gridY);
+      let width = unit;
+      let depth = unit;
+      let x = center.x;
+      let z = center.z;
+      if (orientation === "north") {
+        depth = extension;
+        z -= (unit - extension) / 2;
+      } else if (orientation === "east") {
+        width = extension;
+        x += (unit - extension) / 2;
+      } else if (orientation === "south") {
+        depth = extension;
+        z += (unit - extension) / 2;
+      } else {
+        width = extension;
+        x -= (unit - extension) / 2;
+      }
+      const editorPick = {
+        kind: "terrain",
+        cells: [{
+          gridX: cell.gridX,
+          gridY: cell.gridY,
+          left: cell.left + renderOffsetX(),
+          right: cell.right + renderOffsetX(),
+          top: cell.top + renderOffsetZ(),
+          bottom: cell.bottom + renderOffsetZ()
+        }],
+        topY: descriptor.topY,
+        bottomY: descriptor.bottomY,
+        sourceLayer: descriptor.elevation ?? 0
+      };
+      addOutlinedMesh(
+        boxGeometry(width, descriptor.blockHeight, depth),
+        terrainColor(descriptor.type, descriptor),
+        { x, y: descriptor.bottomY + descriptor.blockHeight / 2, z },
+        {
+          castShadow: renderContextCastsShadows(),
+          edgeThreshold: 18,
+          opacity: visibility,
+          receiveShadow: true,
+          editorPick
+        }
+      );
+      const centerY = descriptor.bottomY + descriptor.blockHeight / 2;
+      addSidePlayerLiftTriangle(center, centerY, orientation, -1, visibility * (1 - lift));
+      addSidePlayerLiftTriangle(center, centerY, orientation, 1, visibility * lift);
+    }
+
     function orangeButtonHeight() {
       return Math.max(4, elevationUnit * 0.12);
     }
@@ -6081,6 +6207,7 @@
       const center = cellCenter(x, y);
 
       if (layer.type === "player_lift") {
+        if (isSidePlayerLiftLayer(layer)) return;
         const lift = clamp01(renderTerrainLayerLiftValue(layer, x, y, now));
 
         addPlayerLiftTriangle(center, topY, -1, visibility * (1 - lift));
@@ -6239,6 +6366,23 @@
       const type = layer.type || "floor";
       const topHeight = Math.max(0, terrainHeight) * elevationUnit;
       const baseHeight = Math.max(0, elevation) * elevationUnit;
+      if (isSidePlayerLiftLayer(layer)) {
+        const descriptor = {
+          blockHeight: elevationUnit,
+          bottomY: baseHeight,
+          elevation,
+          isLoweredPlayerLift: false,
+          isSidePlayerLift: true,
+          isVoid: false,
+          layer,
+          terrainHeight: elevation + 1,
+          isSunkenFloor: false,
+          topY: baseHeight + elevationUnit,
+          type
+        };
+        descriptor.key = terrainPieceDescriptorKey(descriptor, x, y);
+        return descriptor;
+      }
       const isOrangeWall = type === "orange_wall";
       const isOrangeIceSlope = type === "orange_ice_slope";
       const isOrangeTerrain = isOrangeWall || isOrangeIceSlope;
@@ -7301,6 +7445,11 @@
         !descriptor.isLoweredOrangeSurface
       ) {
         cells.forEach((cell) => addIceSlopeCell(cell, descriptor, visibility, now));
+        return;
+      }
+
+      if (descriptor.isSidePlayerLift) {
+        cells.forEach((cell) => addSidePlayerLiftCell(cell, descriptor, visibility, now));
         return;
       }
 

@@ -1066,6 +1066,61 @@ void TestPlayerEnteringRaisedLiftLowersAndRides() {
         "entering a raised lift should store its lowered state");
 }
 
+void TestPlayerLiftToggleUsesItsOwnAnimationTick() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 0},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "entering a lift should expose the horizontal entry frame");
+  Check(state.tick == 1 && voxels[0].y == 1 && voxels[0].z == 1 &&
+            voxels[1].generic_id == 0,
+        "the entry tick should not collapse the lift state change into movement");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 4, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the following animation tick should complete the lift toggle");
+  Check(state.tick == 2 && voxels[0].z == 2 && voxels[1].generic_id == 1,
+        "the second tick should raise both lift state and rider");
+}
+
+void TestLiftRidesWeightlessCarrierWithStatefulCollision() {
+  voxelbench::Voxel lowered[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("weightless-pushable"), 0},
+      {1, 2, 2, Role("player-lift"), 0},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(lowered, 6, 3, 5, 0) == 0,
+        "a push carrying a lowered lift should run");
+  Check(lowered[0].y == 2 && lowered[1].y == 1 && lowered[2].y == 1,
+        "a lowered non-colliding lift should ride its weightless carrier");
+
+  voxelbench::Voxel raised[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("weightless-pushable"), 0},
+      {1, 2, 2, Role("player-lift"), 1},
+      {1, 1, 2, Role("wall"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(raised, 7, 3, 5, 0) == 0,
+        "a blocked raised lift carrier command should run");
+  Check(raised[0].y == 3 && raised[1].y == 2 && raised[2].y == 2,
+        "a raised lift caught on terrain should anchor its carrier");
+}
+
 void TestBlockedPlayerLiftRefusesToRaise() {
   voxelbench::Voxel voxels[] = {
       {1, 2, 1, Role("player"), -1},
@@ -1146,12 +1201,14 @@ int main() {
   TestOpposingSlopeLandingCancelsStoredMomentum();
   TestPlayerEnteringLoweredLiftRaisesAndRides();
   TestPlayerEnteringRaisedLiftLowersAndRides();
+  TestPlayerLiftToggleUsesItsOwnAnimationTick();
+  TestLiftRidesWeightlessCarrierWithStatefulCollision();
   TestBlockedPlayerLiftRefusesToRaise();
   TestSearchTracksPlayerLiftState();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 45 C++ physics/search tests passed\n";
+  std::cout << "all 47 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

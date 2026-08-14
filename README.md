@@ -56,7 +56,7 @@ Dynamic entities cannot begin a command in midair. The tick engine first settles
 
 The built-in `goal` role is a literal non-rigid collectible gem. It occupies the same voxel space as moving bodies, does not support or block them, and is removed only when the player finishes an entire command on its exact coordinate. A box may overlap the gem without collecting it, and sliding across it mid-command leaves it in place.
 
-The built-in `player-lift` role is a bounded two-state mechanism: `0` paints the original MazeBench purple lowered slab and `1` paints its raised cube. A player entering the platform toggles it and rides one Z unit; occupied headroom refuses a raise. Lift state is emitted in every generated tick frame and participates in exact-search hashing and reconstruction.
+The built-in `player-lift` role keeps state and mounting independent. State `0` paints the lowered slab and state `1` paints its raised cube. Variant `0` is the original upward floor lift; variants `1`–`4` face front/north, right/east, back/south, and left/west. The downward/upside-down mounting is deliberately not exposed yet. Automatic test rotations rotate the four wall mountings while leaving the upward mounting unchanged. Current C++ behavior remains the upward lift: a player entering the platform toggles it and rides one Z unit; occupied headroom refuses a raise. Lift state is emitted in every generated tick frame and participates in exact-search hashing and reconstruction.
 
 ## Evolutionary search
 

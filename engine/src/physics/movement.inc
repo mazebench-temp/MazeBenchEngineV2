@@ -112,6 +112,13 @@ bool ResolveCarriedCollisions(
           g_voxel_object[occupant] == object) {
         continue;
       }
+      if (g_object_kind[object] == kMechanismObject &&
+          IsLoweredPlayerLift(voxel)) {
+        // The lowered lift is a non-colliding slab. Its carrier may move it
+        // through an occupied full cell; the raised cube below follows the
+        // normal rigid carried-body collision rule.
+        continue;
+      }
       const int32_t other = g_voxel_object[occupant];
       if (other >= 0 && g_moving_objects[other] != 0) continue;
       if (other >= 0 && g_object_falling[other] != 0) {
@@ -604,6 +611,17 @@ bool TranslateMovingObjects(
     }
   }
 
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_object_kind[object] == kMechanismObject &&
+        g_carrier_parent[object] >= 0 &&
+        g_rejected_carriers[object] != 0) {
+      // A raised fixture caught against terrain anchors the carrier beneath
+      // it. Nothing has translated yet, so the complete proposal can abort
+      // transactionally.
+      return false;
+    }
+  }
+
   bool found_moving = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     found_moving |= g_moving_objects[object] != 0;
@@ -925,22 +943,15 @@ int32_t MovingObjectSlopeVerticalDelta(
 // whose surface is that same elevation; state 1 is a full blocking cube whose
 // surface is one elevation higher. Only a player that horizontally enters the
 // platform toggles it; a rider carried by another body does not retrigger it.
-bool TogglePlayerLiftOnEntry(
+int32_t PlayerLiftAtPlayer(
     Voxel* voxels,
     int32_t count,
     int32_t player_index,
-    int32_t from_x,
-    int32_t from_y,
     int32_t width,
-    int32_t height) {
-  Voxel& player = voxels[player_index];
-  if ((player.x == from_x && player.y == from_y) ||
-      !IsInsideRoom(player.x, player.y, width, height)) {
-    return false;
-  }
-
-  int32_t lift_index = -1;
-  bool raise = false;
+    int32_t height,
+    bool& raise) {
+  const Voxel& player = voxels[player_index];
+  if (!IsInsideRoom(player.x, player.y, width, height)) return -1;
   for (int32_t index = 0; index < count; ++index) {
     const Voxel& lift = voxels[index];
     if (lift.role != kPlayerLiftRole || lift.x != player.x ||
@@ -948,17 +959,47 @@ bool TogglePlayerLiftOnEntry(
       continue;
     }
     if (lift.generic_id <= 0 && lift.z == player.z) {
-      lift_index = index;
       raise = true;
-      break;
+      return index;
     }
     if (lift.generic_id > 0 && player.z != INT32_MIN &&
         lift.z == player.z - 1) {
-      lift_index = index;
       raise = false;
-      break;
+      return index;
     }
   }
+  return -1;
+}
+
+bool PlayerLiftCanToggleOnEntry(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t from_x,
+    int32_t from_y,
+    int32_t width,
+    int32_t height) {
+  const Voxel& player = voxels[player_index];
+  if (player.x == from_x && player.y == from_y) return false;
+  bool raise = false;
+  const int32_t lift_index = PlayerLiftAtPlayer(
+      voxels, count, player_index, width, height, raise);
+  if (lift_index < 0) return false;
+  return !raise || (player.z != INT32_MAX &&
+      FindVoxelAt(
+          voxels, player.x, player.y, player.z + 1, width, height) < 0);
+}
+
+bool TogglePlayerLiftAtPlayer(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  Voxel& player = voxels[player_index];
+  bool raise = false;
+  const int32_t lift_index = PlayerLiftAtPlayer(
+      voxels, count, player_index, width, height, raise);
   if (lift_index < 0) return false;
 
   if (raise) {

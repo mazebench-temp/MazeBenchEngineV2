@@ -3,6 +3,7 @@ constexpr int32_t kMotionPlayerIce = 1;
 constexpr int32_t kMotionObjectIce = 2;
 constexpr int32_t kMotionGravity = 3;
 constexpr int32_t kMotionComplete = 4;
+constexpr int32_t kMotionPlayerLift = 5;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;

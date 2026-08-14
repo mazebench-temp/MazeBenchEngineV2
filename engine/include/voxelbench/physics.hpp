@@ -7,7 +7,7 @@ namespace voxelbench {
 constexpr int32_t kPhysicsAbiVersion = 4;
 constexpr int32_t kVoxelCapacity = 65536;
 constexpr int32_t kRoleBufferCapacity = 256;
-constexpr uint32_t kMotionStateVersion = 3;
+constexpr uint32_t kMotionStateVersion = 4;
 constexpr int32_t kPhysicsWorkspaceBytes = 8 * 1024 * 1024;
 
 struct PhysicsWorkspace {

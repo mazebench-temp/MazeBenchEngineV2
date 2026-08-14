@@ -153,6 +153,7 @@
       "color": "#8A63D2",
       "roleId": "player-lift",
       "genericMax": 1,
+      "variantMax": 4,
       "occupancy": "sensor",
       "visual": {
         "kind": "lift"
@@ -20122,6 +20123,24 @@
       "name": "Untitled test 258 copy copy copy copy",
       "folderId": "lift",
       "file": "test-258-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-258-copy-copy-copy-copy-copy",
+      "name": "Untitled test 258 copy copy copy copy copy",
+      "folderId": "lift",
+      "file": "test-258-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-258-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 258 copy copy copy copy copy copy",
+      "folderId": "lift",
+      "file": "test-258-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-265",
+      "name": "Untitled test 265",
+      "folderId": "lift",
+      "file": "test-265.json"
     }
   ]
 }

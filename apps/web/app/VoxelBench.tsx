@@ -53,6 +53,8 @@ import {
   previousExpectedFrame,
 } from "./timelineFrames.mjs";
 import {
+  liftOrientationIndex,
+  normalizeLiftOrientation,
   normalizeSlopeDirection,
   offsetSlopeDirection,
   slopeDirectionIndex,
@@ -87,6 +89,7 @@ type BlockDefinition = {
   roleId: string;
   occupancy: OccupancyProfile;
   genericMax?: number;
+  variantMax?: number;
   visual: BlockVisualDefinition;
 };
 
@@ -221,7 +224,7 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "cube" } },
   { id: "ice-slope", name: "Ice slope", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "slope" } },
   { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
-  { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: 1, visual: { kind: "lift" } },
+  { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: 1, variantMax: 4, visual: { kind: "lift" } },
 ];
 
 const SLOPE_DIRECTION_OPTIONS = [
@@ -229,6 +232,14 @@ const SLOPE_DIRECTION_OPTIONS = [
   { id: "right", label: "Right", glyph: "→" },
   { id: "down", label: "Down", glyph: "↓" },
   { id: "left", label: "Left", glyph: "←" },
+] as const;
+
+const LIFT_ORIENTATION_OPTIONS = [
+  { id: "top", label: "Up", glyph: "⬆" },
+  { id: "north", label: "Front", glyph: "↑" },
+  { id: "east", label: "Right", glyph: "→" },
+  { id: "south", label: "Back", glyph: "↓" },
+  { id: "west", label: "Left", glyph: "←" },
 ] as const;
 
 function visualDefinitionForKind(kind: string): BlockVisualDefinition {
@@ -284,6 +295,9 @@ function normalizeBlocks(
       ...(Number.isInteger(block.genericMax) && Number(block.genericMax) >= 0
         ? { genericMax: Math.floor(Number(block.genericMax)) }
         : {}),
+      ...(Number.isInteger(block.variantMax) && Number(block.variantMax) >= 0
+        ? { variantMax: Math.floor(Number(block.variantMax)) }
+        : visualKind === "lift" ? { variantMax: 4 } : {}),
       occupancy: normalizeOccupancyProfile(block.occupancy, roleId) as OccupancyProfile,
       visual: visualKind === "gem"
         ? { kind: "gem", modelUrl: block.visual?.modelUrl ?? "/assets/objects/gem.glb" }
@@ -312,6 +326,7 @@ function normalizeBlocks(
       roleId: "player-lift",
       occupancy: "sensor",
       genericMax: 1,
+      variantMax: 4,
       visual: { kind: "lift" },
     });
   }
@@ -952,6 +967,7 @@ export default function VoxelBench() {
   const [inspectedCell, setInspectedCell] = useState<{ x: number; y: number; z: number } | null>(null);
   const [selectedGenericIds, setSelectedGenericIds] = useState<Record<string, number>>({});
   const [selectedSlopeDirections, setSelectedSlopeDirections] = useState<Record<string, string>>({});
+  const [selectedLiftOrientations, setSelectedLiftOrientations] = useState<Record<string, string>>({});
   const [genericPrompt, setGenericPrompt] = useState<{ blockId: string; value: string } | null>(null);
   const [genericPromptError, setGenericPromptError] = useState("");
   const layer = 1;
@@ -1048,13 +1064,19 @@ export default function VoxelBench() {
   const selectedSlopeOption = selectedSlopeDirection
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
     : null;
+  const selectedLiftOrientation = selectedDefinition?.visual.kind === "lift"
+    ? normalizeLiftOrientation(selectedLiftOrientations[selectedDefinition.id])
+    : null;
+  const selectedLiftOption = selectedLiftOrientation
+    ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === selectedLiftOrientation)
+    : null;
   const selectedToolName = groupSelectionMode
     ? "Select group"
     : activeGroupSelection
       ? `${activeGroupSelection.keys.length} cubes selected`
       : selectedBlock === DELETE_TOOL_ID
         ? "Erase"
-        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}`;
+        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}${selectedLiftOption ? ` · ${selectedLiftOption.glyph} ${selectedLiftOption.label}` : ""}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -1328,8 +1350,14 @@ export default function VoxelBench() {
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
-    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`);
-  }, [blocks, genericRoleIds, selectedGenericIds, selectedSlopeDirections]);
+    const liftOrientation = block.visual.kind === "lift"
+      ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
+      : null;
+    const liftOption = liftOrientation
+      ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
+      : null;
+    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${liftOption ? ` ${liftOption.glyph} ${liftOption.label}` : ""} selected`);
+  }, [blocks, genericRoleIds, selectedGenericIds, selectedLiftOrientations, selectedSlopeDirections]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
     const slots = [DELETE_TOOL_ID, GROUP_TOOL_ID, ...blocks.map((block) => block.id)];
@@ -1364,10 +1392,16 @@ export default function VoxelBench() {
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
+    const liftOrientation = block.visual.kind === "lift"
+      ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
+      : null;
+    const liftOption = liftOrientation
+      ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
+      : null;
     setToast(genericId === null
       ? `${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`
-      : `${block.name} ${genericId} selected`);
-  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedSlopeDirections]);
+      : `${block.name} ${genericId}${liftOption ? ` · ${liftOption.glyph} ${liftOption.label}` : ""} selected`);
+  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedLiftOrientations, selectedSlopeDirections]);
 
   const handleHorizontalToolbarKey = useCallback((direction: -1 | 1) => {
     if (!groupToolPinned && selectedDefinition && genericBlockIds.has(selectedDefinition.id)) {
@@ -1414,7 +1448,7 @@ export default function VoxelBench() {
     setGenericPrompt(null);
     setGenericPromptError("");
     setToast(block.visual.kind === "lift"
-      ? `${block.name} ${id === 0 ? "lowered" : "raised"} selected`
+      ? `${block.name} ${id === 0 ? "lowered" : "raised"} · ${LIFT_ORIENTATION_OPTIONS.find((option) => option.id === normalizeLiftOrientation(selectedLiftOrientations[block.id]))?.label ?? "Up"} selected`
       : `${block.name} ${id} selected · paint cubes to join generic object ${id}`);
   };
 
@@ -1836,15 +1870,22 @@ export default function VoxelBench() {
     const slopeDirection = blockDefinition?.visual.kind === "slope"
       ? normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id])
       : null;
+    const liftOrientation = blockDefinition?.visual.kind === "lift"
+      ? normalizeLiftOrientation(selectedLiftOrientations[blockDefinition.id])
+      : null;
     const placement: Voxel | null = blockId ? {
       x,
       y,
       z,
       blockId,
       instanceId: newInstanceId(),
-      orientation: slopeDirection ?? "none",
+      orientation: slopeDirection ?? liftOrientation ?? "none",
       stateId: 0,
-      variantId: slopeDirection ? slopeDirectionIndex(slopeDirection) : 0,
+      variantId: slopeDirection
+        ? slopeDirectionIndex(slopeDirection)
+        : liftOrientation
+          ? liftOrientationIndex(liftOrientation)
+          : 0,
       ...(genericId === undefined ? {} : { genericId, groupId: genericId }),
     } : null;
     const operation = placement
@@ -2622,6 +2663,12 @@ export default function VoxelBench() {
                   const slopeOption = slopeDirection
                     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
                     : null;
+                  const liftOrientation = block.visual.kind === "lift"
+                    ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
+                    : null;
+                  const liftOption = liftOrientation
+                    ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
+                    : null;
                   const genericLabel = generic
                     ? liftState === null
                       ? genericToolbarLabel(
@@ -2635,9 +2682,9 @@ export default function VoxelBench() {
                         : "↕"
                     : undefined;
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${liftState === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `${liftState ? "raised" : "lowered"} · ←/→ changes state`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${liftState === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `${liftState ? "raised" : "lowered"} · ${liftOption?.label ?? "Up"} facing · ←/→ changes state`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
-                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${liftState === null ? "" : `lift lift--${liftState ? "raised" : "lowered"}`} ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
+                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${liftState === null ? "" : `lift lift--${liftState ? "raised" : "lowered"} lift--${liftOrientation}`} ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : liftOption ? <i className="lift-orientation-glyph" aria-hidden="true">{liftOption.glyph}</i> : null}</span>
                     </button>
                   );
                 })}
@@ -2763,11 +2810,12 @@ export default function VoxelBench() {
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${(selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "raised" : "lowered"}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? (selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "▲" : "▼" : "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${(selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "raised" : "lowered"} lift--${selectedLiftOrientation}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? (selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "▲" : "▼" : "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : selectedLiftOption ? <i className="lift-orientation-glyph" aria-hidden="true">{selectedLiftOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                   <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gem">MazeBench gem</option></select></label></div>
                   {selectedDefinition.visual.kind === "slope" && <div className="slope-direction-picker" role="group" aria-label="Slope paint direction">{SLOPE_DIRECTION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedSlopeDirection === option.id ? "is-active" : ""} aria-pressed={selectedSlopeDirection === option.id} title={`Paint ${option.label.toLowerCase()} slope`} onClick={() => { setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
+                  {selectedDefinition.visual.kind === "lift" && <div className="lift-orientation-picker" role="group" aria-label="Lift mounting direction">{LIFT_ORIENTATION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedLiftOrientation === option.id ? "is-active" : ""} aria-pressed={selectedLiftOrientation === option.id} title={`Paint ${option.label.toLowerCase()}-facing lift`} onClick={() => { setSelectedLiftOrientations((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} facing selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
                   <p className="engine-role-note"><b>Occupancy is editor metadata.</b> Sensors and decorations may share a cell with solid bodies. Physics behavior still comes from the C++ role until the generalized state ABI phase.</p>
                 </div>
               ) : null}

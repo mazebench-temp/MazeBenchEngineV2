@@ -13,7 +13,7 @@ import {
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
-import { normalizeSlopeDirection } from "./visualVariants.mjs";
+import { normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
 
 type BlockDefinition = {
   id: string;
@@ -377,6 +377,8 @@ function frameToPlayData(
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
+              : isLift
+                ? { direction: normalizeLiftOrientation(voxel.orientation, voxel.variantId) }
               : {}),
             elevation: voxel.z + layerOffset,
             genericLabel: genericBlockIds.has(definition.id) && !isLift

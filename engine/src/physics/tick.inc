@@ -175,6 +175,19 @@ TickResult step_tick(
     return true;
   };
 
+  if (state->phase == kMotionPlayerLift) {
+    const bool toggled = TogglePlayerLiftAtPlayer(
+        voxels, count, player_index, width, height);
+    BuildSpatialIndex(voxels, count, width, height);
+    MarkObjectsForDeferredGravity(voxels, width, height, false);
+    const bool gravity_continues = ObjectsNeedGravityTick(
+        voxels, count, width, height, false);
+    return store_and_finish(
+        gravity_continues ? kMotionGravity : kMotionComplete,
+        toggled,
+        true);
+  }
+
   if (state->phase == kMotionGravity) {
     const bool player_has_horizontal_ice_proposal =
         state->reserved[0] == kResumePlayerIce &&
@@ -211,6 +224,7 @@ TickResult step_tick(
       BuildSpatialIndex(voxels, count, width, height);
     }
     bool player_slid = false;
+    bool player_lift_pending = false;
     if (!player_rode_falling_object && player_has_horizontal_ice_proposal) {
       Voxel& sliding_player = voxels[player_index];
       const int32_t next_x = sliding_player.x + dx;
@@ -229,7 +243,7 @@ TickResult step_tick(
             voxels, player_index, dx, dy, width, height);
         sliding_player.x = next_x;
         sliding_player.y = next_y;
-        TogglePlayerLiftOnEntry(
+        player_lift_pending = PlayerLiftCanToggleOnEntry(
             voxels,
             count,
             player_index,
@@ -256,6 +270,9 @@ TickResult step_tick(
         : resolve_player_gravity(true, false, false);
     const bool player_advanced =
         player_rode_falling_object || player_slid || player_fell;
+    if (player_lift_pending) {
+      return store_and_finish(kMotionPlayerLift, player_advanced, true);
+    }
     if (player_fell && object_supported_by_player >= 0 &&
         ObjectIsActive(
             voxels, object_supported_by_player, width, height) &&
@@ -425,6 +442,7 @@ TickResult step_tick(
         resolve_player_gravity(false, false, true);
     bool player_moved_after_translation =
         player_rode_object || player_was_pushed || player_fell_with_objects;
+    bool player_lift_pending = false;
     if (!player_rode_object && !player_was_pushed &&
         player_has_ice_momentum) {
       // A deliberate push can put both the body and the player onto Ice. From
@@ -449,7 +467,7 @@ TickResult step_tick(
         sliding_player.x = next_x;
         sliding_player.y = next_y;
         sliding_player.z = next_z;
-        TogglePlayerLiftOnEntry(
+        player_lift_pending = PlayerLiftCanToggleOnEntry(
             voxels,
             count,
             player_index,
@@ -463,6 +481,10 @@ TickResult step_tick(
     }
     if (player_moved_after_translation) {
       BuildSpatialIndex(voxels, count, width, height);
+    }
+    if (player_lift_pending) {
+      ClearHorizontalMomentum(state, count);
+      return store_and_finish(kMotionPlayerLift, true, true);
     }
     if (player_was_pushed) {
       // A returning ramp convoy may finish its mandatory descent by nudging
@@ -624,9 +646,23 @@ TickResult step_tick(
   bool object_keeps_sliding = false;
   bool rode_pushed_object = false;
   bool autonomous_slope_objects_handled = false;
+  bool player_lift_pending = false;
   RiderSnapshot rider;
   if (target_index >= 0) {
-    const int32_t object = g_voxel_object[target_index];
+    int32_t object = g_voxel_object[target_index];
+    if (object >= 0 && g_object_kind[object] == kMechanismObject) {
+      const int32_t mechanism_support = target_z == INT32_MIN ? -1 : FindVoxelAt(
+          voxels, target_x, target_y, target_z - 1, width, height);
+      const int32_t support_object = mechanism_support >= 0
+          ? g_voxel_object[mechanism_support]
+          : -1;
+      if (support_object < 0 ||
+          g_object_kind[support_object] != kWeightlessObject) {
+        return store_and_finish(kMotionComplete, records_initial_tick);
+      }
+      target_index = mechanism_support;
+      object = support_object;
+    }
     const bool descending_slope_impact = automatic_ice_motion &&
         player_dz != 0 && object >= 0 &&
         g_object_kind[object] == kWeightlessObject;
@@ -881,7 +917,7 @@ TickResult step_tick(
     player.x = target_x;
     player.y = target_y;
     player.z = target_z;
-    TogglePlayerLiftOnEntry(
+    player_lift_pending = PlayerLiftCanToggleOnEntry(
         voxels,
         count,
         player_index,
@@ -900,6 +936,11 @@ TickResult step_tick(
   if (pushed) g_ignored_support_voxel = player_index;
   MarkObjectsForDeferredGravity(voxels, width, height, false);
   g_ignored_support_voxel = -1;
+
+  if (player_lift_pending) {
+    ClearHorizontalMomentum(state, count);
+    return store_and_finish(kMotionPlayerLift, true, true);
+  }
 
   if (object_keeps_sliding) {
     return store_and_finish(kMotionObjectIce, true);

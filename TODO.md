@@ -41,13 +41,13 @@ scene storage, occupancy indexes, hashing, or transitions change.
 
 - [ ] Add block-definition controls for a bounded state list.
 - [ ] Add state names, symbols, colors/assets, initial state, and collision/support profile.
-- [ ] Add block-definition controls for bounded visual/shape variants.
+- [x] Add the first block-definition control for bounded lift mounting variants.
 - [x] Add a four-direction selector and hotbar workflow for the first bounded Ice-slope variant.
 - [ ] Reuse the numbered toolbar entry workflow for bounded state/variant selection.
 - [ ] Keep `groupId`, `variantId`, `stateId`, and orientation independently editable.
-- [ ] Add per-variant rotation mappings for directional objects.
+- [x] Add per-variant rotation mappings for Ice slopes and the five supported lift mountings.
 - [x] Rotate authored Ice-slope direction metadata through all four automatic test rotations.
-- [ ] Rotate positions and orientations in all four automatic unit-test rotations.
+- [x] Rotate positions and authored horizontal orientations in all four automatic unit-test rotations.
 - [ ] Show state transitions directly in expected-versus-engine differences.
 - [ ] Materialize state values in generated intermediate tick frames.
 - [ ] Reserve state scope/link metadata for instance, polycube group, and mechanism channel behavior.
@@ -63,7 +63,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Support GLB models with anchor, scale, offset, orientation, and pick proxy metadata.
 - [x] Import the MazeBench gem GLB with source/provenance documentation.
 - [x] Render the imported gem with MazeBench's black-outline treatment.
-- [x] Port the MazeBench purple player-lift slab/cube recipe and its top direction triangle.
+- [x] Port the MazeBench purple player-lift slab/cube recipe with top, front, right, back, and left mountings; reserve the downward mounting for later.
 - [ ] Port reusable visual recipes for gates, orange mechanisms, slopes, and punchers.
 - [ ] Keep canonical assets in shared game data for the web and future Apple app.
 

@@ -24,6 +24,7 @@ constexpr int32_t kDenseColumnCapacity = 4096;
 constexpr int32_t kLinearSpatialThreshold = 16;
 constexpr uint8_t kNormalObject = 0;
 constexpr uint8_t kWeightlessObject = 1;
+constexpr uint8_t kMechanismObject = 2;
 
 bool IsIceSlopeRole(uint32_t role) {
   return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||
