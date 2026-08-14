@@ -46,6 +46,66 @@ void BuildObjects(Voxel* voxels, int32_t count) {
   }
 }
 
+// Directional lifts are fixtures mounted to one face of a supporting body.
+// Their encoded orientation is the outward normal, so the attachment lies in
+// the opposite direction. Top lifts continue to use ordinary support-below
+// logic; this helper covers the four side-mounted pairs (IDs 2 through 9).
+int32_t PlayerLiftSideAttachmentVoxel(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  if (object < 0 || g_object_kind[object] != kMechanismObject) return -1;
+  const int32_t member = g_object_head[object];
+  if (member < 0 || voxels[member].role != kPlayerLiftRole) return -1;
+  const Voxel& lift = voxels[member];
+  const int32_t orientation = lift.generic_id >= 0
+      ? lift.generic_id / 2
+      : 0;
+  int32_t support_x = lift.x;
+  int32_t support_y = lift.y;
+  if (orientation == 1) {
+    ++support_y;  // North/front lift is mounted to its south face.
+  } else if (orientation == 2) {
+    --support_x;  // East/right lift is mounted to its west face.
+  } else if (orientation == 3) {
+    --support_y;  // South/back lift is mounted to its north face.
+  } else if (orientation == 4) {
+    ++support_x;  // West/left lift is mounted to its east face.
+  } else {
+    return -1;
+  }
+  const int32_t support = FindVoxelAt(
+      voxels, support_x, support_y, lift.z, width, height);
+  return support == g_ignored_support_voxel ? -1 : support;
+}
+
+bool PlayerLiftIsAttachedToObject(
+    Voxel* voxels,
+    int32_t lift_object,
+    int32_t support_object,
+    int32_t width,
+    int32_t height) {
+  if (lift_object < 0 || support_object < 0 ||
+      g_object_kind[lift_object] != kMechanismObject) {
+    return false;
+  }
+  int32_t support = PlayerLiftSideAttachmentVoxel(
+      voxels, lift_object, width, height);
+  if (support < 0) {
+    const int32_t member = g_object_head[lift_object];
+    if (member < 0 || voxels[member].z == INT32_MIN) return false;
+    support = FindVoxelAt(
+        voxels,
+        voxels[member].x,
+        voxels[member].y,
+        voxels[member].z - 1,
+        width,
+        height);
+  }
+  return support >= 0 && g_voxel_object[support] == support_object;
+}
+
 void ResetObjectMotion() {
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_object_gravity_armed[object] = 0;
@@ -185,6 +245,9 @@ bool ObjectHasDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
+  const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+      voxels, object, width, height);
+  if (attachment >= 0 && g_voxel_object[attachment] != object) return true;
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
     const Voxel& voxel = voxels[member];
@@ -204,6 +267,15 @@ bool ObjectHasStableDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
+  const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+      voxels, object, width, height);
+  if (attachment >= 0) {
+    const int32_t support_object = g_voxel_object[attachment];
+    if (support_object != object &&
+        (support_object < 0 || g_object_falling[support_object] == 0)) {
+      return true;
+    }
+  }
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
     const Voxel& voxel = voxels[member];
@@ -536,7 +608,7 @@ bool SettleSupportComponent(
         }
         for (int32_t member = g_object_head[object]; member >= 0;
              member = g_next_object_voxel[member]) {
-          const int32_t state_height = voxels[member].generic_id > 0 ? 1 : 0;
+          const int32_t state_height = PlayerLiftIsRaised(voxels[member]) ? 1 : 0;
           const int32_t top_after_drop = voxels[member].z - 1 + state_height;
           if (top_after_drop > effective_highest_after_drop) {
             effective_highest_after_drop = top_after_drop;

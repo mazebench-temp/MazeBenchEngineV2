@@ -6020,7 +6020,8 @@
       return geometry;
     }
 
-    function addSidePlayerLiftTriangle(center, centerY, orientation, direction, opacity) {
+    function addSidePlayerLiftTriangle(
+      center, centerY, orientation, direction, opacity, surfaceDistance = unit / 2) {
       const markerOpacity = clamp01(opacity);
       if (markerOpacity <= 0.015) return;
 
@@ -6031,15 +6032,15 @@
       const bias = Math.max(0.75, unit * 0.012);
       triangle.position.set(center.x, centerY, center.z);
       if (orientation === "north") {
-        triangle.position.z -= unit / 2 + bias;
+        triangle.position.z -= surfaceDistance + bias;
         triangle.rotation.y = Math.PI;
       } else if (orientation === "east") {
-        triangle.position.x += unit / 2 + bias;
+        triangle.position.x += surfaceDistance + bias;
         triangle.rotation.y = Math.PI / 2;
       } else if (orientation === "south") {
-        triangle.position.z += unit / 2 + bias;
+        triangle.position.z += surfaceDistance + bias;
       } else {
-        triangle.position.x -= unit / 2 + bias;
+        triangle.position.x -= surfaceDistance + bias;
         triangle.rotation.y = -Math.PI / 2;
       }
       triangle.castShadow = false;
@@ -6060,16 +6061,16 @@
       let z = center.z;
       if (orientation === "north") {
         depth = extension;
-        z -= (unit - extension) / 2;
+        z += (unit - extension) / 2;
       } else if (orientation === "east") {
         width = extension;
-        x += (unit - extension) / 2;
+        x -= (unit - extension) / 2;
       } else if (orientation === "south") {
         depth = extension;
-        z += (unit - extension) / 2;
+        z -= (unit - extension) / 2;
       } else {
         width = extension;
-        x -= (unit - extension) / 2;
+        x += (unit - extension) / 2;
       }
       const editorPick = {
         kind: "terrain",
@@ -6098,8 +6099,11 @@
         }
       );
       const centerY = descriptor.bottomY + descriptor.blockHeight / 2;
-      addSidePlayerLiftTriangle(center, centerY, orientation, -1, visibility * (1 - lift));
-      addSidePlayerLiftTriangle(center, centerY, orientation, 1, visibility * lift);
+      const surfaceDistance = extension - unit / 2;
+      addSidePlayerLiftTriangle(
+        center, centerY, orientation, -1, visibility * (1 - lift), surfaceDistance);
+      addSidePlayerLiftTriangle(
+        center, centerY, orientation, 1, visibility * lift, surfaceDistance);
     }
 
     function orangeButtonHeight() {

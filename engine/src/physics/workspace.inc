@@ -35,8 +35,13 @@ bool IsIceRole(uint32_t role) {
   return role == kIceRole || IsIceSlopeRole(role);
 }
 
+bool PlayerLiftIsRaised(const Voxel& voxel) {
+  return voxel.role == kPlayerLiftRole && voxel.generic_id >= 0 &&
+      voxel.generic_id % 2 != 0;
+}
+
 bool IsLoweredPlayerLift(const Voxel& voxel) {
-  return voxel.role == kPlayerLiftRole && voxel.generic_id <= 0;
+  return voxel.role == kPlayerLiftRole && !PlayerLiftIsRaised(voxel);
 }
 
 bool IsPassThroughVoxel(const Voxel& voxel) {

@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import MazeBenchCanvas from "./MazeBenchCanvas";
+import MazeBenchCanvas, { type PaintSurface } from "./MazeBenchCanvas";
 import SearchBench, { normalizeSearchLevels, type SearchLevel } from "./SearchBench";
 import { cameraRelativeDirection } from "./cameraNavigation.mjs";
 import { simulateCommandWithCpp } from "./physicsEngine";
@@ -53,7 +53,12 @@ import {
   previousExpectedFrame,
 } from "./timelineFrames.mjs";
 import {
+  LIFT_GENERIC_MAX,
+  liftGenericId,
+  liftIsRaised,
   liftOrientationIndex,
+  liftOrientationFromPaintFace,
+  liftOrientationFromGenericId,
   normalizeLiftOrientation,
   normalizeSlopeDirection,
   offsetSlopeDirection,
@@ -213,7 +218,7 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "ice", name: "Ice", description: "A support tile that continues movement until normal floor or an obstacle.", generic: false },
   { id: "goal", name: "Goal / floor", description: "A floor marker with no movement behavior of its own.", generic: false },
   { id: "decor", name: "Decoration", description: "A visible object with no special movement behavior.", generic: false },
-  { id: "player-lift", name: "Player Lift", description: "A two-state purple lift. State 0 is a lowered slab; state 1 is a raised cube. A player entering it toggles the state and rides the platform.", generic: true },
+  { id: "player-lift", name: "Player Lift", description: "A numbered purple lift family: 0/1 Up, 2/3 Front, 4/5 Right, 6/7 Back, and 8/9 Left. Even IDs are lowered and odd IDs are raised.", generic: true },
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
@@ -224,7 +229,7 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "cube" } },
   { id: "ice-slope", name: "Ice slope", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "slope" } },
   { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
-  { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: 1, variantMax: 4, visual: { kind: "lift" } },
+  { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: LIFT_GENERIC_MAX, visual: { kind: "lift" } },
 ];
 
 const SLOPE_DIRECTION_OPTIONS = [
@@ -232,14 +237,6 @@ const SLOPE_DIRECTION_OPTIONS = [
   { id: "right", label: "Right", glyph: "→" },
   { id: "down", label: "Down", glyph: "↓" },
   { id: "left", label: "Left", glyph: "←" },
-] as const;
-
-const LIFT_ORIENTATION_OPTIONS = [
-  { id: "top", label: "Up", glyph: "⬆" },
-  { id: "north", label: "Front", glyph: "↑" },
-  { id: "east", label: "Right", glyph: "→" },
-  { id: "south", label: "Back", glyph: "↓" },
-  { id: "west", label: "Left", glyph: "←" },
 ] as const;
 
 function visualDefinitionForKind(kind: string): BlockVisualDefinition {
@@ -292,12 +289,14 @@ function normalizeBlocks(
       name: block.name,
       color: block.color,
       roleId,
-      ...(Number.isInteger(block.genericMax) && Number(block.genericMax) >= 0
-        ? { genericMax: Math.floor(Number(block.genericMax)) }
-        : {}),
+      ...(visualKind === "lift"
+        ? { genericMax: Math.max(LIFT_GENERIC_MAX, Math.floor(Number(block.genericMax) || 0)) }
+        : Number.isInteger(block.genericMax) && Number(block.genericMax) >= 0
+          ? { genericMax: Math.floor(Number(block.genericMax)) }
+          : {}),
       ...(Number.isInteger(block.variantMax) && Number(block.variantMax) >= 0
         ? { variantMax: Math.floor(Number(block.variantMax)) }
-        : visualKind === "lift" ? { variantMax: 4 } : {}),
+        : {}),
       occupancy: normalizeOccupancyProfile(block.occupancy, roleId) as OccupancyProfile,
       visual: visualKind === "gem"
         ? { kind: "gem", modelUrl: block.visual?.modelUrl ?? "/assets/objects/gem.glb" }
@@ -325,8 +324,7 @@ function normalizeBlocks(
       color: "#8A63D2",
       roleId: "player-lift",
       occupancy: "sensor",
-      genericMax: 1,
-      variantMax: 4,
+      genericMax: LIFT_GENERIC_MAX,
       visual: { kind: "lift" },
     });
   }
@@ -378,12 +376,21 @@ function normalizeGenericIds(
         ...(voxel.variantId === undefined ? {} : { variantId: nonnegativeInteger(voxel.variantId) }),
       };
       if (block && genericRoleIds.has(block.roleId)) {
-        const value = Math.min(
+        let value = Math.min(
           block.genericMax ?? 2147483647,
           nonnegativeInteger(
             voxel.groupId ?? voxel.genericId ?? legacyIds.get(voxel.blockId),
           ),
         );
+        // Migrate the brief split-state lift representation without changing
+        // any layout: an explicit side orientation plus old state 0/1 becomes
+        // its equivalent combined 2–9 ID.
+        if (block.visual.kind === "lift" && value <= 1) {
+          const legacyOrientation = normalizeLiftOrientation(voxel.orientation, voxel.variantId);
+          if (legacyOrientation !== "top") {
+            value = liftGenericId(legacyOrientation, liftIsRaised(value));
+          }
+        }
         return {
           ...base,
           genericId: value,
@@ -967,7 +974,6 @@ export default function VoxelBench() {
   const [inspectedCell, setInspectedCell] = useState<{ x: number; y: number; z: number } | null>(null);
   const [selectedGenericIds, setSelectedGenericIds] = useState<Record<string, number>>({});
   const [selectedSlopeDirections, setSelectedSlopeDirections] = useState<Record<string, string>>({});
-  const [selectedLiftOrientations, setSelectedLiftOrientations] = useState<Record<string, string>>({});
   const [genericPrompt, setGenericPrompt] = useState<{ blockId: string; value: string } | null>(null);
   const [genericPromptError, setGenericPromptError] = useState("");
   const layer = 1;
@@ -1056,7 +1062,9 @@ export default function VoxelBench() {
     : blocks.find((block) => block.id === selectedBlock) ?? blocks[0];
   const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? roles[0];
   const selectedGenericId = selectedDefinition && genericBlockIds.has(selectedDefinition.id)
-    ? selectedGenericIds[selectedDefinition.id] ?? 0
+    ? selectedDefinition.visual.kind === "lift"
+      ? liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0
+      : selectedGenericIds[selectedDefinition.id] ?? 0
     : null;
   const selectedSlopeDirection = selectedDefinition?.visual.kind === "slope"
     ? normalizeSlopeDirection(selectedSlopeDirections[selectedDefinition.id])
@@ -1064,19 +1072,13 @@ export default function VoxelBench() {
   const selectedSlopeOption = selectedSlopeDirection
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
     : null;
-  const selectedLiftOrientation = selectedDefinition?.visual.kind === "lift"
-    ? normalizeLiftOrientation(selectedLiftOrientations[selectedDefinition.id])
-    : null;
-  const selectedLiftOption = selectedLiftOrientation
-    ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === selectedLiftOrientation)
-    : null;
   const selectedToolName = groupSelectionMode
     ? "Select group"
     : activeGroupSelection
       ? `${activeGroupSelection.keys.length} cubes selected`
       : selectedBlock === DELETE_TOOL_ID
         ? "Erase"
-        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}${selectedLiftOption ? ` · ${selectedLiftOption.glyph} ${selectedLiftOption.label}` : ""}`;
+        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}${selectedDefinition?.visual.kind === "lift" ? " · face chooses direction" : ""}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -1337,7 +1339,9 @@ export default function VoxelBench() {
     if (genericRoleIds.has(block.roleId)) {
       setGenericPrompt({
         blockId,
-        value: String(selectedGenericIds[blockId] ?? 0),
+        value: String(block.visual.kind === "lift"
+          ? liftIsRaised(selectedGenericIds[blockId] ?? 0) ? 1 : 0
+          : selectedGenericIds[blockId] ?? 0),
       });
       setGenericPromptError("");
       return;
@@ -1350,14 +1354,8 @@ export default function VoxelBench() {
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
-    const liftOrientation = block.visual.kind === "lift"
-      ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
-      : null;
-    const liftOption = liftOrientation
-      ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
-      : null;
-    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${liftOption ? ` ${liftOption.glyph} ${liftOption.label}` : ""} selected`);
-  }, [blocks, genericRoleIds, selectedGenericIds, selectedLiftOrientations, selectedSlopeDirections]);
+    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" ? " · click a face to choose its mounting" : ""} selected`);
+  }, [blocks, genericRoleIds, selectedGenericIds, selectedSlopeDirections]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
     const slots = [DELETE_TOOL_ID, GROUP_TOOL_ID, ...blocks.map((block) => block.id)];
@@ -1384,7 +1382,9 @@ export default function VoxelBench() {
     setGroupToolPinned(false);
     setSelectedBlock(block.id);
     const genericId = genericBlockIds.has(block.id)
-      ? selectedGenericIds[block.id] ?? 0
+      ? block.visual.kind === "lift"
+        ? liftIsRaised(selectedGenericIds[block.id] ?? 0) ? 1 : 0
+        : selectedGenericIds[block.id] ?? 0
       : null;
     const slopeDirection = block.visual.kind === "slope"
       ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
@@ -1392,24 +1392,20 @@ export default function VoxelBench() {
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
-    const liftOrientation = block.visual.kind === "lift"
-      ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
-      : null;
-    const liftOption = liftOrientation
-      ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
-      : null;
     setToast(genericId === null
       ? `${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`
-      : `${block.name} ${genericId}${liftOption ? ` · ${liftOption.glyph} ${liftOption.label}` : ""} selected`);
-  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedLiftOrientations, selectedSlopeDirections]);
+      : `${block.name} ${genericId}${block.visual.kind === "lift" ? " · face chooses direction" : ""} selected`);
+  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedSlopeDirections]);
 
   const handleHorizontalToolbarKey = useCallback((direction: -1 | 1) => {
     if (!groupToolPinned && selectedDefinition && genericBlockIds.has(selectedDefinition.id)) {
-      const currentId = selectedGenericIds[selectedDefinition.id] ?? 0;
+      const currentId = selectedDefinition.visual.kind === "lift"
+        ? liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0
+        : selectedGenericIds[selectedDefinition.id] ?? 0;
       const nextId = offsetGenericObjectId(
         currentId,
         direction,
-        selectedDefinition.genericMax,
+        selectedDefinition.visual.kind === "lift" ? 1 : selectedDefinition.genericMax,
       );
       if (nextId !== null) {
         setSelectedGenericIds((current) => ({ ...current, [selectedDefinition.id]: nextId }));
@@ -1436,7 +1432,9 @@ export default function VoxelBench() {
       setGenericPrompt(null);
       return;
     }
-    const maximum = block.genericMax ?? 2147483647;
+    const maximum = block.visual.kind === "lift"
+      ? 1
+      : block.genericMax ?? 2147483647;
     if (!Number.isInteger(id) || id < 0 || id > maximum) {
       setGenericPromptError(`Enter a whole number from 0 to ${maximum.toLocaleString()}.`);
       return;
@@ -1448,7 +1446,7 @@ export default function VoxelBench() {
     setGenericPrompt(null);
     setGenericPromptError("");
     setToast(block.visual.kind === "lift"
-      ? `${block.name} ${id === 0 ? "lowered" : "raised"} · ${LIFT_ORIENTATION_OPTIONS.find((option) => option.id === normalizeLiftOrientation(selectedLiftOrientations[block.id]))?.label ?? "Up"} selected`
+      ? `${block.name} ${id} · ${id ? "raised" : "lowered"} selected · click a face to choose direction`
       : `${block.name} ${id} selected · paint cubes to join generic object ${id}`);
   };
 
@@ -1856,14 +1854,20 @@ export default function VoxelBench() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activateGroupTool, activeGroupSelection, activeTest, blocks, deleteSelectedGroup, groupToolPinned, handleHorizontalToolbarKey, moveSelectedGroup, redoPaint, requestBlockSelection, runTest, selectTimelineRelative, undoPaint]);
 
-  const paint = (x: number, y: number, z: number, blockId: string | null) => {
+  const paint = (
+    x: number,
+    y: number,
+    z: number,
+    blockId: string | null,
+    surface?: PaintSurface,
+  ) => {
     if (!activeTest || activeTestLocked) return;
     if (blockId && z !== 0 && blocks.find((block) => block.id === blockId)?.roleId === "floor") {
       setToast("Floor tiles may only be painted on Row 0");
       return;
     }
     const currentFrame = editableFrame(activeTest, frameKind, intermediateIndex);
-    const genericId = blockId && genericBlockIds.has(blockId)
+    let genericId = blockId && genericBlockIds.has(blockId)
       ? selectedGenericIds[blockId] ?? 0
       : undefined;
     const blockDefinition = blockId ? blockDefinitionsById.get(blockId) : undefined;
@@ -1871,8 +1875,15 @@ export default function VoxelBench() {
       ? normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id])
       : null;
     const liftOrientation = blockDefinition?.visual.kind === "lift"
-      ? normalizeLiftOrientation(selectedLiftOrientations[blockDefinition.id])
+      ? liftOrientationFromPaintFace(surface)
       : null;
+    if (blockDefinition?.visual.kind === "lift" && liftOrientation === null) {
+      setToast("Downward-facing lifts are not part of the 0–9 lift family yet");
+      return;
+    }
+    if (blockDefinition?.visual.kind === "lift") {
+      genericId = liftGenericId(liftOrientation ?? "top", liftIsRaised(genericId ?? 0));
+    }
     const placement: Voxel | null = blockId ? {
       x,
       y,
@@ -2654,37 +2665,28 @@ export default function VoxelBench() {
                 </button>
                 {blocks.map((block, index) => {
                   const generic = genericBlockIds.has(block.id);
-                  const liftState = block.visual.kind === "lift"
-                    ? Math.min(1, selectedGenericIds[block.id] ?? 0)
+                  const liftId = block.visual.kind === "lift"
+                    ? liftIsRaised(selectedGenericIds[block.id] ?? 0) ? 1 : 0
                     : null;
+                  const liftRaised = liftId === null ? null : liftIsRaised(liftId);
                   const slopeDirection = block.visual.kind === "slope"
                     ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
                     : null;
                   const slopeOption = slopeDirection
                     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
                     : null;
-                  const liftOrientation = block.visual.kind === "lift"
-                    ? normalizeLiftOrientation(selectedLiftOrientations[block.id])
-                    : null;
-                  const liftOption = liftOrientation
-                    ? LIFT_ORIENTATION_OPTIONS.find((option) => option.id === liftOrientation)
-                    : null;
                   const genericLabel = generic
-                    ? liftState === null
-                      ? genericToolbarLabel(
+                    ? genericToolbarLabel(
                       block.id,
                       selectedBlock,
-                      selectedGenericIds[block.id] ?? 0,
+                      liftId ?? selectedGenericIds[block.id] ?? 0,
                       groupToolPinned || Boolean(genericPrompt),
                       )
-                      : block.id === selectedBlock && !groupToolPinned && !genericPrompt
-                        ? liftState ? "▲" : "▼"
-                        : "↕"
                     : undefined;
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${liftState === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `${liftState ? "raised" : "lowered"} · ${liftOption?.label ?? "Up"} facing · ←/→ changes state`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
-                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${liftState === null ? "" : `lift lift--${liftState ? "raised" : "lowered"} lift--${liftOrientation}`} ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : liftOption ? <i className="lift-orientation-glyph" aria-hidden="true">{liftOption.glyph}</i> : null}</span>
+                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${liftId === null ? "" : `lift lift--${liftRaised ? "raised" : "lowered"} lift--top`} ${generic ? "generic" : ""} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
                     </button>
                   );
                 })}
@@ -2695,9 +2697,9 @@ export default function VoxelBench() {
             {genericPrompt && (
               <div className="generic-id-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setGenericPrompt(null); }}>
                 <section className="generic-id-modal" role="dialog" aria-modal="true" aria-labelledby="generic-id-title" aria-describedby="generic-id-message">
-                  <span className="generic-id-modal__eyebrow">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Two-state mechanism" : "Generic numbered family"}</span>
+                  <span className="generic-id-modal__eyebrow">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Lift state" : "Generic numbered family"}</span>
                   <h2 id="generic-id-title">Choose {blocks.find((block) => block.id === genericPrompt.blockId)?.name ?? "object"} {blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "state" : "ID"}</h2>
-                  <p id="generic-id-message">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Use 0 for the lowered slab and 1 for the raised cube." : "Cubes painted with the same number belong to the same generic object."}</p>
+                  <p id="generic-id-message">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Use 0 for lowered or 1 for raised. The face you paint chooses Up, Front, Right, Back, or Left and stores the matching full ID from 0–9." : "Cubes painted with the same number belong to the same generic object."}</p>
                   <label className="field"><span>{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "State (0 lowered · 1 raised)" : "ID (0 or more)"}</span><input ref={genericIdInputRef} inputMode="numeric" value={genericPrompt.value} aria-invalid={Boolean(genericPromptError)} onChange={(event) => { setGenericPrompt((current) => current ? { ...current, value: event.target.value } : current); setGenericPromptError(""); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); confirmGenericSelection(); } else if (event.key === "Escape") { event.preventDefault(); setGenericPrompt(null); } }} /></label>
                   {genericPromptError && <small className="generic-id-modal__error" role="alert">{genericPromptError}</small>}
                   <div className="generic-id-modal__actions"><button className="tool-button" type="button" onClick={() => setGenericPrompt(null)}>Cancel</button><button className="tool-button tool-button--primary" type="button" onClick={confirmGenericSelection}>Select</button></div>
@@ -2810,12 +2812,12 @@ export default function VoxelBench() {
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${(selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "raised" : "lowered"} lift--${selectedLiftOrientation}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? (selectedGenericIds[selectedDefinition.id] ?? 0) > 0 ? "▲" : "▼" : "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : selectedLiftOption ? <i className="lift-orientation-glyph" aria-hidden="true">{selectedLiftOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                   <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gem">MazeBench gem</option></select></label></div>
                   {selectedDefinition.visual.kind === "slope" && <div className="slope-direction-picker" role="group" aria-label="Slope paint direction">{SLOPE_DIRECTION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedSlopeDirection === option.id ? "is-active" : ""} aria-pressed={selectedSlopeDirection === option.id} title={`Paint ${option.label.toLowerCase()} slope`} onClick={() => { setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
-                  {selectedDefinition.visual.kind === "lift" && <div className="lift-orientation-picker" role="group" aria-label="Lift mounting direction">{LIFT_ORIENTATION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedLiftOrientation === option.id ? "is-active" : ""} aria-pressed={selectedLiftOrientation === option.id} title={`Paint ${option.label.toLowerCase()}-facing lift`} onClick={() => { setSelectedLiftOrientations((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} facing selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
+                  {selectedDefinition.visual.kind === "lift" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click a cube’s top or one of its four side faces. The toolbar state stays 0 (lowered) or 1 (raised), while the saved lift receives the matching directional ID from 0–9.</p>}
                   <p className="engine-role-note"><b>Occupancy is editor metadata.</b> Sensors and decorations may share a cell with solid bodies. Physics behavior still comes from the C++ role until the generalized state ABI phase.</p>
                 </div>
               ) : null}

@@ -306,8 +306,13 @@ void LoadNode(SearchData* data, const SearchNode& node) {
         DecodeCoordinate(node.coordinates[entity][2]) +
         data->base_offsets[dynamic][2];
     if (data->scene[dynamic].role == kPlayerLiftRole) {
+      const int32_t authored_id = data->entity_generic_ids[entity];
+      const int32_t orientation_base = authored_id >= 0
+          ? authored_id - authored_id % 2
+          : 0;
       data->scene[dynamic].generic_id =
-          (node.lift_states & (uint64_t{1} << entity)) != 0 ? 1 : 0;
+          orientation_base +
+          ((node.lift_states & (uint64_t{1} << entity)) != 0 ? 1 : 0);
     }
   }
   for (int32_t goal = 0; goal < data->goal_count; ++goal) {
@@ -324,7 +329,8 @@ bool CaptureCandidate(SearchData* data) {
   data->candidate_lift_states = 0;
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     const Voxel& anchor = data->scene[data->entity_anchors[entity]];
-    if (anchor.role == kPlayerLiftRole && anchor.generic_id > 0) {
+    if (anchor.role == kPlayerLiftRole && anchor.generic_id >= 0 &&
+        anchor.generic_id % 2 != 0) {
       data->candidate_lift_states |= uint64_t{1} << entity;
     }
     const int32_t x = anchor.x < 0 ? -1 : anchor.x;

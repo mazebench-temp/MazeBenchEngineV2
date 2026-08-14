@@ -239,10 +239,18 @@ TickResult step_tick(
               height) < 0) {
         const int32_t slide_from_x = sliding_player.x;
         const int32_t slide_from_y = sliding_player.y;
+        const int32_t slide_from_z = sliding_player.z;
         TranslateObjectsCarriedByPlayerOneStep(
             voxels, player_index, dx, dy, width, height);
         sliding_player.x = next_x;
         sliding_player.y = next_y;
+        (void)RaiseVacatedUpwardPlayerLift(
+            voxels,
+            count,
+            player_index,
+            slide_from_x,
+            slide_from_y,
+            slide_from_z);
         player_lift_pending = PlayerLiftCanToggleOnEntry(
             voxels,
             count,
@@ -464,9 +472,17 @@ TickResult step_tick(
               height) < 0) {
         const int32_t slide_from_x = sliding_player.x;
         const int32_t slide_from_y = sliding_player.y;
+        const int32_t slide_from_z = sliding_player.z;
         sliding_player.x = next_x;
         sliding_player.y = next_y;
         sliding_player.z = next_z;
+        (void)RaiseVacatedUpwardPlayerLift(
+            voxels,
+            count,
+            player_index,
+            slide_from_x,
+            slide_from_y,
+            slide_from_z);
         player_lift_pending = PlayerLiftCanToggleOnEntry(
             voxels,
             count,
@@ -917,6 +933,13 @@ TickResult step_tick(
     player.x = target_x;
     player.y = target_y;
     player.z = target_z;
+    (void)RaiseVacatedUpwardPlayerLift(
+        voxels,
+        count,
+        player_index,
+        player_from_x,
+        player_from_y,
+        player_from_z);
     player_lift_pending = PlayerLiftCanToggleOnEntry(
         voxels,
         count,

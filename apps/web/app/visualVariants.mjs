@@ -1,5 +1,6 @@
 export const SLOPE_DIRECTIONS = ["up", "right", "down", "left"];
 export const LIFT_ORIENTATIONS = ["top", "north", "east", "south", "west"];
+export const LIFT_GENERIC_MAX = 9;
 
 const DIRECTION_ALIASES = new Map([
   ["north", "up"],
@@ -51,7 +52,38 @@ export function rotateSlopeMetadata(voxel, quarterTurns) {
   };
 }
 
-export function normalizeLiftOrientation(orientation, variantId = 0) {
+export function liftIsRaised(genericId = 0) {
+  const id = Math.max(0, Math.min(LIFT_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
+  return id % 2 === 1;
+}
+
+export function liftGenericId(orientation, raised = false) {
+  return liftOrientationIndex(orientation) * 2 + (raised ? 1 : 0);
+}
+
+// Editor face picks are expressed in world coordinates, so this mapping stays
+// correct regardless of the camera yaw. A bottom-face pick is deliberately not
+// mapped: downward lifts do not exist in the authored 0–9 family yet.
+export function liftOrientationFromPaintFace(facePick = {}) {
+  if (facePick?.face === "bottom-face") return null;
+  const dx = Math.sign(Number(facePick?.dx) || 0);
+  const dy = Math.sign(Number(facePick?.dy) || 0);
+  if (dx > 0) return "east";
+  if (dx < 0) return "west";
+  if (dy > 0) return "south";
+  if (dy < 0) return "north";
+  return "top";
+}
+
+export function liftOrientationFromGenericId(genericId = 0) {
+  const id = Math.max(0, Math.min(LIFT_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
+  return LIFT_ORIENTATIONS[Math.floor(id / 2)];
+}
+
+export function normalizeLiftOrientation(orientation, variantId = 0, genericId) {
+  if (genericId !== undefined && genericId !== null) {
+    return liftOrientationFromGenericId(genericId);
+  }
   const candidate = String(orientation ?? "").trim().toLowerCase();
   const normalized = LIFT_ORIENTATION_ALIASES.get(candidate) ?? candidate;
   if (LIFT_ORIENTATIONS.includes(normalized)) return normalized;
@@ -64,18 +96,33 @@ export function liftOrientationIndex(orientation) {
 }
 
 export function rotateLiftMetadata(voxel, quarterTurns) {
-  const orientation = normalizeLiftOrientation(voxel?.orientation, voxel?.variantId);
+  const explicitOrientation = normalizeLiftOrientation(voxel?.orientation, voxel?.variantId);
+  const hasEncodedOrientation = Number(voxel?.genericId) >= 2;
+  const orientation = hasEncodedOrientation
+    ? liftOrientationFromGenericId(voxel.genericId)
+    : explicitOrientation;
+  const raised = liftIsRaised(voxel?.genericId);
   if (orientation === "top") {
-    return { ...voxel, orientation, variantId: 0 };
+    const genericId = liftGenericId(orientation, raised);
+    return {
+      ...voxel,
+      orientation,
+      variantId: 0,
+      ...(voxel?.genericId === undefined ? {} : { genericId }),
+      ...(voxel?.groupId === undefined ? {} : { groupId: genericId }),
+    };
   }
   const horizontal = LIFT_ORIENTATIONS.slice(1);
   const index = horizontal.indexOf(orientation);
   const turns = ((quarterTurns % 4) + 4) % 4;
   const nextOrientation = horizontal[(index + turns) % 4];
+  const genericId = liftGenericId(nextOrientation, raised);
   return {
     ...voxel,
     orientation: nextOrientation,
     variantId: liftOrientationIndex(nextOrientation),
+    ...(voxel?.genericId === undefined ? {} : { genericId }),
+    ...(voxel?.groupId === undefined ? {} : { groupId: genericId }),
   };
 }
 

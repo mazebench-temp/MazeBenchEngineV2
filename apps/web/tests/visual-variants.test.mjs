@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  LIFT_GENERIC_MAX,
+  liftGenericId,
+  liftIsRaised,
+  liftOrientationFromPaintFace,
   liftOrientationIndex,
+  liftOrientationFromGenericId,
   normalizeLiftOrientation,
   normalizeSlopeDirection,
   offsetSlopeDirection,
@@ -37,19 +42,46 @@ test("player lifts support top plus four wall-facing variants but not downward",
   assert.equal(normalizeLiftOrientation("left"), "west");
   assert.equal(normalizeLiftOrientation("down", 0), "top");
   assert.equal(liftOrientationIndex("west"), 4);
+  assert.equal(LIFT_GENERIC_MAX, 9);
+  assert.deepEqual(
+    Array.from({ length: 10 }, (_, id) => [
+      id,
+      liftOrientationFromGenericId(id),
+      liftIsRaised(id),
+    ]),
+    [
+      [0, "top", false], [1, "top", true],
+      [2, "north", false], [3, "north", true],
+      [4, "east", false], [5, "east", true],
+      [6, "south", false], [7, "south", true],
+      [8, "west", false], [9, "west", true],
+    ],
+  );
+  assert.equal(liftGenericId("east", true), 5);
 });
 
 test("lift rotations preserve top mounting and rotate wall mountings", () => {
   assert.deepEqual(
-    rotateLiftMetadata({ blockId: "player-lift", orientation: "top", variantId: 0 }, 3),
-    { blockId: "player-lift", orientation: "top", variantId: 0 },
+    rotateLiftMetadata({ blockId: "player-lift", orientation: "top", variantId: 0, genericId: 1, groupId: 1 }, 3),
+    { blockId: "player-lift", orientation: "top", variantId: 0, genericId: 1, groupId: 1 },
   );
   assert.deepEqual(
-    rotateLiftMetadata({ blockId: "player-lift", orientation: "north", variantId: 1 }, 1),
-    { blockId: "player-lift", orientation: "east", variantId: 2 },
+    rotateLiftMetadata({ blockId: "player-lift", orientation: "north", variantId: 1, genericId: 2, groupId: 2 }, 1),
+    { blockId: "player-lift", orientation: "east", variantId: 2, genericId: 4, groupId: 4 },
   );
   assert.deepEqual(
-    rotateLiftMetadata({ blockId: "player-lift", orientation: "west", variantId: 4 }, 2),
-    { blockId: "player-lift", orientation: "east", variantId: 2 },
+    rotateLiftMetadata({ blockId: "player-lift", orientation: "west", variantId: 4, genericId: 9, groupId: 9 }, 2),
+    { blockId: "player-lift", orientation: "east", variantId: 2, genericId: 5, groupId: 5 },
   );
+});
+
+test("lift paint faces choose the stored orientation while state stays binary", () => {
+  assert.equal(liftOrientationFromPaintFace({ face: "top", dx: 0, dy: 0 }), "top");
+  assert.equal(liftOrientationFromPaintFace({ dx: 0, dy: -1 }), "north");
+  assert.equal(liftOrientationFromPaintFace({ dx: 1, dy: 0 }), "east");
+  assert.equal(liftOrientationFromPaintFace({ dx: 0, dy: 1 }), "south");
+  assert.equal(liftOrientationFromPaintFace({ dx: -1, dy: 0 }), "west");
+  assert.equal(liftOrientationFromPaintFace({ face: "bottom-face" }), null);
+  assert.equal(liftGenericId(liftOrientationFromPaintFace({ dx: -1 }), false), 8);
+  assert.equal(liftGenericId(liftOrientationFromPaintFace({ dx: -1 }), true), 9);
 });

@@ -13,7 +13,7 @@ import {
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
-import { normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
+import { liftIsRaised, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
 
 type BlockDefinition = {
   id: string;
@@ -41,6 +41,8 @@ type WorldSettings = { width: number; height: number; floorLayer: 0 };
 
 type MazeBenchPick = {
   bottomY?: number;
+  dx?: number;
+  dy?: number;
   face?: string;
   kind?: string;
   paintLayer: number | null;
@@ -50,6 +52,12 @@ type MazeBenchPick = {
   sourceX: number;
   sourceY: number;
   topY?: number;
+};
+
+export type PaintSurface = {
+  dx: number;
+  dy: number;
+  face?: string;
 };
 
 type PaintPointerInput = {
@@ -203,7 +211,13 @@ type CanvasProps = {
   compact?: boolean;
   onSnapshot?: (dataUrl: string) => void;
   snapshotRequestId?: number | string;
-  onPaint?: (x: number, y: number, z: number, blockId: string | null) => void;
+  onPaint?: (
+    x: number,
+    y: number,
+    z: number,
+    blockId: string | null,
+    surface?: PaintSurface,
+  ) => void;
   onPaintGestureEnd?: () => void;
   onPaintGestureStart?: () => void;
   onCameraQuarterTurnChange?: (quarterTurns: number) => void;
@@ -378,7 +392,7 @@ function frameToPlayData(
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
               : isLift
-                ? { direction: normalizeLiftOrientation(voxel.orientation, voxel.variantId) }
+                ? { direction: normalizeLiftOrientation(voxel.orientation, voxel.variantId, voxel.genericId) }
               : {}),
             elevation: voxel.z + layerOffset,
             genericLabel: genericBlockIds.has(definition.id) && !isLift
@@ -386,7 +400,7 @@ function frameToPlayData(
               : undefined,
             label: definition.name,
             raised: isLift
-              ? Math.max(0, Math.floor(Number(voxel.genericId) || 0)) > 0
+              ? liftIsRaised(voxel.genericId)
               : true,
             type: definition.visual.kind === "slope"
               ? "ice_slope"
@@ -897,7 +911,11 @@ export default function MazeBenchCanvas({
     const signature = `${x},${y},${z},${erase ? "erase" : selectedBlock}`;
     if (signature === lastPaintRef.current && event.type === "pointermove") return;
     lastPaintRef.current = signature;
-    onPaint(x, y, z, erase ? null : selectedBlock ?? null);
+    onPaint(x, y, z, erase ? null : selectedBlock ?? null, {
+      dx: Number(target.dx) || 0,
+      dy: Number(target.dy) || 0,
+      face: target.face,
+    });
     if (!erase) {
       paintStrokeRef.current = {
         ...stroke,

@@ -42,6 +42,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Add block-definition controls for a bounded state list.
 - [ ] Add state names, symbols, colors/assets, initial state, and collision/support profile.
 - [x] Add the first block-definition control for bounded lift mounting variants.
+- [x] Keep lift authoring binary (`0` lowered / `1` raised) and derive the full directional ID from the clicked cube face.
 - [x] Add a four-direction selector and hotbar workflow for the first bounded Ice-slope variant.
 - [ ] Reuse the numbered toolbar entry workflow for bounded state/variant selection.
 - [ ] Keep `groupId`, `variantId`, `stateId`, and orientation independently editable.
@@ -63,7 +64,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Support GLB models with anchor, scale, offset, orientation, and pick proxy metadata.
 - [x] Import the MazeBench gem GLB with source/provenance documentation.
 - [x] Render the imported gem with MazeBench's black-outline treatment.
-- [x] Port the MazeBench purple player-lift slab/cube recipe with top, front, right, back, and left mountings; reserve the downward mounting for later.
+- [x] Port the MazeBench purple player-lift slab/cube recipe as IDs `0/1` Up, `2/3` Front, `4/5` Right, `6/7` Back, and `8/9` Left; reserve the downward mounting for later.
 - [ ] Port reusable visual recipes for gates, orange mechanisms, slopes, and punchers.
 - [ ] Keep canonical assets in shared game data for the web and future Apple app.
 
@@ -90,7 +91,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Keep falling momentum when a player or box is caught by a directional slope.
 - [ ] Flat surface/platform: explicit support behavior without full-cell collision.
 - [ ] Puncher: directional fixture and launch behavior.
-- [x] Player lift: lowered/raised collision, player-triggered state toggle, blocked-headroom guard, rider movement, editor state painting, trace persistence, and exact-search identity.
+- [x] Player lift: lowered/raised collision, player-triggered state toggle, blocked-headroom guard, rider movement, face-derived editor painting, attached-fixture carrying, trace persistence, and exact-search identity.
 - [ ] Player gate: role-filtered collision.
 - [ ] Attached/moving device variants.
 

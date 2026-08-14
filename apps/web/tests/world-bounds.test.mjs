@@ -126,12 +126,12 @@ test("clockwise level rotations keep a slope's visual direction attached to the 
 test("clockwise level rotations rotate wall-facing lifts but keep top lifts upward", () => {
   const world = { width: 4, height: 3 };
   const lifts = [
-    { x: 1, y: 0, z: 2, blockId: "player-lift", orientation: "north", variantId: 1 },
-    { x: 2, y: 1, z: 4, blockId: "player-lift", orientation: "top", variantId: 0 },
+    { x: 1, y: 0, z: 2, blockId: "player-lift", orientation: "north", variantId: 1, genericId: 3, groupId: 3 },
+    { x: 2, y: 1, z: 4, blockId: "player-lift", orientation: "top", variantId: 0, genericId: 0, groupId: 0 },
   ];
 
   assert.deepEqual(rotateVoxelsClockwise(lifts, world, 1), [
-    { x: 2, y: 1, z: 2, blockId: "player-lift", orientation: "east", variantId: 2 },
-    { x: 1, y: 2, z: 4, blockId: "player-lift", orientation: "top", variantId: 0 },
+    { x: 2, y: 1, z: 2, blockId: "player-lift", orientation: "east", variantId: 2, genericId: 5, groupId: 5 },
+    { x: 1, y: 2, z: 4, blockId: "player-lift", orientation: "top", variantId: 0, genericId: 0, groupId: 0 },
   ]);
 });
