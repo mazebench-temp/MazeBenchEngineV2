@@ -974,8 +974,38 @@ int32_t MovingObjectSlopeVerticalDelta(
 
 // A terrain lift is stored at its base cell. Even IDs are lowered and odd IDs
 // are raised. IDs 0/1 are the upward floor-mounted pair; the remaining pairs
-// reserve front/right/back/left mountings for their separately authored rules.
-// Only a player that horizontally enters the upward platform toggles it; a
+// encode front/right/back/left side mountings. The side orientation is its
+// outward direction: raising displaces a rider one cell along that direction.
+int32_t PlayerLiftSideOutwardDirection(const Voxel& lift) {
+  if (lift.role != kPlayerLiftRole || lift.generic_id < 2 ||
+      lift.generic_id > 9) {
+    return -1;
+  }
+  return lift.generic_id / 2 - 1;
+}
+
+bool PlayerLiftSideEntryIsClear(
+    Voxel* voxels,
+    const Voxel& lift,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  const int32_t direction = PlayerLiftSideOutwardDirection(lift);
+  if (direction < 0) return false;
+  constexpr int32_t kLiftDx[] = {0, 1, 0, -1};
+  constexpr int32_t kLiftDy[] = {-1, 0, 1, 0};
+  const int32_t target_x = lift.x + kLiftDx[direction];
+  const int32_t target_y = lift.y + kLiftDy[direction];
+  if (!IsInsideRoom(target_x, target_y, width, height)) return false;
+  const int32_t occupant = FindVoxelAt(
+      voxels, target_x, target_y, lift.z, width, height);
+  // Entry detection runs immediately after updating the player's coordinates
+  // and before rebuilding the spatial hash. Its old source cell can therefore
+  // still resolve to the player index even though it has just been vacated.
+  return occupant < 0 || occupant == player_index;
+}
+
+// Only a player that horizontally enters a lowered platform toggles it; a
 // rider carried by another body does not retrigger it.
 int32_t PlayerLiftAtPlayer(
     Voxel* voxels,
@@ -992,14 +1022,13 @@ int32_t PlayerLiftAtPlayer(
         lift.y != player.y) {
       continue;
     }
-    // Directional lift physics will be defined by authored tests. Until then,
-    // do not silently apply upward-floor behavior to IDs 2 through 9.
-    if (lift.generic_id < 0 || lift.generic_id > 1) continue;
+    if (lift.generic_id < 0 || lift.generic_id > 9) continue;
     if (!PlayerLiftIsRaised(lift) && lift.z == player.z) {
       raise = true;
       return index;
     }
-    if (PlayerLiftIsRaised(lift) && player.z != INT32_MIN &&
+    if (lift.generic_id <= 1 && PlayerLiftIsRaised(lift) &&
+        player.z != INT32_MIN &&
         lift.z == player.z - 1) {
       raise = false;
       return index;
@@ -1022,9 +1051,14 @@ bool PlayerLiftCanToggleOnEntry(
   const int32_t lift_index = PlayerLiftAtPlayer(
       voxels, count, player_index, width, height, raise);
   if (lift_index < 0) return false;
-  return !raise || (player.z != INT32_MAX &&
-      FindVoxelAt(
-          voxels, player.x, player.y, player.z + 1, width, height) < 0);
+  if (!raise) return true;
+  const Voxel& lift = voxels[lift_index];
+  if (PlayerLiftSideOutwardDirection(lift) >= 0) {
+    return PlayerLiftSideEntryIsClear(
+        voxels, lift, player_index, width, height);
+  }
+  return player.z != INT32_MAX && FindVoxelAt(
+      voxels, player.x, player.y, player.z + 1, width, height) < 0;
 }
 
 bool RaiseVacatedUpwardPlayerLift(
@@ -1065,6 +1099,23 @@ bool TogglePlayerLiftAtPlayer(
   if (lift_index < 0) return false;
 
   if (raise) {
+    const int32_t outward = PlayerLiftSideOutwardDirection(
+        voxels[lift_index]);
+    if (outward >= 0) {
+      constexpr int32_t kLiftDx[] = {0, 1, 0, -1};
+      constexpr int32_t kLiftDy[] = {-1, 0, 1, 0};
+      const int32_t target_x = player.x + kLiftDx[outward];
+      const int32_t target_y = player.y + kLiftDy[outward];
+      if (!IsInsideRoom(target_x, target_y, width, height) ||
+          FindVoxelAt(
+              voxels, target_x, target_y, player.z, width, height) >= 0) {
+        return false;
+      }
+      ++voxels[lift_index].generic_id;
+      player.x = target_x;
+      player.y = target_y;
+      return true;
+    }
     if (player.z == INT32_MAX ||
         FindVoxelAt(
             voxels, player.x, player.y, player.z + 1, width, height) >= 0) {

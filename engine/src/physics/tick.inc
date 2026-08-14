@@ -663,17 +663,52 @@ TickResult step_tick(
   bool rode_pushed_object = false;
   bool autonomous_slope_objects_handled = false;
   bool player_lift_pending = false;
+  int32_t raised_side_lift_contact = -1;
+  bool raised_side_lift_inward_contact = false;
+  bool lowered_side_lift_for_entry = false;
   RiderSnapshot rider;
+  if (target_index >= 0 &&
+      voxels[target_index].role == kPlayerLiftRole &&
+      PlayerLiftIsRaised(voxels[target_index])) {
+    const int32_t outward = PlayerLiftSideOutwardDirection(
+        voxels[target_index]);
+    if (outward >= 0) {
+      raised_side_lift_contact = target_index;
+      raised_side_lift_inward_contact =
+          state->direction == OppositeDirection(outward);
+      const int32_t lift_object = g_voxel_object[target_index];
+      const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+          voxels, lift_object, width, height);
+      const int32_t support_object = attachment >= 0
+          ? g_voxel_object[attachment]
+          : -1;
+      const bool movable_support = support_object >= 0 &&
+          (g_object_kind[support_object] == kNormalObject ||
+           g_object_kind[support_object] == kWeightlessObject);
+      if (!movable_support) {
+        if (!raised_side_lift_inward_contact) {
+          return store_and_finish(kMotionComplete, records_initial_tick);
+        }
+        --voxels[target_index].generic_id;
+        lowered_side_lift_for_entry = true;
+        target_index = -1;
+      }
+    }
+  }
   if (target_index >= 0) {
     int32_t object = g_voxel_object[target_index];
     if (object >= 0 && g_object_kind[object] == kMechanismObject) {
-      const int32_t mechanism_support = target_z == INT32_MIN ? -1 : FindVoxelAt(
-          voxels, target_x, target_y, target_z - 1, width, height);
+      const int32_t mechanism_support = raised_side_lift_contact >= 0
+          ? PlayerLiftSideAttachmentVoxel(
+                voxels, object, width, height)
+          : target_z == INT32_MIN ? -1 : FindVoxelAt(
+                voxels, target_x, target_y, target_z - 1, width, height);
       const int32_t support_object = mechanism_support >= 0
           ? g_voxel_object[mechanism_support]
           : -1;
       if (support_object < 0 ||
-          g_object_kind[support_object] != kWeightlessObject) {
+          (g_object_kind[support_object] != kNormalObject &&
+           g_object_kind[support_object] != kWeightlessObject)) {
         return store_and_finish(kMotionComplete, records_initial_tick);
       }
       target_index = mechanism_support;
@@ -774,7 +809,13 @@ TickResult step_tick(
               true));
     if (!object_translated) {
       g_ignored_support_voxel = -1;
-      if (diagonal_slope_contact) {
+      if (raised_side_lift_inward_contact &&
+          raised_side_lift_contact >= 0) {
+        ClearMovingObjects();
+        --voxels[raised_side_lift_contact].generic_id;
+        lowered_side_lift_for_entry = true;
+        target_index = -1;
+      } else if (diagonal_slope_contact) {
         ClearMovingObjects();
         const int32_t downhill = ObjectDownhillSlopeDirection(
             voxels, object, width, height);
@@ -940,14 +981,15 @@ TickResult step_tick(
         player_from_x,
         player_from_y,
         player_from_z);
-    player_lift_pending = PlayerLiftCanToggleOnEntry(
-        voxels,
-        count,
-        player_index,
-        player_from_x,
-        player_from_y,
-        width,
-        height);
+    player_lift_pending = !lowered_side_lift_for_entry &&
+        PlayerLiftCanToggleOnEntry(
+            voxels,
+            count,
+            player_index,
+            player_from_x,
+            player_from_y,
+            width,
+            height);
   } else {
     // A rider follows its carrier, not the target cell that was computed
     // before the carrier's translation.

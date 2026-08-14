@@ -233,9 +233,9 @@
       "name": "ICE SLOPES + 3D BOXES"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "lift",
-      "locked": false,
+      "locked": true,
       "name": "Lift"
     }
   ],
