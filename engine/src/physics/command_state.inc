@@ -81,6 +81,7 @@ void StoreMandatoryMomentum(
   ClearHorizontalMomentum(state, count);
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_mandatory_objects[object] == 0 ||
+        g_object_kind[object] == kMechanismObject ||
         !ObjectIsActive(voxels, object, width, height)) {
       continue;
     }
@@ -113,7 +114,8 @@ bool StoreSupportedMandatoryMomentum(
   ClearHorizontalMomentum(state, count);
   bool stored = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
-    if (!ObjectIsActive(voxels, object, width, height)) {
+    if (g_object_kind[object] == kMechanismObject ||
+        !ObjectIsActive(voxels, object, width, height)) {
       continue;
     }
     const bool supported_momentum =

@@ -106,6 +106,74 @@ bool PlayerLiftIsAttachedToObject(
   return support >= 0 && g_voxel_object[support] == support_object;
 }
 
+bool AttachedPlayerLiftHasDirectSupport(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height,
+    bool require_stable) {
+  for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    if (!PlayerLiftIsAttachedToObject(
+            voxels, lift_object, object, width, height)) {
+      continue;
+    }
+    for (int32_t member = g_object_head[lift_object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].z == INT32_MIN) continue;
+      const int32_t support = FindVoxelAt(
+          voxels,
+          voxels[member].x,
+          voxels[member].y,
+          voxels[member].z - 1,
+          width,
+          height);
+      if (support < 0 || support == g_ignored_support_voxel) continue;
+      const int32_t support_object = g_voxel_object[support];
+      if (support_object == object || support_object == lift_object) continue;
+      if (!require_stable || support_object < 0 ||
+          g_object_falling[support_object] == 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool AddAttachedPlayerLiftIceSupports(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height,
+    bool flat_only,
+    bool& found_support) {
+  for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    if (!PlayerLiftIsAttachedToObject(
+            voxels, lift_object, object, width, height)) {
+      continue;
+    }
+    for (int32_t member = g_object_head[lift_object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].z == INT32_MIN) continue;
+      const int32_t support = FindVoxelAt(
+          voxels,
+          voxels[member].x,
+          voxels[member].y,
+          voxels[member].z - 1,
+          width,
+          height);
+      if (support < 0) continue;
+      const int32_t support_object = g_voxel_object[support];
+      if (support_object == object || support_object == lift_object) continue;
+      if (flat_only ? voxels[support].role != kIceRole
+                    : !IsIceRole(voxels[support].role)) {
+        return false;
+      }
+      found_support = true;
+    }
+  }
+  return true;
+}
+
 void ResetObjectMotion() {
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_object_gravity_armed[object] = 0;
@@ -259,7 +327,8 @@ bool ObjectHasDirectSupport(
       return true;
     }
   }
-  return false;
+  return AttachedPlayerLiftHasDirectSupport(
+      voxels, object, width, height, false);
 }
 
 bool ObjectHasStableDirectSupport(
@@ -289,7 +358,8 @@ bool ObjectHasStableDirectSupport(
       return true;
     }
   }
-  return false;
+  return AttachedPlayerLiftHasDirectSupport(
+      voxels, object, width, height, true);
 }
 
 bool ObjectIsFullyOnIce(
@@ -312,7 +382,8 @@ bool ObjectIsFullyOnIce(
     if (!IsIceRole(voxels[support].role)) return false;
     found_bottom = true;
   }
-  return found_bottom;
+  return AddAttachedPlayerLiftIceSupports(
+      voxels, object, width, height, false, found_bottom) && found_bottom;
 }
 
 bool ObjectIsFullyOnFlatIce(
@@ -332,7 +403,8 @@ bool ObjectIsFullyOnFlatIce(
     if (voxels[support].role != kIceRole) return false;
     found_bottom = true;
   }
-  return found_bottom;
+  return AddAttachedPlayerLiftIceSupports(
+      voxels, object, width, height, true, found_bottom) && found_bottom;
 }
 
 int32_t ObjectHighestZ(Voxel* voxels, int32_t object) {
@@ -528,6 +600,25 @@ int32_t BuildVerticalComponent(
   g_object_queue[queue_end++] = first_object;
   while (queue_begin < queue_end) {
     const int32_t object = g_object_queue[queue_begin++];
+    const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+        voxels, object, width, height);
+    if (attachment >= 0) {
+      const int32_t other = g_voxel_object[attachment];
+      if (other >= 0 && other != object &&
+          g_component_objects[other] == 0) {
+        g_component_objects[other] = 1;
+        g_object_queue[queue_end++] = other;
+      }
+    }
+    for (int32_t lift_object = 0; lift_object < g_object_count;
+         ++lift_object) {
+      if (g_component_objects[lift_object] == 0 &&
+          PlayerLiftIsAttachedToObject(
+              voxels, lift_object, object, width, height)) {
+        g_component_objects[lift_object] = 1;
+        g_object_queue[queue_end++] = lift_object;
+      }
+    }
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       const Voxel& voxel = voxels[member];

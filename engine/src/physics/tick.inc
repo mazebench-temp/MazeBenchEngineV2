@@ -176,14 +176,42 @@ TickResult step_tick(
   };
 
   if (state->phase == kMotionPlayerLift) {
+    bool lift_will_raise = false;
+    const int32_t lift_index = PlayerLiftAtPlayer(
+        voxels,
+        count,
+        player_index,
+        width,
+        height,
+        lift_will_raise);
+    const int32_t outward = lift_index >= 0 && lift_will_raise
+        ? PlayerLiftSideOutwardDirection(voxels[lift_index])
+        : -1;
     const bool toggled = TogglePlayerLiftAtPlayer(
         voxels, count, player_index, width, height);
     BuildSpatialIndex(voxels, count, width, height);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
-    const bool gravity_continues = ObjectsNeedGravityTick(
+    const bool object_gravity_continues = ObjectsNeedGravityTick(
         voxels, count, width, height, false);
+    bool player_gravity_continues = false;
+    bool player_ice_continues = false;
+    if (toggled && outward >= 0) {
+      // A side lift imparts its outward direction to the rider. That proposal
+      // continues naturally across Ice, while an unsupported ejection drains
+      // vertical gravity before the command completes.
+      state->direction = outward;
+      dx = kDx[outward];
+      dy = kDy[outward];
+      player_gravity_continues = defer_player_gravity(true, false, false);
+      player_ice_continues = !player_gravity_continues &&
+          IsSupportedByIce(voxels, voxels[player_index], width, height);
+    }
+    const bool gravity_continues =
+        object_gravity_continues || player_gravity_continues;
     return store_and_finish(
-        gravity_continues ? kMotionGravity : kMotionComplete,
+        gravity_continues
+            ? kMotionGravity
+            : player_ice_continues ? kMotionPlayerIce : kMotionComplete,
         toggled,
         true);
   }
@@ -192,6 +220,59 @@ TickResult step_tick(
     const bool player_has_horizontal_ice_proposal =
         state->reserved[0] == kResumePlayerIce &&
         IsSupportedByIce(voxels, voxels[player_index], width, height);
+    bool player_slid = false;
+    bool player_lift_pending = false;
+    bool horizontal_proposal_caught_falling_body = false;
+    if (player_has_horizontal_ice_proposal) {
+      Voxel& sliding_player = voxels[player_index];
+      const int32_t next_x = sliding_player.x + dx;
+      const int32_t next_y = sliding_player.y + dy;
+      const int32_t next_z = sliding_player.z;
+      const int32_t current_target = IsInsideRoom(
+          next_x, next_y, width, height)
+          ? FindVoxelAt(voxels, next_x, next_y, next_z, width, height)
+          : -1;
+      const int32_t falling_above = next_z == INT32_MAX
+          ? -1
+          : FindVoxelAt(
+                voxels, next_x, next_y, next_z + 1, width, height);
+      const int32_t falling_object = falling_above >= 0
+          ? g_voxel_object[falling_above]
+          : -1;
+      if (current_target < 0 && falling_object >= 0 &&
+          g_object_falling[falling_object] != 0) {
+        const int32_t slide_from_x = sliding_player.x;
+        const int32_t slide_from_y = sliding_player.y;
+        const int32_t slide_from_z = sliding_player.z;
+        TranslateObjectsCarriedByPlayerOneStep(
+            voxels, player_index, dx, dy, width, height);
+        sliding_player.x = next_x;
+        sliding_player.y = next_y;
+        (void)RaiseVacatedUpwardPlayerLift(
+            voxels,
+            count,
+            player_index,
+            slide_from_x,
+            slide_from_y,
+            slide_from_z);
+        player_lift_pending = PlayerLiftCanToggleOnEntry(
+            voxels,
+            count,
+            player_index,
+            slide_from_x,
+            slide_from_y,
+            width,
+            height);
+        player_slid = true;
+        horizontal_proposal_caught_falling_body = true;
+        BuildSpatialIndex(voxels, count, width, height);
+        defer_player_gravity(true, true, false);
+        if (!IsSupportedByIce(
+                voxels, sliding_player, width, height)) {
+          state->reserved[0] = kResumeNothing;
+        }
+      }
+    }
     int32_t object_supported_by_player = -1;
     const Voxel& player_before_gravity = voxels[player_index];
     if (player_before_gravity.z != INT32_MAX) {
@@ -209,7 +290,8 @@ TickResult step_tick(
     const RiderSnapshot rider =
         CapturePlayerRider(voxels, player_index, width, height);
     if (rider.object >= 0 ||
-        (object_supported_by_player >= 0 && state->player_falling != 0)) {
+        (!horizontal_proposal_caught_falling_body &&
+         object_supported_by_player >= 0 && state->player_falling != 0)) {
       g_ignored_support_voxel = player_index;
     }
     SettleAllObjects(voxels, count, width, height);
@@ -223,9 +305,8 @@ TickResult step_tick(
           voxels, player_index, rider, width, height);
       BuildSpatialIndex(voxels, count, width, height);
     }
-    bool player_slid = false;
-    bool player_lift_pending = false;
-    if (!player_rode_falling_object && player_has_horizontal_ice_proposal) {
+    if (!player_slid && !player_rode_falling_object &&
+        player_has_horizontal_ice_proposal) {
       Voxel& sliding_player = voxels[player_index];
       const int32_t next_x = sliding_player.x + dx;
       const int32_t next_y = sliding_player.y + dy;
@@ -600,6 +681,19 @@ TickResult step_tick(
 
   int32_t target_index =
       FindVoxelAt(voxels, target_x, target_y, target_z, width, height);
+  if (target_index < 0 && player_dz < 0) {
+    // A one-step slope descent sweeps the vertical face between the source
+    // and lower destination. A raised side lift mounted at the source
+    // elevation blocks (or, for a deliberate input, is pushed by) that
+    // diagonal move even though the endpoint cell beneath it is empty.
+    const int32_t swept = FindVoxelAt(
+        voxels, target_x, target_y, player.z, width, height);
+    if (swept >= 0 && voxels[swept].role == kPlayerLiftRole &&
+        PlayerLiftIsRaised(voxels[swept]) &&
+        PlayerLiftSideOutwardDirection(voxels[swept]) >= 0) {
+      target_index = swept;
+    }
+  }
   bool downhill_underfoot_push = false;
   bool diagonal_slope_contact = false;
   if (target_index < 0 && !automatic_ice_motion && player.z != INT32_MIN) {
@@ -650,6 +744,7 @@ TickResult step_tick(
     }
   }
   if (automatic_ice_motion && player_dz == -1 && target_index >= 0 &&
+      voxels[target_index].role != kPlayerLiftRole &&
       g_voxel_object[target_index] >= 0 &&
       !ObjectIsFullyOnIce(
           voxels, g_voxel_object[target_index], width, height)) {
@@ -685,6 +780,14 @@ TickResult step_tick(
       const bool movable_support = support_object >= 0 &&
           (g_object_kind[support_object] == kNormalObject ||
            g_object_kind[support_object] == kWeightlessObject);
+      if (automatic_ice_motion &&
+          (!movable_support || !ObjectIsFullyOnIce(
+              voxels, support_object, width, height))) {
+        // Ice momentum can transmit through a mounted actuator only while
+        // the complete supporting body is itself slippery. Floor-anchored
+        // mechanisms stop automatic motion; a fresh command may still push.
+        return store_and_finish(kMotionComplete, records_initial_tick);
+      }
       if (!movable_support) {
         if (!raised_side_lift_inward_contact) {
           return store_and_finish(kMotionComplete, records_initial_tick);
@@ -743,6 +846,38 @@ TickResult step_tick(
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
     g_object_direction[object] = static_cast<uint8_t>(state->direction);
+    if (raised_side_lift_contact >= 0 && !automatic_ice_motion) {
+      const int32_t low_z = target_z < player_from_z
+          ? target_z
+          : player_from_z;
+      const int32_t high_z = target_z > player_from_z
+          ? target_z
+          : player_from_z;
+      for (int32_t index = 0; index < count; ++index) {
+        if (index == raised_side_lift_contact ||
+            voxels[index].role != kPlayerLiftRole ||
+            !PlayerLiftIsRaised(voxels[index]) ||
+            voxels[index].x != target_x || voxels[index].y != target_y ||
+            voxels[index].z < low_z || voxels[index].z > high_z) {
+          continue;
+        }
+        const int32_t lift_object = g_voxel_object[index];
+        const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+            voxels, lift_object, width, height);
+        const int32_t contacted_object = attachment >= 0
+            ? g_voxel_object[attachment]
+            : -1;
+        if (contacted_object < 0 ||
+            (g_object_kind[contacted_object] != kNormalObject &&
+             g_object_kind[contacted_object] != kWeightlessObject)) {
+          continue;
+        }
+        g_mandatory_objects[contacted_object] = 1;
+        g_moving_objects[contacted_object] = 1;
+        g_object_direction[contacted_object] =
+            static_cast<uint8_t>(state->direction);
+      }
+    }
     AddDeliberateUphillSlopeContactClosure(
         voxels, width, height, target_index);
     AddAutonomousSlopeObjects(

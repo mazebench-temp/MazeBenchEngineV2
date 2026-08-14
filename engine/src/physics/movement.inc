@@ -26,6 +26,35 @@ int32_t MovingSupportBelowObject(
     bool carry_from_player,
     int32_t width,
     int32_t height) {
+  // A mounted fixture participates in the carrier footprint of its complete
+  // rigid assembly. If that fixture is resting on a moving body, the mount
+  // transmits the carry even when another part of the assembly also has a
+  // stationary foothold.
+  for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    if (!PlayerLiftIsAttachedToObject(
+            voxels, lift_object, object, width, height)) {
+      continue;
+    }
+    for (int32_t member = g_object_head[lift_object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].z == INT32_MIN) continue;
+      const int32_t support = FindVoxelAt(
+          voxels,
+          voxels[member].x,
+          voxels[member].y,
+          voxels[member].z - 1,
+          width,
+          height);
+      const int32_t support_object = support >= 0
+          ? g_voxel_object[support]
+          : -1;
+      if (support_object >= 0 && support_object != object &&
+          support_object != lift_object &&
+          g_moving_objects[support_object] != 0) {
+        return support_object;
+      }
+    }
+  }
   const int32_t attachment = PlayerLiftSideAttachmentVoxel(
       voxels, object, width, height);
   if (attachment >= 0) {
@@ -417,6 +446,36 @@ void MarkObjectsForDeferredGravity(
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_component_objects[object] = 0;
     if (!eligible(object)) continue;
+    bool attached_fixture_is_grounded = false;
+    for (int32_t lift_object = 0; lift_object < g_object_count &&
+         !attached_fixture_is_grounded; ++lift_object) {
+      if (!PlayerLiftIsAttachedToObject(
+              voxels, lift_object, object, width, height)) {
+        continue;
+      }
+      for (int32_t member = g_object_head[lift_object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        if (voxels[member].z == INT32_MIN) continue;
+        const int32_t support = FindVoxelAt(
+            voxels,
+            voxels[member].x,
+            voxels[member].y,
+            voxels[member].z - 1,
+            width,
+            height);
+        if (support < 0 || support == g_ignored_support_voxel) continue;
+        const int32_t support_object = g_voxel_object[support];
+        if (support_object != object && support_object != lift_object &&
+            (support_object < 0 || !eligible(support_object))) {
+          attached_fixture_is_grounded = true;
+          break;
+        }
+      }
+    }
+    if (attached_fixture_is_grounded) {
+      g_component_objects[object] = 1;
+      continue;
+    }
     const int32_t attachment = PlayerLiftSideAttachmentVoxel(
         voxels, object, width, height);
     if (attachment >= 0) {
@@ -448,6 +507,21 @@ void MarkObjectsForDeferredGravity(
     changed = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (!eligible(object) || g_component_objects[object] != 0) {
+        continue;
+      }
+      bool supported_by_attached_fixture = false;
+      for (int32_t lift_object = 0; lift_object < g_object_count;
+           ++lift_object) {
+        if (g_component_objects[lift_object] != 0 &&
+            PlayerLiftIsAttachedToObject(
+                voxels, lift_object, object, width, height)) {
+          supported_by_attached_fixture = true;
+          break;
+        }
+      }
+      if (supported_by_attached_fixture) {
+        g_component_objects[object] = 1;
+        changed = true;
         continue;
       }
       const int32_t attachment = PlayerLiftSideAttachmentVoxel(
@@ -893,6 +967,12 @@ int32_t DeliberateSlopeVerticalDelta(
   const int32_t next_support = FindVoxelAt(
       voxels, next_x, next_y, voxel.z - 1, width, height);
   if (next_support >= 0) {
+    if (voxels[next_support].role == kPlayerLiftRole &&
+        PlayerLiftIsRaised(voxels[next_support]) &&
+        voxels[next_support].generic_id >= 2 &&
+        voxels[next_support].generic_id <= 9) {
+      return slope_delta;
+    }
     const int32_t moving_support = g_voxel_object[next_support];
     const bool weightless_chain_support = ignore_moving_support &&
         moving_support >= 0 &&
@@ -984,25 +1064,83 @@ int32_t PlayerLiftSideOutwardDirection(const Voxel& lift) {
   return lift.generic_id / 2 - 1;
 }
 
-bool PlayerLiftSideEntryIsClear(
+int32_t PlayerLiftActuatedObjectAt(
     Voxel* voxels,
-    const Voxel& lift,
+    int32_t count,
+    int32_t x,
+    int32_t y,
+    int32_t z) {
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].x != x || voxels[index].y != y ||
+        voxels[index].z != z) {
+      continue;
+    }
+    const int32_t object = g_voxel_object[index];
+    if (object >= 0 && g_object_kind[object] != kMechanismObject) {
+      return object;
+    }
+  }
+  return -1;
+}
+
+bool TranslatePlayerLiftPayload(
+    Voxel* voxels,
+    int32_t count,
     int32_t player_index,
+    int32_t source_x,
+    int32_t source_y,
+    int32_t source_z,
+    int32_t dx,
+    int32_t dy,
+    int32_t dz,
     int32_t width,
     int32_t height) {
-  const int32_t direction = PlayerLiftSideOutwardDirection(lift);
-  if (direction < 0) return false;
-  constexpr int32_t kLiftDx[] = {0, 1, 0, -1};
-  constexpr int32_t kLiftDy[] = {-1, 0, 1, 0};
-  const int32_t target_x = lift.x + kLiftDx[direction];
-  const int32_t target_y = lift.y + kLiftDy[direction];
-  if (!IsInsideRoom(target_x, target_y, width, height)) return false;
-  const int32_t occupant = FindVoxelAt(
-      voxels, target_x, target_y, lift.z, width, height);
-  // Entry detection runs immediately after updating the player's coordinates
-  // and before rebuilding the spatial hash. Its old source cell can therefore
-  // still resolve to the player index even though it has just been vacated.
-  return occupant < 0 || occupant == player_index;
+  ClearMovingObjects();
+  int32_t seeded = 0;
+  auto seed_at = [&](int32_t x, int32_t y, int32_t z) {
+    const int32_t object = PlayerLiftActuatedObjectAt(
+        voxels, count, x, y, z);
+    if (object >= 0 && g_mandatory_objects[object] == 0) {
+      g_mandatory_objects[object] = 1;
+      g_moving_objects[object] = 1;
+      ++seeded;
+    }
+  };
+
+  if (dz != 0) {
+    // A top lift can share its lowered cell with the bottom voxel of a
+    // polycube. It also directly contacts a body one cell above the rider.
+    // Seed both contacts, then let the ordinary rigid translation closure
+    // move every stacked/carried body as one transactional proposal.
+    seed_at(source_x, source_y, source_z);
+    if (source_z != INT32_MAX) {
+      seed_at(source_x, source_y, source_z + 1);
+    }
+  } else {
+    seed_at(source_x + dx, source_y + dy, source_z);
+  }
+
+  if (seeded == 0) {
+    const int32_t target_x = source_x + dx;
+    const int32_t target_y = source_y + dy;
+    const int32_t target_z = source_z + dz;
+    const int32_t occupant = FindVoxelAt(
+        voxels, target_x, target_y, target_z, width, height);
+    return occupant < 0 || occupant == player_index;
+  }
+
+  return TranslateMovingObjects(
+      voxels,
+      count,
+      player_index,
+      dx,
+      dy,
+      dz,
+      width,
+      height,
+      false,
+      true,
+      true);
 }
 
 // Only a player that horizontally enters a lowered platform toggles it; a
@@ -1054,11 +1192,16 @@ bool PlayerLiftCanToggleOnEntry(
   if (!raise) return true;
   const Voxel& lift = voxels[lift_index];
   if (PlayerLiftSideOutwardDirection(lift) >= 0) {
-    return PlayerLiftSideEntryIsClear(
-        voxels, lift, player_index, width, height);
+    const int32_t direction = PlayerLiftSideOutwardDirection(lift);
+    constexpr int32_t kLiftDx[] = {0, 1, 0, -1};
+    constexpr int32_t kLiftDy[] = {-1, 0, 1, 0};
+    return IsInsideRoom(
+        lift.x + kLiftDx[direction],
+        lift.y + kLiftDy[direction],
+        width,
+        height);
   }
-  return player.z != INT32_MAX && FindVoxelAt(
-      voxels, player.x, player.y, player.z + 1, width, height) < 0;
+  return player.z != INT32_MAX;
 }
 
 bool RaiseVacatedUpwardPlayerLift(
@@ -1074,12 +1217,13 @@ bool RaiseVacatedUpwardPlayerLift(
   }
   for (int32_t index = 0; index < count; ++index) {
     Voxel& lift = voxels[index];
-    if (lift.role == kPlayerLiftRole && lift.generic_id == 0 &&
+    if (lift.role == kPlayerLiftRole && lift.generic_id >= 0 &&
+        lift.generic_id <= 9 && lift.generic_id % 2 == 0 &&
         lift.x == from_x && lift.y == from_y && lift.z == from_z) {
-      // A blocked rider leaves the lowered platform behind. With nobody to
-      // lift, the fixture can return to its raised state even when the cube
-      // above it would have prevented raising the rider itself.
-      lift.generic_id = 1;
+      // A blocked or voluntarily departing rider leaves the lowered fixture
+      // behind. With nobody to actuate, every mounting returns to its raised
+      // state without pushing the contents of its outward cell.
+      ++lift.generic_id;
       return true;
     }
   }
@@ -1107,8 +1251,18 @@ bool TogglePlayerLiftAtPlayer(
       const int32_t target_x = player.x + kLiftDx[outward];
       const int32_t target_y = player.y + kLiftDy[outward];
       if (!IsInsideRoom(target_x, target_y, width, height) ||
-          FindVoxelAt(
-              voxels, target_x, target_y, player.z, width, height) >= 0) {
+          !TranslatePlayerLiftPayload(
+              voxels,
+              count,
+              player_index,
+              player.x,
+              player.y,
+              player.z,
+              kLiftDx[outward],
+              kLiftDy[outward],
+              0,
+              width,
+              height)) {
         return false;
       }
       ++voxels[lift_index].generic_id;
@@ -1117,8 +1271,18 @@ bool TogglePlayerLiftAtPlayer(
       return true;
     }
     if (player.z == INT32_MAX ||
-        FindVoxelAt(
-            voxels, player.x, player.y, player.z + 1, width, height) >= 0) {
+        !TranslatePlayerLiftPayload(
+            voxels,
+            count,
+            player_index,
+            player.x,
+            player.y,
+            player.z,
+            0,
+            0,
+            1,
+            width,
+            height)) {
       return false;
     }
     ++voxels[lift_index].generic_id;
@@ -1329,6 +1493,7 @@ bool AddAutonomousSlopeObjects(
   // propagate without making unrelated bodies elsewhere in the room move.
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_mandatory_objects[object] != 0 ||
+        g_object_kind[object] == kMechanismObject ||
         !ObjectIsActive(voxels, object, width, height) ||
         !ObjectIsFullyOnIce(voxels, object, width, height)) {
       continue;
@@ -1378,6 +1543,7 @@ bool AddAutonomousSlopeObjects(
     }
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_mandatory_objects[object] != 0 ||
+          g_object_kind[object] == kMechanismObject ||
           !ObjectIsActive(voxels, object, width, height)) {
         continue;
       }
@@ -1449,6 +1615,7 @@ bool PromoteDeferredSlopeMomentum(
   bool promoted = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_deferred_slope_objects[object] == 0 ||
+        g_object_kind[object] == kMechanismObject ||
         !ObjectIsActive(voxels, object, width, height)) {
       continue;
     }
