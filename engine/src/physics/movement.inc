@@ -1044,6 +1044,25 @@ int32_t ObjectDownhillSlopeDirection(
   return downhill;
 }
 
+bool ObjectHasConflictingSlopeSupports(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  int32_t downhill = -1;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const int32_t support = SlopeSupportingVoxel(
+        voxels, voxels[member], width, height);
+    if (support < 0) continue;
+    const int32_t member_downhill = OppositeDirection(
+        IceSlopeDirection(voxels[support].role));
+    if (downhill >= 0 && downhill != member_downhill) return true;
+    downhill = member_downhill;
+  }
+  return false;
+}
+
 bool ObjectBridgesSlopeAndFlatIce(
     Voxel* voxels,
     int32_t object,

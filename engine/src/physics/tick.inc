@@ -265,6 +265,8 @@ TickResult step_tick(
     if (!gravity_continues && state->reserved[0] == kResumeObjectIce) {
       state->reserved[0] = kResumeNothing;
       RestoreMandatoryMomentum(state, voxels, width, height);
+      CancelConflictingLandedSlopeMomentum(
+          state, voxels, width, height);
       if (MovingObjectsAreFullyOnIce(voxels, width, height)) {
         return store_and_finish(
             kMotionObjectIce, objects_advanced || player_advanced);

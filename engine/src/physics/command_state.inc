@@ -189,6 +189,29 @@ void RestoreMandatoryMomentum(
   }
 }
 
+void CancelConflictingLandedSlopeMomentum(
+    MotionState* state,
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
+  // A rigid body landing across slopes with different downhill directions is
+  // stable. Its pre-fall direction cannot choose one supporting wedge over
+  // another. A later deliberate push may still move the body transactionally.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0 ||
+        !ObjectHasConflictingSlopeSupports(
+            voxels, object, width, height)) {
+      continue;
+    }
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      state->horizontal_momentum[member] = 0;
+    }
+    g_mandatory_objects[object] = 0;
+    g_moving_objects[object] = 0;
+  }
+}
+
 bool StoredMomentumWillLandOnSlope(
     const MotionState* state,
     Voxel* voxels,

@@ -1018,6 +1018,24 @@ void TestSlopeAndFlatIceBridgeNeedsDeliberatePush() {
         "a polycube bridging slope and flat Ice should remain stable without a push");
 }
 
+void TestOpposingSlopeLandingCancelsStoredMomentum() {
+  voxelbench::Voxel voxels[] = {
+      {1, 5, 3, Role("player"), -1},
+      {1, 4, 3, Role("weightless-pushable"), 0},
+      {1, 3, 3, Role("weightless-pushable"), 0},
+      {1, 4, 2, Role("wall"), -1},
+      {1, 5, 2, Role("wall"), -1},
+      {1, 3, 0, Role("ice-slope-down"), -1},
+      {1, 2, 0, Role("ice-slope-up"), -1},
+      {1, 1, 1, Role("ice-slope-up"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 8, 3, 7, 0) == 0,
+        "a push that drops a body onto opposing slopes should run");
+  Check(voxels[1].y == 3 && voxels[1].z == 1 &&
+            voxels[2].y == 2 && voxels[2].z == 1,
+        "opposing slope supports should cancel stored pre-fall momentum");
+}
+
 }  // namespace
 
 int main() {
@@ -1061,10 +1079,11 @@ int main() {
   TestCappedSearchDoesNotClaimAnOptimalProof();
   TestSlopeCarrierMovesStationaryRider();
   TestSlopeAndFlatIceBridgeNeedsDeliberatePush();
+  TestOpposingSlopeLandingCancelsStoredMomentum();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 40 C++ physics/search tests passed\n";
+  std::cout << "all 41 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }
