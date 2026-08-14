@@ -57,6 +57,12 @@
       "name": "Floor",
       "description": "A solid piece, but the player may fall off of it.",
       "generic": false
+    },
+    {
+      "id": "player-lift",
+      "name": "Player Lift",
+      "description": "A two-state purple lift. State 0 is a lowered slab; state 1 is a raised cube. A player entering it toggles the state and rides the platform.",
+      "generic": true
     }
   ],
   "blocks": [
@@ -140,6 +146,17 @@
       "visual": {
         "kind": "slope"
       }
+    },
+    {
+      "id": "player-lift",
+      "name": "Player lift",
+      "color": "#8A63D2",
+      "roleId": "player-lift",
+      "genericMax": 1,
+      "occupancy": "sensor",
+      "visual": {
+        "kind": "lift"
+      }
     }
   ],
   "folders": [
@@ -212,8 +229,14 @@
     {
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
-      "locked": false,
+      "locked": true,
       "name": "ICE SLOPES + 3D BOXES"
+    },
+    {
+      "collapsed": false,
+      "id": "lift",
+      "locked": false,
+      "name": "Lift"
     }
   ],
   "searches": [
@@ -20045,6 +20068,60 @@
       "name": "Untitled test 250 copy copy copy",
       "folderId": "ice-slopes-3d-boxes",
       "file": "test-250-copy-copy-copy.json"
+    },
+    {
+      "id": "test-254",
+      "name": "Untitled test 254",
+      "folderId": "lift",
+      "file": "test-254.json"
+    },
+    {
+      "id": "test-254-copy",
+      "name": "Untitled test 254 copy",
+      "folderId": "lift",
+      "file": "test-254-copy.json"
+    },
+    {
+      "id": "test-256",
+      "name": "Untitled test 256",
+      "folderId": "lift",
+      "file": "test-256.json"
+    },
+    {
+      "id": "test-256-copy",
+      "name": "Untitled test 256 copy",
+      "folderId": "lift",
+      "file": "test-256-copy.json"
+    },
+    {
+      "id": "test-258",
+      "name": "Untitled test 258",
+      "folderId": "lift",
+      "file": "test-258.json"
+    },
+    {
+      "id": "test-258-copy",
+      "name": "Untitled test 258 copy",
+      "folderId": "lift",
+      "file": "test-258-copy.json"
+    },
+    {
+      "id": "test-258-copy-copy",
+      "name": "Untitled test 258 copy copy",
+      "folderId": "lift",
+      "file": "test-258-copy-copy.json"
+    },
+    {
+      "id": "test-258-copy-copy-copy",
+      "name": "Untitled test 258 copy copy copy",
+      "folderId": "lift",
+      "file": "test-258-copy-copy-copy.json"
+    },
+    {
+      "id": "test-258-copy-copy-copy-copy",
+      "name": "Untitled test 258 copy copy copy copy",
+      "folderId": "lift",
+      "file": "test-258-copy-copy-copy-copy.json"
     }
   ]
 }

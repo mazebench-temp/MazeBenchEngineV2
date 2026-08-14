@@ -23,6 +23,7 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_goal_count = 0;
   data->prepared_dense_columns = false;
   data->prepared_has_ice_slopes = false;
+  data->prepared_has_player_lifts = false;
   data->assume_quiescent_start = false;
   data->motion_voxel_count = -1;
   data->prepared_index_active = false;
@@ -56,7 +57,7 @@ bool prepare_scene(
   for (int32_t index = dynamic_voxel_count; index < count; ++index) {
     const uint32_t role = voxels[index].role;
     if (role == kPlayerRole || role == kPushableRole ||
-        role == kWeightlessPushableRole) {
+        role == kWeightlessPushableRole || role == kPlayerLiftRole) {
       data.prepared_dynamic_voxel_count = -1;
       return false;
     }
@@ -65,8 +66,10 @@ bool prepare_scene(
   data.prepared_player_index = -1;
   data.prepared_goal_count = 0;
   data.prepared_has_ice_slopes = false;
+  data.prepared_has_player_lifts = false;
   for (int32_t index = 0; index < count; ++index) {
     data.prepared_has_ice_slopes |= IsIceSlopeRole(voxels[index].role);
+    data.prepared_has_player_lifts |= voxels[index].role == kPlayerLiftRole;
     if (voxels[index].role == kGoalRole) {
       data.prepared_goal_indices[data.prepared_goal_count++] = index;
     }
@@ -87,7 +90,7 @@ bool prepare_scene(
   for (int32_t index = dynamic_voxel_count; index < count; ++index) {
     g_next_static_column_voxel[index] = -1;
     const Voxel& voxel = voxels[index];
-    if (voxel.role == kGoalRole ||
+    if (IsPassThroughVoxel(voxel) ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
     if (!StaticHashInsert(
             SpatialKey(voxel.x, voxel.y, voxel.z, width), index)) {

@@ -14,13 +14,17 @@ export function offsetToolbarIndex(currentIndex, slotCount, direction) {
 /**
  * @param {number} currentId
  * @param {-1 | 1} direction
+ * @param {number} [maximumId]
  */
-export function offsetGenericObjectId(currentId, direction) {
+export function offsetGenericObjectId(currentId, direction, maximumId = MAX_GENERIC_OBJECT_ID) {
+  const safeMaximum = Number.isInteger(maximumId)
+    ? Math.max(0, Math.min(MAX_GENERIC_OBJECT_ID, maximumId))
+    : MAX_GENERIC_OBJECT_ID;
   const safeId = Number.isInteger(currentId)
-    ? Math.max(0, Math.min(MAX_GENERIC_OBJECT_ID, currentId))
+    ? Math.max(0, Math.min(safeMaximum, currentId))
     : 0;
   if (direction < 0 && safeId === 0) return null;
-  return Math.max(0, Math.min(MAX_GENERIC_OBJECT_ID, safeId + direction));
+  return Math.max(0, Math.min(safeMaximum, safeId + direction));
 }
 
 /**

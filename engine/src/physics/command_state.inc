@@ -400,7 +400,8 @@ int32_t TrySimulatePassiveQuiescentTurn(
   if (!IsPreparedScene(voxels, count, width, height)) return 0;
   // Directional slopes can change both the motion vector and elevation. They
   // stay on the generalized command kernel, including exact cycle handling.
-  if (ActiveWorkspace().prepared_has_ice_slopes) return 0;
+  if (ActiveWorkspace().prepared_has_ice_slopes ||
+      ActiveWorkspace().prepared_has_player_lifts) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;
   if (player_index < 0 || player_index >= count ||
       voxels[player_index].role != kPlayerRole) {

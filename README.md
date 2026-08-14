@@ -56,6 +56,8 @@ Dynamic entities cannot begin a command in midair. The tick engine first settles
 
 The built-in `goal` role is a literal non-rigid collectible gem. It occupies the same voxel space as moving bodies, does not support or block them, and is removed only when the player finishes an entire command on its exact coordinate. A box may overlap the gem without collecting it, and sliding across it mid-command leaves it in place.
 
+The built-in `player-lift` role is a bounded two-state mechanism: `0` paints the original MazeBench purple lowered slab and `1` paints its raised cube. A player entering the platform toggles it and rides one Z unit; occupied headroom refuses a raise. Lift state is emitted in every generated tick frame and participates in exact-search hashing and reconstruction.
+
 ## Evolutionary search
 
 The Search workspace runs a deterministic, entity-first evolutionary loop in a Web Worker. The default **MazeBench 16×16×2** preset ports MazeBenchEngine3's useful evolutionary distribution: a closed perimeter with sparse internal walls, at most 18 initial Row-0 Ice cells, at most eight initial holes, compact 2–5-cube numbered pushboxes, 24 elites, reverse-pull-scrambled seeds, and its 50/100-generation stagnation schedule. Planar mode constrains Ice to Row 0 and generated box shapes to Row 1; unrestricted 3D mode retains vertical Ice, walls, structures, and polycubes. Floor remains restricted to Row 0. When Floor is disabled but Ice is enabled, Ice fills Row 0 before holes are carved. Minimum and maximum weightless-box values count distinct numeric IDs, not cubes; evolved polycubes still have no upper size cap.

@@ -1036,6 +1036,70 @@ void TestOpposingSlopeLandingCancelsStoredMomentum() {
         "opposing slope supports should cancel stored pre-fall momentum");
 }
 
+void TestPlayerEnteringLoweredLiftRaisesAndRides() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 0},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 4, 3, 3, 0) == 0,
+        "entering a lowered player lift should run");
+  Check(voxels[0].x == 1 && voxels[0].y == 1 && voxels[0].z == 2,
+        "the raised lift should carry its entering player up one unit");
+  Check(voxels[1].generic_id == 1,
+        "entering a lowered lift should store its raised state");
+}
+
+void TestPlayerEnteringRaisedLiftLowersAndRides() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 2, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 1},
+      {1, 2, 1, Role("wall"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 4, 3, 3, 0) == 0,
+        "entering a raised player lift should run");
+  Check(voxels[0].x == 1 && voxels[0].y == 1 && voxels[0].z == 1,
+        "the lowered lift should carry its entering player down one unit");
+  Check(voxels[1].generic_id == 0,
+        "entering a raised lift should store its lowered state");
+}
+
+void TestBlockedPlayerLiftRefusesToRaise() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 0},
+      {1, 1, 2, Role("wall"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 5, 3, 3, 0) == 0,
+        "entering a headroom-blocked player lift should run");
+  Check(voxels[0].y == 1 && voxels[0].z == 1 &&
+            voxels[1].generic_id == 0,
+        "a lift must remain lowered rather than embed its player in a blocker");
+}
+
+void TestSearchTracksPlayerLiftState() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 0},
+      {1, 1, 2, Role("goal"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 5, 3, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved &&
+            result.moves == 1 && result.solution_length == 1 &&
+            result.solution[0] == 0,
+        "exact search should preserve lift state while solving through a toggle");
+}
+
 }  // namespace
 
 int main() {
@@ -1080,10 +1144,14 @@ int main() {
   TestSlopeCarrierMovesStationaryRider();
   TestSlopeAndFlatIceBridgeNeedsDeliberatePush();
   TestOpposingSlopeLandingCancelsStoredMomentum();
+  TestPlayerEnteringLoweredLiftRaisesAndRides();
+  TestPlayerEnteringRaisedLiftLowersAndRides();
+  TestBlockedPlayerLiftRefusesToRaise();
+  TestSearchTracksPlayerLiftState();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 41 C++ physics/search tests passed\n";
+  std::cout << "all 45 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

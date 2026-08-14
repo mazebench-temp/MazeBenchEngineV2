@@ -14,6 +14,7 @@ constexpr uint32_t kIceSlopeDownRole = HashRoleLiteral("ice-slope-down");
 constexpr uint32_t kIceSlopeLeftRole = HashRoleLiteral("ice-slope-left");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
+constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 
 // Spatial and rigid-object indexes contain at most kVoxelCapacity entries.
 // The 2x backing table preserves a <= 0.5 load factor at maximum scene size.
@@ -31,6 +32,14 @@ bool IsIceSlopeRole(uint32_t role) {
 
 bool IsIceRole(uint32_t role) {
   return role == kIceRole || IsIceSlopeRole(role);
+}
+
+bool IsLoweredPlayerLift(const Voxel& voxel) {
+  return voxel.role == kPlayerLiftRole && voxel.generic_id <= 0;
+}
+
+bool IsPassThroughVoxel(const Voxel& voxel) {
+  return voxel.role == kGoalRole || IsLoweredPlayerLift(voxel);
 }
 
 int32_t IceSlopeDirection(uint32_t role) {
@@ -110,6 +119,7 @@ struct WorkspaceData {
   int32_t prepared_goal_count;
   bool prepared_dense_columns;
   bool prepared_has_ice_slopes;
+  bool prepared_has_player_lifts;
   bool assume_quiescent_start;
   int32_t motion_voxel_count;
   bool prepared_index_active;
@@ -311,7 +321,7 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
     for (int32_t index = 0; index < dynamic_count; ++index) {
       g_next_dynamic_column_voxel[index] = -1;
       const Voxel& voxel = voxels[index];
-      if (voxel.role == kGoalRole ||
+      if (IsPassThroughVoxel(voxel) ||
           !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
       if (g_dense_columns) {
         const int32_t cell = voxel.y * width + voxel.x;
@@ -344,7 +354,7 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
   for (int32_t index = 0; index < count; ++index) {
     g_next_column_voxel[index] = -1;
     const Voxel& voxel = voxels[index];
-    if (voxel.role == kGoalRole ||
+    if (IsPassThroughVoxel(voxel) ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
     if (g_dense_columns) {
       const int32_t cell = voxel.y * width + voxel.x;
@@ -365,7 +375,7 @@ int32_t FindVoxelAt(
   if (!IsInsideRoom(x, y, width, height)) return -1;
   if (g_linear_spatial) {
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
-      if (voxels[index].role != kGoalRole &&
+      if (!IsPassThroughVoxel(voxels[index]) &&
           voxels[index].x == x && voxels[index].y == y &&
           voxels[index].z == z) {
         return index;

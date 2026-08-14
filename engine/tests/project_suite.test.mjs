@@ -72,11 +72,15 @@ function simulateFrames(voxels, direction, world) {
     x: buffer[index * stride],
     y: buffer[index * stride + 1],
     z: buffer[index * stride + 2],
+    ...(genericBlocks.has(voxel.blockId)
+      ? { genericId: buffer[index * stride + 4] }
+      : {}),
   }));
   const frames = [];
   const sameCoordinates = (left, right) => left.length === right.length &&
     left.every((voxel, index) => voxel.x === right[index].x &&
-      voxel.y === right[index].y && voxel.z === right[index].z);
+      voxel.y === right[index].y && voxel.z === right[index].z &&
+      voxel.genericId === right[index].genericId);
   let tick = 0;
   engine.reset_command();
   for (;;) {
@@ -129,6 +133,9 @@ function simulateFinal(voxels, direction, world) {
     x: buffer[index * stride],
     y: buffer[index * stride + 1],
     z: buffer[index * stride + 2],
+    ...(genericBlocks.has(voxel.blockId)
+      ? { genericId: buffer[index * stride + 4] }
+      : {}),
   }));
 }
 

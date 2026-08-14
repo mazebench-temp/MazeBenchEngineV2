@@ -11,6 +11,7 @@ type Voxel = {
   z: number;
   blockId: string;
   genericId?: number;
+  groupId?: number;
   orientation?: string;
   variantId?: number;
 };
@@ -60,7 +61,8 @@ function framesHaveSameCoordinates(left: Frame, right: Frame) {
   return left.voxels.length === right.voxels.length &&
     left.voxels.every((voxel, index) => {
       const other = right.voxels[index];
-      return voxel.x === other.x && voxel.y === other.y && voxel.z === other.z;
+      return voxel.x === other.x && voxel.y === other.y && voxel.z === other.z &&
+        voxel.genericId === other.genericId;
     });
 }
 
@@ -161,6 +163,14 @@ export async function simulateCommandWithCpp(
         x: voxelBuffer[offset],
         y: voxelBuffer[offset + 1],
         z: voxelBuffer[offset + 2],
+        ...(genericBlockIds.has(voxel.blockId)
+          ? {
+              genericId: voxelBuffer[offset + 4],
+              ...(blocksById.get(voxel.blockId)?.visual?.kind === "lift"
+                ? { groupId: voxelBuffer[offset + 4] }
+                : {}),
+            }
+          : {}),
       };
     }),
   });

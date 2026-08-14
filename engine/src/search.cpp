@@ -18,6 +18,7 @@ constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
+constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr int32_t kHashCapacity = 262144;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
@@ -29,6 +30,7 @@ constexpr int32_t kLocalHashMask = kLocalHashCapacity - 1;
 struct SearchNode {
   int16_t (*coordinates)[3];
   uint64_t collected_goals;
+  uint64_t lift_states;
   uint32_t parent;
   uint16_t cost;
   int16_t approach_coordinates[3];
@@ -61,6 +63,7 @@ struct SearchData {
   int32_t goal_coordinates[kSearchGoalCapacity][3];
   int32_t goal_count;
   uint64_t candidate_collected_goals;
+  uint64_t candidate_lift_states;
   int32_t heap_nodes[kSearchNodeCapacity];
   int32_t heap_positions[kSearchNodeCapacity];
   int32_t heap_size;
@@ -93,7 +96,7 @@ uint64_t Mix64(uint64_t value) {
 
 bool IsDynamic(uint32_t role) {
   return role == kPlayerRole || role == kPushableRole ||
-      role == kWeightlessPushableRole;
+      role == kWeightlessPushableRole || role == kPlayerLiftRole;
 }
 
 bool EncodeCoordinate(int32_t value, int16_t* output) {
@@ -113,7 +116,8 @@ int32_t DecodeCoordinate(int16_t value) {
 uint64_t HashState(
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
-    uint64_t collected_goals) {
+    uint64_t collected_goals,
+    uint64_t lift_states) {
   uint64_t hash = 0xcbf29ce484222325ULL;
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
@@ -123,6 +127,8 @@ uint64_t HashState(
   }
   hash ^= collected_goals;
   hash *= 0x100000001b3ULL;
+  hash ^= lift_states;
+  hash *= 0x100000001b3ULL;
   return Mix64(hash);
 }
 
@@ -130,8 +136,10 @@ bool CoordinatesEqual(
     const SearchNode& node,
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
-    uint64_t collected_goals) {
-  if (node.collected_goals != collected_goals) return false;
+    uint64_t collected_goals,
+    uint64_t lift_states) {
+  if (node.collected_goals != collected_goals ||
+      node.lift_states != lift_states) return false;
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
       if (node.coordinates[entity][axis] != coordinates[entity][axis]) {
@@ -155,14 +163,19 @@ int32_t FindState(
     SearchData* data,
     uint64_t hash,
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
-    uint64_t collected_goals) {
+    uint64_t collected_goals,
+    uint64_t lift_states) {
   int32_t slot = static_cast<int32_t>(hash) & kHashMask;
   for (;;) {
     if (data->hash_stamps[slot] != data->hash_generation) return -1;
     const int32_t node = data->hash_nodes[slot];
     if (data->hash_keys[slot] == hash &&
         CoordinatesEqual(
-            data->nodes[node], coordinates, data->entity_count, collected_goals)) {
+            data->nodes[node],
+            coordinates,
+            data->entity_count,
+            collected_goals,
+            lift_states)) {
       return node;
     }
     slot = (slot + 1) & kHashMask;
@@ -183,13 +196,15 @@ void StoreNodeCoordinates(
     SearchNode* node,
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
-    uint64_t collected_goals) {
+    uint64_t collected_goals,
+    uint64_t lift_states) {
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
       node->coordinates[entity][axis] = coordinates[entity][axis];
     }
   }
   node->collected_goals = collected_goals;
+  node->lift_states = lift_states;
 }
 
 uint64_t LocalCoordinateKey(const int16_t coordinates[3]) {
@@ -290,6 +305,10 @@ void LoadNode(SearchData* data, const SearchNode& node) {
     data->scene[dynamic].z =
         DecodeCoordinate(node.coordinates[entity][2]) +
         data->base_offsets[dynamic][2];
+    if (data->scene[dynamic].role == kPlayerLiftRole) {
+      data->scene[dynamic].generic_id =
+          (node.lift_states & (uint64_t{1} << entity)) != 0 ? 1 : 0;
+    }
   }
   for (int32_t goal = 0; goal < data->goal_count; ++goal) {
     Voxel& voxel = data->scene[data->goal_indices[goal]];
@@ -302,8 +321,12 @@ void LoadNode(SearchData* data, const SearchNode& node) {
 }
 
 bool CaptureCandidate(SearchData* data) {
+  data->candidate_lift_states = 0;
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     const Voxel& anchor = data->scene[data->entity_anchors[entity]];
+    if (anchor.role == kPlayerLiftRole && anchor.generic_id > 0) {
+      data->candidate_lift_states |= uint64_t{1} << entity;
+    }
     const int32_t x = anchor.x < 0 ? -1 : anchor.x;
     const int32_t y = anchor.x < 0 ? 0 : anchor.y;
     const int32_t z = anchor.x < 0 ? 0 : anchor.z;
@@ -355,6 +378,7 @@ void BuildPassiveCandidate(
   data->candidate[data->player_entity][1] = player_coordinates[1];
   data->candidate[data->player_entity][2] = player_coordinates[2];
   data->candidate_collected_goals = collected_goals;
+  data->candidate_lift_states = parent.lift_states;
 }
 
 bool CandidatePlayerIsActive(
@@ -421,6 +445,7 @@ bool SceneIsSettled(const SearchData* data, int32_t width, int32_t height) {
 bool DynamicObjectsChangedExceptPlayer(
     const SearchData* data,
     const SearchNode& parent) {
+  if (data->candidate_lift_states != parent.lift_states) return true;
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     if (entity == data->player_entity) continue;
     for (int32_t axis = 0; axis < 3; ++axis) {
@@ -444,9 +469,16 @@ bool AddGeneralNode(
     SearchResult* result) {
   ++result->generated;
   const uint64_t hash = HashState(
-      data->candidate, data->entity_count, data->candidate_collected_goals);
+      data->candidate,
+      data->entity_count,
+      data->candidate_collected_goals,
+      data->candidate_lift_states);
   const int32_t existing = FindState(
-      data, hash, data->candidate, data->candidate_collected_goals);
+      data,
+      hash,
+      data->candidate,
+      data->candidate_collected_goals,
+      data->candidate_lift_states);
   if (existing >= 0) {
     ++result->transpositions;
     SearchNode& node = data->nodes[existing];
@@ -472,7 +504,8 @@ bool AddGeneralNode(
       &child,
       data->candidate,
       data->entity_count,
-      data->candidate_collected_goals);
+      data->candidate_collected_goals,
+      data->candidate_lift_states);
   child.parent = static_cast<uint32_t>(parent);
   child.cost = cost;
   child.approach_coordinates[0] = approach[0];
@@ -964,7 +997,8 @@ SearchResult search_shortest(
       &root,
       data->candidate,
       data->entity_count,
-      data->candidate_collected_goals);
+      data->candidate_collected_goals,
+      data->candidate_lift_states);
   root.parent = 0;
   root.cost = 0;
   root.approach_coordinates[0] = root.coordinates[data->player_entity][0];
@@ -973,7 +1007,10 @@ SearchResult search_shortest(
   root.direction = 0;
   StartHashGeneration(data);
   InsertState(data, HashState(
-      root.coordinates, data->entity_count, root.collected_goals), 0);
+      root.coordinates,
+      data->entity_count,
+      root.collected_goals,
+      root.lift_states), 0);
   int32_t node_count = 1;
 
   if (IsGoal(data)) {

@@ -20,6 +20,8 @@ test("left and right adjust generic IDs without leaving their valid range", () =
   assert.equal(offsetGenericObjectId(8, 1), 9);
   assert.equal(offsetGenericObjectId(0, -1), null);
   assert.equal(offsetGenericObjectId(MAX_GENERIC_OBJECT_ID, 1), MAX_GENERIC_OBJECT_ID);
+  assert.equal(offsetGenericObjectId(0, 1, 1), 1);
+  assert.equal(offsetGenericObjectId(1, 1, 1), 1);
 });
 
 test("only the active generic toolbar tile shows its chosen number", () => {

@@ -338,6 +338,9 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .swatch-cube.generic-label-long::after { font-size: 9px; letter-spacing: -.08em; transform: scaleX(.8); }
 .swatch-cube.large { height: 42px; width: 42px; }
 .swatch-cube.large.generic::after { font-size: 24px; }
+.swatch-cube.lift { border: 2px solid rgba(3,7,12,.92); border-radius: 2px; }
+.swatch-cube.lift--lowered { box-shadow: inset -7px -2px rgba(0,0,0,.18), inset 5px 2px rgba(255,255,255,.22), 0 8px 0 -5px rgba(3,7,12,.92), 0 0 9px color-mix(in srgb, var(--block-color) 45%, transparent); height: 12px; margin-top: 18px; }
+.swatch-cube.large.lift--lowered { height: 16px; margin-top: 26px; }
 .swatch-cube.slope { border: 2px solid rgba(3,7,12,.92); border-radius: 2px; box-shadow: inset -5px -5px rgba(0,0,0,.12), inset 4px 4px rgba(255,255,255,.22), 0 0 9px color-mix(in srgb, var(--block-color) 45%, transparent); clip-path: polygon(0 100%, 100% 100%, 100% 0); }
 .swatch-cube.slope--right { clip-path: polygon(0 0, 0 100%, 100% 100%); }
 .swatch-cube.slope--down { clip-path: polygon(0 0, 100% 0, 0 100%); }

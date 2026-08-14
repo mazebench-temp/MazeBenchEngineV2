@@ -63,7 +63,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Support GLB models with anchor, scale, offset, orientation, and pick proxy metadata.
 - [x] Import the MazeBench gem GLB with source/provenance documentation.
 - [x] Render the imported gem with MazeBench's black-outline treatment.
-- [ ] Port reusable visual recipes for lifts, gates, orange mechanisms, slopes, and punchers.
+- [x] Port the MazeBench purple player-lift slab/cube recipe and its top direction triangle.
+- [ ] Port reusable visual recipes for gates, orange mechanisms, slopes, and punchers.
 - [ ] Keep canonical assets in shared game data for the web and future Apple app.
 
 ## Phase 5 — Generalized C++ object/state ABI
@@ -89,7 +90,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Keep falling momentum when a player or box is caught by a directional slope.
 - [ ] Flat surface/platform: explicit support behavior without full-cell collision.
 - [ ] Puncher: directional fixture and launch behavior.
-- [ ] Player lift: lowered/raised support and rider movement.
+- [x] Player lift: lowered/raised collision, player-triggered state toggle, blocked-headroom guard, rider movement, editor state painting, trace persistence, and exact-search identity.
 - [ ] Player gate: role-filtered collision.
 - [ ] Attached/moving device variants.
 

@@ -29,6 +29,9 @@ function simulate(engine, voxels, direction, width = 5, height = 5) {
     x: buffer[index * stride],
     y: buffer[index * stride + 1],
     z: buffer[index * stride + 2],
+    ...(voxel.genericId === undefined
+      ? {}
+      : { genericId: buffer[index * stride + 4] }),
   }));
 }
 
@@ -92,6 +95,20 @@ test("the C++ WebAssembly engine executes MazeBench-style Ice slides", async () 
     { x: 2, y: 0, z: 0, roleId: "solid" },
   ], 0);
   assert.deepEqual(result[0], { x: 2, y: 0, z: 1, roleId: "player" });
+});
+
+test("WebAssembly preserves the player lift state transition", async () => {
+  const engine = await loadEngine();
+  const result = simulate(engine, [
+    { x: 1, y: 2, z: 1, roleId: "player" },
+    { x: 1, y: 1, z: 1, roleId: "player-lift", genericId: 0 },
+    { x: 1, y: 2, z: 0, roleId: "floor" },
+    { x: 1, y: 1, z: 0, roleId: "floor" },
+  ], 0, 3, 3);
+  assert.deepEqual(result.slice(0, 2), [
+    { x: 1, y: 1, z: 2, roleId: "player" },
+    { x: 1, y: 1, z: 1, roleId: "player-lift", genericId: 1 },
+  ]);
 });
 
 test("WebAssembly exposes one resumable frame per C++ tick", async () => {

@@ -62,9 +62,11 @@ void reset_workspace(PhysicsWorkspace* workspace);
 // Compiles invariant object membership and immutable terrain once for repeated
 // command simulation. The first dynamic_voxel_count entries may move; later
 // entries remain immutable (except collectible goals may become inactive).
-// Roles, generic IDs, entry order, and static coordinates must not change until
-// prepare_scene is called again. Search uses this single indexed representation
-// for every supported combination of Ice, holes, gravity, walls, and polycubes.
+// Roles and entry order must not change until prepare_scene is called again.
+// Static-suffix generic IDs and coordinates are immutable; dynamic-prefix
+// coordinates and supported mechanism state (such as a player lift's generic
+// 0/1 state) may change. Search uses this single indexed representation for
+// every supported combination of Ice, holes, gravity, walls, and polycubes.
 bool prepare_scene(
     PhysicsWorkspace* workspace,
     Voxel* voxels,

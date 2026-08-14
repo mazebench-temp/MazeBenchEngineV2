@@ -21,7 +21,7 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "cube" | "gem" | "slope"; modelUrl?: string };
+  visual: { kind: "cube" | "gem" | "lift" | "slope"; modelUrl?: string };
 };
 
 type Voxel = {
@@ -127,8 +127,8 @@ type TerrainLayer = {
   elevation: number;
   genericLabel?: string;
   label: string;
-  raised: true;
-  type: "wall" | "ice_slope";
+  raised: boolean;
+  type: "wall" | "ice_slope" | "player_lift";
   voxelColor: string;
   voxelKey: string;
 };
@@ -371,19 +371,26 @@ function frameToPlayData(
         .sort((left, right) => left.z - right.z)
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
-          if (!definition || (definition.visual.kind !== "cube" && definition.visual.kind !== "slope")) return null;
+          if (!definition || !["cube", "lift", "slope"].includes(definition.visual.kind)) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
+          const isLift = definition.visual.kind === "lift";
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
               : {}),
             elevation: voxel.z + layerOffset,
-            genericLabel: genericBlockIds.has(definition.id)
+            genericLabel: genericBlockIds.has(definition.id) && !isLift
               ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
               : undefined,
             label: definition.name,
-            raised: true,
-            type: definition.visual.kind === "slope" ? "ice_slope" : "wall",
+            raised: isLift
+              ? Math.max(0, Math.floor(Number(voxel.genericId) || 0)) > 0
+              : true,
+            type: definition.visual.kind === "slope"
+              ? "ice_slope"
+              : isLift
+                ? "player_lift"
+                : "wall",
             voxelColor: selected
               ? lerpHexColor(definition.color, "#34e7f0", 0.48)
               : definition.color,

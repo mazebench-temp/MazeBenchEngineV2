@@ -921,6 +921,61 @@ int32_t MovingObjectSlopeVerticalDelta(
   return delta;
 }
 
+// A terrain lift is stored at its base cell. State 0 is a pass-through slab
+// whose surface is that same elevation; state 1 is a full blocking cube whose
+// surface is one elevation higher. Only a player that horizontally enters the
+// platform toggles it; a rider carried by another body does not retrigger it.
+bool TogglePlayerLiftOnEntry(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t from_x,
+    int32_t from_y,
+    int32_t width,
+    int32_t height) {
+  Voxel& player = voxels[player_index];
+  if ((player.x == from_x && player.y == from_y) ||
+      !IsInsideRoom(player.x, player.y, width, height)) {
+    return false;
+  }
+
+  int32_t lift_index = -1;
+  bool raise = false;
+  for (int32_t index = 0; index < count; ++index) {
+    const Voxel& lift = voxels[index];
+    if (lift.role != kPlayerLiftRole || lift.x != player.x ||
+        lift.y != player.y) {
+      continue;
+    }
+    if (lift.generic_id <= 0 && lift.z == player.z) {
+      lift_index = index;
+      raise = true;
+      break;
+    }
+    if (lift.generic_id > 0 && player.z != INT32_MIN &&
+        lift.z == player.z - 1) {
+      lift_index = index;
+      raise = false;
+      break;
+    }
+  }
+  if (lift_index < 0) return false;
+
+  if (raise) {
+    if (player.z == INT32_MAX ||
+        FindVoxelAt(
+            voxels, player.x, player.y, player.z + 1, width, height) >= 0) {
+      return false;
+    }
+    voxels[lift_index].generic_id = 1;
+    ++player.z;
+  } else {
+    voxels[lift_index].generic_id = 0;
+    --player.z;
+  }
+  return true;
+}
+
 bool SceneHasIceSlopes(
     Voxel* voxels,
     int32_t count,
