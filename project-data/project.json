@@ -247,7 +247,7 @@
     {
       "collapsed": true,
       "id": "ice",
-      "locked": true,
+      "locked": false,
       "name": "Ice Movement"
     },
     {
@@ -262,7 +262,7 @@
       "collapsed": true,
       "id": "weightless-box",
       "locked": true,
-      "name": "Weightless Box"
+      "name": "Box"
     },
     {
       "collapsed": false,
@@ -275,7 +275,7 @@
     {
       "collapsed": true,
       "id": "box-hole",
-      "locked": true,
+      "locked": false,
       "name": "Box + Hole"
     },
     {
@@ -399,9 +399,9 @@
       "parentId": "lift"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "orange-walls",
-      "locked": false,
+      "locked": true,
       "name": "Orange Walls"
     },
     {
@@ -446,6 +446,41 @@
       "locked": false,
       "name": "buttons on ice",
       "parentId": "orange-walls"
+    },
+    {
+      "collapsed": false,
+      "id": "into-void",
+      "locked": false,
+      "name": "Void",
+      "parentId": "general"
+    },
+    {
+      "collapsed": false,
+      "id": "on-ice",
+      "locked": false,
+      "name": "Ice",
+      "parentId": "general"
+    },
+    {
+      "collapsed": false,
+      "id": "gem",
+      "locked": false,
+      "name": "Gem",
+      "parentId": "general"
+    },
+    {
+      "collapsed": false,
+      "id": "void",
+      "locked": false,
+      "name": "Void",
+      "parentId": "weightless-box"
+    },
+    {
+      "collapsed": false,
+      "id": "multiple-boxes",
+      "locked": false,
+      "name": "Boxes",
+      "parentId": "weightless-box"
     }
   ],
   "searches": [
@@ -18790,9 +18825,9 @@
     {
       "id": "future-ice",
       "name": "Ice is slippery",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice"
       ],
       "file": "future-ice.json"
     },
@@ -18801,16 +18836,17 @@
       "name": "Fall off floor into void",
       "groupTagId": "general",
       "tagIds": [
-        "general-default"
+        "into-void"
       ],
       "file": "test-5.json"
     },
     {
       "id": "test-6",
       "name": "Slide off ice into void",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice",
+        "into-void"
       ],
       "file": "test-6.json"
     },
@@ -18844,36 +18880,37 @@
     {
       "id": "test-9",
       "name": "Player can slide off tall ice",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice"
       ],
       "file": "test-9.json"
     },
     {
       "id": "test-10",
       "name": "Player slides off very tall ice into void",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice",
+        "into-void"
       ],
       "file": "test-10.json"
     },
     {
       "id": "test-11",
       "name": "Slide off very tall ice and onto floor1",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice"
       ],
       "file": "test-11.json"
     },
     {
       "id": "test-11-copy",
       "name": "Slide off very tall ice and onto floor1 copy",
-      "groupTagId": "ice",
+      "groupTagId": "general",
       "tagIds": [
-        "ice-default"
+        "on-ice"
       ],
       "file": "test-11-copy.json"
     },
@@ -18891,7 +18928,7 @@
       "name": "Push Group of 2",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-13.json"
     },
@@ -18900,7 +18937,7 @@
       "name": "Push Group of 2 Overhang",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-13-copy.json"
     },
@@ -18909,7 +18946,7 @@
       "name": "Push Group of 3",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-13-copy-copy.json"
     },
@@ -18918,7 +18955,7 @@
       "name": "Push tons of boxes",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-14.json"
     },
@@ -18927,7 +18964,7 @@
       "name": "Push tons of boxes (2)",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-15.json"
     },
@@ -18936,7 +18973,7 @@
       "name": "Holey box",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-16.json"
     },
@@ -18945,7 +18982,7 @@
       "name": "Hook box",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-18.json"
     },
@@ -18954,7 +18991,7 @@
       "name": "Hook box chain",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-18-copy.json"
     },
@@ -18972,7 +19009,7 @@
       "name": "In-box (2)",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-20-copy.json"
     },
@@ -18981,7 +19018,7 @@
       "name": "Pull box group",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-22.json"
     },
@@ -18990,7 +19027,7 @@
       "name": "Interlocking box",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-23.json"
     },
@@ -18999,52 +19036,53 @@
       "name": "Fork",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box-default"
+        "multiple-boxes"
       ],
       "file": "test-24.json"
     },
     {
       "id": "test-26",
       "name": "Push box into pit",
-      "groupTagId": "box-hole",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "box-hole-default"
+        "void"
       ],
       "file": "test-26.json"
     },
     {
       "id": "test-26-copy",
       "name": "Overhang",
-      "groupTagId": "box-hole",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "box-hole-default"
+        "void"
       ],
       "file": "test-26-copy.json"
     },
     {
       "id": "test-27",
       "name": "Push past overhang",
-      "groupTagId": "box-hole",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "box-hole-default"
+        "void"
       ],
       "file": "test-27.json"
     },
     {
       "id": "test-28",
       "name": "large box falling in",
-      "groupTagId": "box-hole",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "box-hole-default"
+        "void"
       ],
       "file": "test-28.json"
     },
     {
       "id": "test-29",
       "name": "box group",
-      "groupTagId": "box-hole",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "box-hole-default"
+        "void",
+        "multiple-boxes"
       ],
       "file": "test-29.json"
     },
@@ -19944,7 +19982,7 @@
       "name": "Collect gem",
       "groupTagId": "general",
       "tagIds": [
-        "general-default"
+        "gem"
       ],
       "file": "test-132.json"
     },
@@ -19953,7 +19991,8 @@
       "name": "Fall onto gem",
       "groupTagId": "general",
       "tagIds": [
-        "general-default"
+        "on-ice",
+        "gem"
       ],
       "file": "test-132-copy.json"
     },

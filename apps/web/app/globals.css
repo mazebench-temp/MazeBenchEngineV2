@@ -501,7 +501,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .suite-browser__filters label { display: grid; gap: 4px; }
 .suite-browser__filters label > span { color: var(--muted); font: 700 7px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .suite-browser__filters input, .suite-browser__filters select { background: rgba(7,9,22,.85); border: 1px solid rgba(124,143,255,.3); border-radius: 7px; color: var(--ink); min-height: 34px; min-width: 0; padding: 0 9px; }
+.suite-browser__content { grid-row: 5; min-height: 0; overflow-y: auto; padding: 0 6px 24px 0; scrollbar-color: rgba(var(--cyan-rgb), .3) transparent; }
+.suite-browser__content .suite-test-table { overflow: visible; padding-right: 0; }
 .suite-test-table { align-content: start; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); min-height: 0; overflow-y: auto; padding: 0 6px 24px 0; scrollbar-color: rgba(var(--cyan-rgb), .3) transparent; }
+.suite-related-combinations { border-top: 1px solid rgba(var(--violet-rgb),.32); display: grid; gap: 18px; margin-top: 8px; padding-top: 20px; }
+.suite-related-combinations > header { align-items: center; display: flex; gap: 16px; justify-content: space-between; }
+.suite-related-combinations > header > div { display: grid; gap: 3px; }
+.suite-related-combinations > header span { color: var(--violet); font: 800 8px var(--font-mono); letter-spacing: .13em; text-transform: uppercase; }
+.suite-related-combinations > header strong { color: var(--ink); font: 700 16px var(--font-display); text-transform: uppercase; }
+.suite-related-combinations > header > em { color: var(--muted); font: 700 8px var(--font-mono); text-transform: uppercase; }
+.suite-related-combination { background: rgba(var(--violet-rgb),.035); border: 1px solid rgba(var(--violet-rgb),.2); border-radius: 12px; display: grid; gap: 12px; padding: 12px; }
+.suite-related-combination > header { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
+.suite-related-combination > header > div { align-items: center; display: flex; gap: 8px; min-width: 0; }
+.suite-related-combination > header span { color: var(--violet); font-size: 17px; }
+.suite-related-combination > header h3 { color: var(--ink); font: 700 12px var(--font-sans); margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.suite-related-combination > header em { background: rgba(var(--violet-rgb),.13); border-radius: 999px; color: var(--violet); font: 800 8px var(--font-mono); padding: 4px 7px; }
+.suite-related-combination > header button { background: rgba(7,9,22,.82); border: 1px solid rgba(var(--violet-rgb),.42); border-radius: 7px; color: var(--violet); cursor: pointer; font: 700 8px var(--font-mono); min-height: 30px; padding: 0 10px; white-space: nowrap; }
+.suite-related-combination > header button:hover { background: rgba(var(--violet-rgb),.12); border-color: var(--violet); color: var(--ink); }
 .suite-test-row { align-content: start; background: rgba(10,13,29,.78); border: 1px solid rgba(124,143,255,.2); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); grid-template-rows: 190px auto 32px; min-width: 0; padding: 10px; position: relative; }
 .suite-test-row:hover { border-color: rgba(var(--cyan-rgb),.42); }
 .suite-test-row.is-active { background: rgba(var(--cyan-rgb),.055); border-color: rgba(var(--cyan-rgb),.62); box-shadow: inset 3px 0 var(--cyan); }
@@ -934,6 +950,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .suite-workspace { display: flex; flex-direction: column; min-height: 900px; overflow: visible; }
   .suite-explorer { border-bottom: 1px solid var(--line); border-right: 0; max-height: 280px; overflow-y: auto; }
   .suite-browser { display: block; overflow: visible; padding: 14px 12px; }
+  .suite-browser__content { grid-row: auto; overflow: visible; padding-right: 0; }
   .suite-browser__header { align-items: stretch; flex-direction: column; }
   .suite-browser__actions { justify-content: flex-start; }
   .suite-folder-form { grid-template-columns: 1fr 1fr; }

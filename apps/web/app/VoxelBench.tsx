@@ -1387,8 +1387,7 @@ function TestSuiteWorkspace({
       : test.folderId === folder.id;
   }, [aliasesById, foldersById, selectedFolderId, tagOrder]);
 
-  const visibleTests = tests.filter((test) => {
-    if (!testIsInSelectedView(test)) return false;
+  const testMatchesFilters = (test: TestCase) => {
     const result = results[test.id];
     if (statusFilter === "passed" && !result?.pass) return false;
     if (statusFilter === "failed" && (!result || result.pass)) return false;
@@ -1399,9 +1398,23 @@ function TestSuiteWorkspace({
       alias.groupTagId === test.folderId &&
       combinationViewIncludesTest(test.tagIds, alias.tagIds, tagOrder))?.label ?? "";
     return !needle || `${test.name} ${test.description} ${tagPaths} ${aliasLabel}`.toLowerCase().includes(needle);
-  });
+  };
+  const selectedScopeTests = tests.filter(testIsInSelectedView);
+  const visibleTests = selectedScopeTests.filter(testMatchesFilters);
   const selectedFolder = selectedFolderId ? foldersById.get(selectedFolderId) : undefined;
   const selectedAlias = selectedFolderId ? aliasesById.get(selectedFolderId) : undefined;
+  const relatedAliasSections = selectedFolder?.parentId
+    ? combinationAliases
+      .filter((alias) => alias.groupTagId === selectedFolder.parentId && alias.tagIds.includes(selectedFolder.id))
+      .map((alias) => {
+        const scopeTests = tests.filter((test) =>
+          test.folderId === alias.groupTagId &&
+          combinationViewIncludesTest(test.tagIds, alias.tagIds, tagOrder));
+        return { alias, scopeTests, tests: scopeTests.filter(testMatchesFilters) };
+      })
+      .filter((section) => section.tests.length > 0)
+    : [];
+  const relatedTestCount = relatedAliasSections.reduce((count, section) => count + section.tests.length, 0);
   const selectedFolderLocked = selectedFolder
     ? lockedFolderIds.has(selectedFolder.id)
     : selectedAlias
@@ -1436,6 +1449,43 @@ function TestSuiteWorkspace({
     setPreviews((current) => ({ ...current, [previewJob.key]: dataUrl }));
     setPreviewQueue((current) => current.filter((job) => job.key !== previewJob.key));
   }, [previewJob]);
+
+  const renderTestCard = (test: TestCase, displayIndex: number, scopeTests: TestCase[]) => {
+    const result = results[test.id];
+    const scopeIndex = scopeTests.findIndex((item) => item.id === test.id);
+    const folderLocked = testTagsAreLocked(test, lockedFolderIds);
+    const effectiveLocked = test.locked || folderLocked;
+    const passedRotations = result?.checks.filter((check) => check.pass).length;
+    return (
+      <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
+        <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? displayIndex + 1 : result.pass ? "✓" : "!"}</span>
+        <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
+        <div className="suite-test-row__details">
+          <div className="suite-test-row__identity">
+            <label className="suite-test-row__title">
+              <span>Title</span>
+              <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={folderLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
+            </label>
+            <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
+          </div>
+          <label>
+            <span>Description</span>
+            <textarea aria-label={`Description for ${test.name || "untitled test"}`} disabled={folderLocked} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
+          </label>
+          <small>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+        </div>
+        <div className="suite-test-row__actions">
+          <button type="button" onClick={() => onRunTest(test)}>Run</button>
+          <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
+          <button type="button" disabled={folderLocked || scopeIndex === 0} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex - 1].id)}>←</button>
+          <button type="button" disabled={folderLocked || scopeIndex === scopeTests.length - 1} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex + 1].id)}>→</button>
+          <button type="button" disabled={folderLocked} aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
+          <button className={effectiveLocked ? "is-locked" : ""} type="button" disabled={folderLocked} aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={folderLocked ? "Locked by tag" : test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
+          <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
+        </div>
+      </article>
+    );
+  };
 
   const renderFolderBranch = (parentId = "__root__", depth = 0): React.ReactNode => (
     (childrenByParent.get(parentId) ?? []).map((folder) => {
@@ -1496,7 +1546,7 @@ function TestSuiteWorkspace({
           <div className="suite-browser__title">
             <span>{selectedFolder ? folderPaths.get(selectedFolder.id) : selectedAlias ? `${foldersById.get(selectedAlias.groupTagId)?.name ?? "Unknown group"} / Combined subtags` : "Entire project"}</span>
             {selectedFolder ? <input aria-label={`Rename ${selectedFolder.name} tag`} disabled={selectedFolderLocked || selectedFolder.default} value={selectedFolder.name} onChange={(event) => onRenameFolder(selectedFolder.id, event.target.value)} /> : <h2>{selectedAlias?.label ?? "All tests"}</h2>}
-            <small>{visibleTests.length} shown · {passed} passing · {failed} failing · {tests.length - completed.length} untested</small>
+            <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {passed} passing · {failed} failing · {tests.length - completed.length} untested</small>
           </div>
           <div className="suite-browser__actions">
             {selectedFolder && <button className={`tool-button suite-folder-lock ${selectedFolderLocked ? "is-active" : ""}`} type="button" disabled={selectedFolderLocked && !selectedFolder.locked} onClick={() => onToggleFolderLocked(selectedFolder.id)}><LockIcon open={!selectedFolderLocked} />{selectedFolder.locked ? "Unlock tag" : selectedFolderLocked ? "Locked by parent tag" : "Lock tag"}</button>}
@@ -1517,44 +1567,23 @@ function TestSuiteWorkspace({
           <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="failed">Failing</option><option value="passed">Passing</option><option value="untested">Untested</option></select></label>
         </div>
 
-        <div className="suite-test-table" role="list">
-          {visibleTests.length ? visibleTests.map((test, visibleIndex) => {
-            const result = results[test.id];
-            const folderTests = tests.filter(testIsInSelectedView);
-            const folderIndex = folderTests.findIndex((item) => item.id === test.id);
-            const folderLocked = testTagsAreLocked(test, lockedFolderIds);
-            const effectiveLocked = test.locked || folderLocked;
-            const passedRotations = result?.checks.filter((check) => check.pass).length;
-            return (
-              <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
-                <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? visibleIndex + 1 : result.pass ? "✓" : "!"}</span>
-                <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
-                <div className="suite-test-row__details">
-                  <div className="suite-test-row__identity">
-                    <label className="suite-test-row__title">
-                      <span>Title</span>
-                      <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={folderLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
-                    </label>
-                    <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
-                  </div>
-                  <label>
-                    <span>Description</span>
-                    <textarea aria-label={`Description for ${test.name || "untitled test"}`} disabled={folderLocked} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
-                  </label>
-                  <small>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+        <div className="suite-browser__content">
+          <div className="suite-test-table" role="list">
+            {visibleTests.length
+              ? visibleTests.map((test, visibleIndex) => renderTestCard(test, visibleIndex, selectedScopeTests))
+              : <div className="suite-browser__empty"><strong>No direct tests found</strong><span>Related combinations are shown below when available.</span></div>}
+          </div>
+          {relatedAliasSections.length > 0 && <section className="suite-related-combinations" aria-label={`Related combinations for ${selectedFolder?.name ?? "subtag"}`}>
+            <header><div><span>Related combinations</span><strong>Also tagged {selectedFolder?.name}</strong></div><em>{relatedTestCount} tests</em></header>
+            {relatedAliasSections.map(({ alias, scopeTests, tests: relatedTests }) => (
+              <section className="suite-related-combination" key={alias.id}>
+                <header><div><span aria-hidden="true">◇</span><h3>{alias.label}</h3><em>{relatedTests.length}</em></div><button type="button" onClick={() => setSelectedFolderId(alias.id)}>Open combination →</button></header>
+                <div className="suite-test-table" role="list" aria-label={`${alias.label} tests`}>
+                  {relatedTests.map((test, index) => renderTestCard(test, index, scopeTests))}
                 </div>
-                <div className="suite-test-row__actions">
-                  <button type="button" onClick={() => onRunTest(test)}>Run</button>
-                  <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
-                  <button type="button" disabled={folderLocked || folderIndex === 0} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, folderTests[folderIndex - 1].id)}>←</button>
-                  <button type="button" disabled={folderLocked || folderIndex === folderTests.length - 1} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, folderTests[folderIndex + 1].id)}>→</button>
-                  <button type="button" disabled={folderLocked} aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
-                  <button className={effectiveLocked ? "is-locked" : ""} type="button" disabled={folderLocked} aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={folderLocked ? "Locked by tag" : test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
-                  <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
-                </div>
-              </article>
-            );
-          }) : <div className="suite-browser__empty"><strong>No tests found</strong><span>Try another tag, search, or status filter.</span></div>}
+              </section>
+            ))}
+          </section>}
         </div>
         {previewTest && previewFrame && previewJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewJob.key} /></div>}
       </section>
