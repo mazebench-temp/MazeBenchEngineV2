@@ -1355,29 +1355,35 @@ function TestSuiteWorkspace({
             const result = results[test.id];
             const folderTests = tests.filter((item) => item.folderId === test.folderId);
             const folderIndex = folderTests.findIndex((item) => item.id === test.id);
-            const effectiveLocked = test.locked || lockedFolderIds.has(test.folderId);
+            const folderLocked = lockedFolderIds.has(test.folderId);
+            const effectiveLocked = test.locked || folderLocked;
             const passedRotations = result?.checks.filter((check) => check.pass).length;
             return (
               <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
                 <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? folderIndex + 1 : result.pass ? "✓" : "!"}</span>
                 <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
                 <div className="suite-test-row__details">
-                  <label>
-                    <span>Title</span>
-                    <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={effectiveLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
-                  </label>
+                  <div className="suite-test-row__identity">
+                    <label className="suite-test-row__title">
+                      <span>Title</span>
+                      <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={folderLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
+                    </label>
+                    <label className="suite-test-row__folder-field">
+                      <span>Folder</span>
+                      <select className="suite-test-row__folder" aria-label={`Move ${test.name} to folder`} disabled={lockedFolderIds.has(test.folderId)} value={test.folderId} onChange={(event) => onMoveTest(test.id, event.target.value)}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}</option>)}</select>
+                    </label>
+                  </div>
                   <label>
                     <span>Description</span>
-                    <textarea aria-label={`Description for ${test.name || "untitled test"}`} disabled={effectiveLocked} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
+                    <textarea aria-label={`Description for ${test.name || "untitled test"}`} disabled={folderLocked} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
                   </label>
                   <small>{folderPaths.get(test.folderId) ?? "Unknown folder"} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small>
                 </div>
-                <select className="suite-test-row__folder" aria-label={`Move ${test.name} to folder`} disabled={effectiveLocked} value={test.folderId} onChange={(event) => onMoveTest(test.id, event.target.value)}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}</option>)}</select>
                 <div className="suite-test-row__actions">
                   <button type="button" onClick={() => onRunTest(test)}>Run</button>
                   <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
-                  <button type="button" disabled={effectiveLocked || folderIndex === 0 || folderTests[folderIndex - 1]?.locked} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, -1)}>←</button>
-                  <button type="button" disabled={effectiveLocked || folderIndex === folderTests.length - 1 || folderTests[folderIndex + 1]?.locked} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, 1)}>→</button>
+                  <button type="button" disabled={lockedFolderIds.has(test.folderId) || folderIndex === 0} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, -1)}>←</button>
+                  <button type="button" disabled={lockedFolderIds.has(test.folderId) || folderIndex === folderTests.length - 1} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, 1)}>→</button>
                   <button type="button" disabled={lockedFolderIds.has(test.folderId)} aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
                   <button className={effectiveLocked ? "is-locked" : ""} type="button" disabled={lockedFolderIds.has(test.folderId)} aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={lockedFolderIds.has(test.folderId) ? "Locked by folder" : test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
                   <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
@@ -2621,7 +2627,7 @@ export default function VoxelBench() {
     patch: Partial<Pick<TestCase, "name" | "description">>,
   ) => {
     const test = tests.find((item) => item.id === testId);
-    if (!test || test.locked || lockedFolderIds.has(test.folderId)) return;
+    if (!test || lockedFolderIds.has(test.folderId)) return;
     setTests((current) => current.map((item) =>
       item.id === testId ? { ...item, ...patch } : item,
     ));
@@ -2676,8 +2682,8 @@ export default function VoxelBench() {
     const folderTests = tests.filter((item) => item.folderId === test.folderId);
     const sourceIndex = folderTests.findIndex((item) => item.id === testId);
     const target = folderTests[sourceIndex + offset];
-    if (lockedFolderIds.has(test.folderId) || test.locked || !target || target.locked) {
-      setToast(test.locked || target?.locked ? "Locked tests cannot be reordered" : "This test cannot move farther in its folder");
+    if (lockedFolderIds.has(test.folderId) || !target) {
+      setToast(lockedFolderIds.has(test.folderId) ? "Unlock the folder before rearranging its tests" : "This test cannot move farther in its folder");
       return;
     }
     setTests((current) => {
@@ -2770,8 +2776,8 @@ export default function VoxelBench() {
     const test = tests.find((item) => item.id === testId);
     const targetFolder = folders.find((folder) => folder.id === folderId);
     if (!test || !targetFolder || test.folderId === folderId) return;
-    if (test.locked || lockedFolderIds.has(test.folderId) || lockedFolderIds.has(folderId)) {
-      setToast("Unlock the test and both folders before moving it");
+    if (lockedFolderIds.has(test.folderId) || lockedFolderIds.has(folderId)) {
+      setToast("Unlock both folders before moving this test");
       return;
     }
     setTests((current) => current.map((item) =>
@@ -3343,9 +3349,9 @@ export default function VoxelBench() {
           <details className="author-panel" open>
             <summary><span className="chevron">▸</span><span>Test Case</span><em>canonical up <DirectionIcon direction="up" /></em></summary>
             <div className="author-panel__body">
-              <label className="field"><span>Name</span><input disabled={activeTestLocked} value={activeTest.name} onChange={(event) => updateActive({ name: event.target.value })} /></label>
-              <label className="field"><span>Description</span><textarea rows={3} disabled={activeTestLocked} value={activeTest.description} placeholder="Describe the intended transition and invariants for debugging agents." onChange={(event) => updateActive({ description: event.target.value })} /></label>
-              <label className="field"><span>Suite folder</span><select disabled={activeTestLocked} value={activeTest.folderId} onChange={(event) => updateActive({ folderId: event.target.value })}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}{lockedFolderIds.has(folder.id) ? " · locked" : ""}</option>)}</select></label>
+              <label className="field"><span>Name</span><input disabled={lockedFolderIds.has(activeTest.folderId)} value={activeTest.name} onChange={(event) => updateTestMetadata(activeTest.id, { name: event.target.value })} /></label>
+              <label className="field"><span>Description</span><textarea rows={3} disabled={lockedFolderIds.has(activeTest.folderId)} value={activeTest.description} placeholder="Describe the intended transition and invariants for debugging agents." onChange={(event) => updateTestMetadata(activeTest.id, { description: event.target.value })} /></label>
+              <label className="field"><span>Suite folder</span><select disabled={lockedFolderIds.has(activeTest.folderId)} value={activeTest.folderId} onChange={(event) => moveTestToFolder(activeTest.id, event.target.value)}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}{lockedFolderIds.has(folder.id) ? " · locked" : ""}</option>)}</select></label>
               <div className="field"><span>Movement input</span><div className="canonical-input"><strong><DirectionIcon direction="up" /> Up</strong><small>Authored once; automatically checked as ↑ → ↓ ← by rotating the entire level.</small></div></div>
               <button className="tool-button tool-button--primary full" onClick={() => runTest(activeTest)}>Run test</button>
             </div>

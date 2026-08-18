@@ -295,10 +295,17 @@
       "name": "Lift"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "orange-walls",
-      "locked": true,
+      "locked": false,
       "name": "orange walls"
+    },
+    {
+      "collapsed": false,
+      "id": "multiple-buttons",
+      "locked": false,
+      "name": "Multiple Buttons",
+      "parentId": "orange-walls"
     }
   ],
   "searches": [
@@ -18651,7 +18658,7 @@
     },
     {
       "id": "test-7",
-      "name": "Player does not fall off walls",
+      "name": "Cannot fall off walls",
       "folderId": "general",
       "file": "test-7.json"
     },
@@ -20542,7 +20549,7 @@
     {
       "id": "test-319-copy-2-copy",
       "name": "Untitled test 319 copy copy",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-319-copy-2-copy.json"
     },
     {
@@ -20560,8 +20567,14 @@
     {
       "id": "test-323",
       "name": "Untitled test 323",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-323.json"
+    },
+    {
+      "id": "test-323-copy-2",
+      "name": "Untitled test 323 copy",
+      "folderId": "multiple-buttons",
+      "file": "test-323-copy-2.json"
     },
     {
       "id": "test-325",
@@ -20572,7 +20585,7 @@
     {
       "id": "test-325-copy-2",
       "name": "Untitled test 325 copy",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-325-copy-2.json"
     },
     {
@@ -20584,13 +20597,13 @@
     {
       "id": "test-325-copy-copy",
       "name": "Untitled test 325 copy copy",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-325-copy-copy.json"
     },
     {
       "id": "test-325-copy-copy-copy",
       "name": "Untitled test 325 copy copy copy",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-325-copy-copy-copy.json"
     },
     {
@@ -20638,7 +20651,7 @@
     {
       "id": "test-332",
       "name": "Untitled test 332",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-332.json"
     },
     {
@@ -20650,31 +20663,31 @@
     {
       "id": "test-338-copy",
       "name": "Untitled test 338 copy",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-338-copy.json"
     },
     {
       "id": "test-339",
       "name": "Untitled test 339",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-339.json"
     },
     {
       "id": "test-340",
       "name": "Untitled test 340",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-340.json"
     },
     {
       "id": "test-342",
       "name": "Untitled test 342",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-342.json"
     },
     {
       "id": "test-345",
       "name": "Untitled test 345",
-      "folderId": "orange-walls",
+      "folderId": "multiple-buttons",
       "file": "test-345.json"
     }
   ]
