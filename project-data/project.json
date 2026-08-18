@@ -297,7 +297,7 @@
     {
       "collapsed": false,
       "id": "orange-walls",
-      "locked": true,
+      "locked": false,
       "name": "orange walls"
     }
   ],
@@ -20670,6 +20670,12 @@
       "name": "Untitled test 342",
       "folderId": "orange-walls",
       "file": "test-342.json"
+    },
+    {
+      "id": "test-345",
+      "name": "Untitled test 345",
+      "folderId": "orange-walls",
+      "file": "test-345.json"
     }
   ]
 }
