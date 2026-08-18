@@ -1,4 +1,4 @@
-import { cellObjectSelectionKey } from "./cellObjects.mjs";
+import { cellObjectSelectionKey, objectCanShareCell } from "./cellObjects.mjs";
 
 /** @typedef {{ x: number, y: number, z: number, blockId: string, genericId?: number, groupId?: number, instanceId?: string, stateId?: number, variantId?: number, orientation?: string }} Voxel */
 /** @typedef {{ width: number, height: number }} HorizontalWorld */
@@ -19,6 +19,12 @@ export function voxelCoordinateKey(voxel) {
   return `${voxel.x},${voxel.y},${voxel.z}`;
 }
 
+function voxelCanShareCell(voxel, shareableBlockIds, definitions) {
+  return definitions instanceof Map
+    ? objectCanShareCell(definitions.get(voxel.blockId), voxel)
+    : shareableBlockIds.has(voxel.blockId);
+}
+
 /**
  * Selects the complete six-neighbor component containing `origin`. "Exact
  * type" includes group, variant, state, and orientation, so adjacent authored
@@ -28,7 +34,12 @@ export function voxelCoordinateKey(voxel) {
  * @param {{ x: number, y: number, z: number, selectionKey?: string }} origin
  * @returns {string[]}
  */
-export function selectConnectedVoxelGroup(voxels, origin, shareableBlockIds = new Set()) {
+export function selectConnectedVoxelGroup(
+  voxels,
+  origin,
+  shareableBlockIds = new Set(),
+  definitions = null,
+) {
   const voxelsByCoordinate = new Map();
   for (const voxel of voxels) {
     const key = voxelCoordinateKey(voxel);
@@ -39,7 +50,8 @@ export function selectConnectedVoxelGroup(voxels, origin, shareableBlockIds = ne
   const originOccupants = voxelsByCoordinate.get(voxelCoordinateKey(origin)) ?? [];
   const first = origin.selectionKey
     ? voxels.find((voxel) => cellObjectSelectionKey(voxel) === origin.selectionKey)
-    : originOccupants.find((voxel) => !shareableBlockIds.has(voxel.blockId)) ??
+    : originOccupants.find((voxel) =>
+      !voxelCanShareCell(voxel, shareableBlockIds, definitions)) ??
       originOccupants.at(-1);
   if (!first) return [];
 
@@ -141,6 +153,7 @@ export function moveVoxelGroup(
   world,
   dz = 0,
   shareableBlockIds = new Set(),
+  definitions = null,
 ) {
   const selected = new Set(selectedCoordinateKeys);
   const moving = voxels.filter((voxel) => selected.has(cellObjectSelectionKey(voxel)));
@@ -152,7 +165,7 @@ export function moveVoxelGroup(
     voxels
       .filter((voxel) =>
         !selected.has(cellObjectSelectionKey(voxel)) &&
-        !shareableBlockIds.has(voxel.blockId))
+        !voxelCanShareCell(voxel, shareableBlockIds, definitions))
       .map(voxelCoordinateKey),
   );
   const destinations = moving.map((voxel) => ({
@@ -166,7 +179,7 @@ export function moveVoxelGroup(
     voxel.x >= world.width ||
     voxel.y < 0 ||
     voxel.y >= world.height ||
-    (!shareableBlockIds.has(voxel.blockId) &&
+    (!voxelCanShareCell(voxel, shareableBlockIds, definitions) &&
       stationarySolidCoordinates.has(voxelCoordinateKey(voxel))),
   );
   if (blocked) {

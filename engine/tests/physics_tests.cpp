@@ -1188,6 +1188,35 @@ void TestOrangeButtonUsesASeparateWallTick() {
         "leaving an orange button should release it and raise every wall");
 }
 
+void TestOrangeWallCarriesItsMountedButtonInTheSameTick() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {0, 1, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {1, 1, 2, Role("orange-button"), 0},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 7, 2, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "entering a button should precede its linked wall motion");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 7, 2, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "a wall and its mounted button should share one mechanism tick");
+  Check(state.tick == 2 && voxels[2].generic_id == 1 && voxels[3].z == 1,
+        "a top-mounted button should descend with a wall that becomes a face");
+  Check(voxelbench::simulate_turn(voxels, 7, 2, 3, 2) == 0 &&
+            voxels[0].y == 2 && voxels[2].generic_id == 0 && voxels[3].z == 2,
+        "the mounted button should rise with the wall after pressure is released");
+}
+
 void TestOrangeWallsCountEveryPressedButton() {
   voxelbench::Voxel voxels[] = {
       {0, 2, 1, Role("player"), -1},
@@ -1316,6 +1345,7 @@ int main() {
   TestBlockedPlayerLiftRefusesToRaise();
   TestSearchTracksPlayerLiftState();
   TestOrangeButtonUsesASeparateWallTick();
+  TestOrangeWallCarriesItsMountedButtonInTheSameTick();
   TestOrangeWallsCountEveryPressedButton();
   TestFlattenedOrangeWallIsPassThroughOnFloor();
   TestFloatingOrangeWallLowersAsACube();

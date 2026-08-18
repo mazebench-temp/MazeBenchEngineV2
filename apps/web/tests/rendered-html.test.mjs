@@ -102,6 +102,35 @@ test("non-cube editor meshes use exact full-cell picking proxies", async () => {
   assert.match(renderer, /selectionKey: cell\.selectionKey \|\| pick\.selectionKey/);
 });
 
+test("non-cube hover and selection are drawn on their real geometry", async () => {
+  const [renderer, canvas] = await Promise.all([
+    readFile(
+      new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+      "utf8",
+    ),
+    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(renderer, /if \(editorHoverTarget\.highlightShape\) \{\s*return;/);
+  assert.match(renderer, /function editorGeometryColor/);
+  assert.match(renderer, /highlightShape: "surface"/);
+  assert.match(renderer, /highlightShape: "geometry"/);
+  assert.match(renderer, /terrainColor\(descriptor\.type, descriptor\)/);
+  assert.match(renderer, /editorGeometryColor\("#f59e0b", selectionKey, selected\)/);
+  assert.match(renderer, /actor\.selected === true/);
+  assert.match(canvas, /selected: selectedVoxelKeys\.has\(cellObjectSelectionKey\(voxel\)\)/);
+});
+
+test("lowered orange walls are zero-thickness, paintable support faces", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(renderer, /isLoweredOrangeSurface\s*\n\s*\? 0/);
+  assert.match(renderer, /supportSurface: descriptor\.isLoweredOrangeSurface/);
+  assert.match(renderer, /rightSurface - leftSurface/);
+});
+
 test("the MazeBench GLTF loader has every local module dependency", async () => {
   const [loader, threeModule, threeCore, geometryUtils, skeletonUtils] = await Promise.all([
     readFile(new URL("../public/vendor/GLTFLoader.js", import.meta.url), "utf8"),

@@ -13,6 +13,7 @@ import {
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
+import { resolveEditorPaintTarget } from "./editorPaintTarget.mjs";
 import { liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
 import { orangeWallPhysicalState } from "./orangeWalls.mjs";
 
@@ -46,6 +47,7 @@ type MazeBenchPick = {
   dx?: number;
   dy?: number;
   face?: string;
+  highlightShape?: "geometry" | "surface";
   kind?: string;
   paintLayer: number | null;
   paintX: number;
@@ -161,6 +163,7 @@ type RenderActor = {
   modelUrl?: string;
   orientation?: string;
   removed: false;
+  selected: boolean;
   selectionKey: string;
   type: "gem" | "orange_button";
   x: number;
@@ -212,6 +215,7 @@ type CanvasProps = {
   selectedVoxelKeys?: ReadonlySet<string>;
   selectionMode?: boolean;
   selectedBlock?: string;
+  selectedBlockCanShare?: boolean;
   eraseMode?: boolean;
   interactive?: boolean;
   paintable?: boolean;
@@ -391,6 +395,7 @@ function frameToPlayData(
             orientation: normalizeButtonOrientation(voxel.orientation, voxel.variantId),
           }),
       removed: false,
+      selected: selectedVoxelKeys.has(cellObjectSelectionKey(voxel)),
       selectionKey: cellObjectSelectionKey(voxel),
       type: definition.visual.kind === "gem" ? "gem" : "orange_button",
       x: voxel.x,
@@ -489,6 +494,7 @@ export default function MazeBenchCanvas({
   selectedVoxelKeys = EMPTY_VOXEL_KEYS,
   selectionMode = false,
   selectedBlock,
+  selectedBlockCanShare = false,
   eraseMode = false,
   interactive = false,
   paintable = true,
@@ -907,9 +913,12 @@ export default function MazeBenchCanvas({
     if (!target || target.kind === "levelSwitch") return;
     const erase = eraseMode || event.button === 2 || (event.buttons & 2) === 2 || event.altKey;
     const replace = event.metaKey || event.ctrlKey;
-    const x = erase || replace ? target.sourceX : target.paintX;
-    const y = erase || replace ? target.sourceY : target.paintY;
-    const runtimeLayer = erase || replace ? target.sourceLayer : target.paintLayer;
+    const paintTarget = resolveEditorPaintTarget(target, {
+      erase,
+      replace,
+      selectedCanShare: selectedBlockCanShare,
+    });
+    const { x, y, layer: runtimeLayer } = paintTarget;
     if (runtimeLayer === null || x < 0 || y < 0 || x >= world.width || y >= world.height) return;
     const isEmptyGroundPick =
       target.paintLayer === 0 &&

@@ -5034,6 +5034,7 @@
         target.kind || "",
         target.levelId || "",
         target.face || "",
+        target.highlightShape || "",
         target.sourceX,
         target.sourceY,
         target.paintX,
@@ -5338,7 +5339,15 @@
       );
       raycaster.setFromCamera(pointer, camera);
 
-      const intersections = raycaster.intersectObjects(editorPickableMeshes(), false);
+      const intersections = raycaster
+        .intersectObjects(editorPickableMeshes(), false)
+        .sort((left, right) => {
+          const distanceDelta = left.distance - right.distance;
+          if (Math.abs(distanceDelta) > 0.001) return distanceDelta;
+          const leftSurface = left.object.userData?.editorPick?.supportSurface === true ? 1 : 0;
+          const rightSurface = right.object.userData?.editorPick?.supportSurface === true ? 1 : 0;
+          return rightSurface - leftSurface;
+        });
 
       for (const intersection of intersections) {
         const pick = intersection.object.userData?.editorPick;
@@ -5457,6 +5466,7 @@
             dx: pick.dx,
             dy: pick.dy,
             face,
+            highlightShape: pick.highlightShape,
             kind: "levelSwitch",
             levelId: pick.levelId,
             paintLayer: null,
@@ -5481,6 +5491,7 @@
           dx,
           dy,
           face,
+          highlightShape: pick.highlightShape,
           kind: pick.kind || "terrain",
           paintLayer: isBottomFace
             ? Math.max(0, sourceLayer - 1)
@@ -5633,6 +5644,13 @@
       clearEditorHoverHighlight();
 
       if (!editorHoverTarget || !THREE) {
+        return;
+      }
+
+      // Custom geometry owns its visible hover state. Its full-cell proxy is
+      // deliberately generous for hit testing, but must remain invisible or
+      // buttons, gems, slopes, and thin panels look like selected cubes.
+      if (editorHoverTarget.highlightShape) {
         return;
       }
 
@@ -6072,6 +6090,36 @@
       scene.add(pickMesh);
     }
 
+    function editorGeometryHighlightState(selectionKey, selected = false) {
+      if (!isEditorRenderMode()) {
+        return "";
+      }
+
+      if (
+        selectionKey &&
+        editorHoverTarget?.highlightShape &&
+        editorHoverTarget.selectionKey === selectionKey
+      ) {
+        return "hover";
+      }
+
+      return selected ? "selected" : "";
+    }
+
+    function editorGeometryColor(baseColor, selectionKey, selected = false) {
+      const state = editorGeometryHighlightState(selectionKey, selected);
+
+      if (state === "hover") {
+        return lerpHexColor(baseColor, "#fff3a6", 0.72);
+      }
+
+      if (state === "selected") {
+        return lerpHexColor(baseColor, "#34e7f0", 0.58);
+      }
+
+      return baseColor;
+    }
+
     function addSidePlayerLiftCell(cell, descriptor, visibility, now) {
       const orientation = normalizePlayerLiftOrientation(descriptor.layer?.direction);
       const lift = clamp01(renderTerrainLayerLiftValue(
@@ -6098,6 +6146,7 @@
       }
       const editorPick = {
         kind: "terrain",
+        highlightShape: "geometry",
         selectionKey: descriptor.layer?.selectionKey,
         cells: [{
           gridX: cell.gridX,
@@ -6113,7 +6162,10 @@
       };
       addOutlinedMesh(
         boxGeometry(width, descriptor.blockHeight, depth),
-        terrainColor(descriptor.type, descriptor),
+        editorGeometryColor(
+          terrainColor(descriptor.type, descriptor),
+          descriptor.layer?.selectionKey
+        ),
         { x, y: descriptor.bottomY + descriptor.blockHeight / 2, z },
         {
           castShadow: renderContextCastsShadows(),
@@ -6151,7 +6203,8 @@
       opacity,
       edgeOpacity,
       editorPick = null,
-      orientation = "top"
+      orientation = "top",
+      selected = false
     ) {
       const buttonHeight = orangeButtonHeight();
       const geometry = cylinderGeometry(orangeButtonRadius(), buttonHeight);
@@ -6182,7 +6235,11 @@
         rotation.z = Math.PI / 2;
       }
 
-      const mesh = new THREE.Mesh(geometry, material("#f59e0b", opacity));
+      const selectionKey = editorPick?.selectionKey;
+      const mesh = new THREE.Mesh(
+        geometry,
+        material(editorGeometryColor("#f59e0b", selectionKey, selected), opacity)
+      );
       mesh.position.copy(position);
       mesh.rotation.copy(rotation);
       mesh.castShadow = renderContextCastsShadows();
@@ -6196,6 +6253,7 @@
     function orangeButtonTerrainEditorPick(x, y, elevation, baseY) {
       return {
         kind: "terrain",
+        highlightShape: "geometry",
         cells: [
           {
             gridX: x,
@@ -6533,6 +6591,8 @@
             : topHeight - (isSunkenFloor ? floorDrop : 0);
       const blockHeight = isRaisedPiece
         ? Math.max(1, topHeight - baseHeight)
+        : isLoweredOrangeSurface
+          ? 0
         : isLoweredPlayerLift || isSurfacePlayerGate
           ? playerLiftPlateThickness()
           : isStackedFloorCube
@@ -7446,6 +7506,7 @@
       const suppressContacts = iceSlopeSuppressedEdgeContacts(cell, descriptor, now);
       const editorPick = {
         kind: "terrain",
+        highlightShape: "geometry",
         selectionKey: descriptor.layer?.selectionKey,
         cells: [
           {
@@ -7464,7 +7525,13 @@
 
       addOutlinedMesh(
         iceSlopeGeometry(descriptor.layer?.direction),
-        slopeStyleColor(descriptor.layer?.styleKey, terrainColor(descriptor.type)),
+        editorGeometryColor(
+          slopeStyleColor(
+            descriptor.layer?.styleKey,
+            terrainColor(descriptor.type, descriptor)
+          ),
+          descriptor.layer?.selectionKey
+        ),
         {
           x: centerX,
           y: bottomY,
@@ -7524,7 +7591,10 @@
         const supportingSurfaceDepthOffset = descriptor.isLoweredOrangeSurface ? -1 : -6;
         addOutlinedMesh(
           componentTopPlaneGeometry(cells),
-          terrainColor(descriptor.type),
+          editorGeometryColor(
+            terrainColor(descriptor.type, descriptor),
+            descriptor.layer?.selectionKey
+          ),
           { x: renderOffsetX(), y: descriptor.topY, z: renderOffsetZ() },
           {
             edgeGeometry: descriptor.isLoweredOrangeSurface
@@ -7541,6 +7611,8 @@
               !descriptor.isLoweredPlayerLift && !descriptor.isLoweredOrangeSurface,
             editorPick: {
               kind: "terrain",
+              highlightShape: "surface",
+              supportSurface: descriptor.isLoweredOrangeSurface,
               cells: cells.map((cell) => ({
                 gridX: cell.gridX,
                 gridY: cell.gridY,
@@ -8292,6 +8364,7 @@
 
       return editorPickForRenderContext({
         kind: "actor",
+        highlightShape: "geometry",
         cells: [
           {
             gridX: actor.x,
@@ -8343,7 +8416,17 @@
       group.userData.gemSpinGroup = true;
 
       model.parts.forEach((part) => {
-        const mesh = new THREE.Mesh(part.geometry, material(part.color || actorRenderColor(actor), opacity));
+        const mesh = new THREE.Mesh(
+          part.geometry,
+          material(
+            editorGeometryColor(
+              part.color || actorRenderColor(actor),
+              actor.selectionKey,
+              actor.selected === true
+            ),
+            opacity
+          )
+        );
 
         mesh.position.set(-placement.center.x, -model.bounds.min.y, -placement.center.z);
         mesh.castShadow = renderContextCastsShadows();
@@ -8388,7 +8471,14 @@
     function addGemFallback(actor, x, z, elevation, sink, scale, fade, visibility, opacity, now) {
       const gem = new THREE.Mesh(
         octahedronGeometry(unit * 0.22 * scale),
-        material(actorRenderColor(actor), opacity)
+        material(
+          editorGeometryColor(
+            actorRenderColor(actor),
+            actor.selectionKey,
+            actor.selected === true
+          ),
+          opacity
+        )
       );
 
       gem.position.set(
@@ -8746,6 +8836,7 @@
         const sourceLayer = Math.max(0, Math.floor(Number(actor.elevation) || 0));
         const editorPick = {
           kind: "actor",
+          highlightShape: "geometry",
           cells: [
             {
               gridX: actor.x,
@@ -8771,7 +8862,8 @@
           opacity,
           fade * visibility,
           editorPick,
-          actor.orientation
+          actor.orientation,
+          actor.selected === true
         );
         return;
       }

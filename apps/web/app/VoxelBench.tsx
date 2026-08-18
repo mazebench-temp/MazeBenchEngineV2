@@ -41,6 +41,7 @@ import {
   diffObjectMultisets,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
+  objectCanShareCell,
   placeObjectInCell,
 } from "./cellObjects.mjs";
 import {
@@ -1129,6 +1130,11 @@ export default function VoxelBench() {
   const selectedOrangeWallState = selectedDefinition?.visual.kind === "orange-wall"
     ? selectedOrangeWallStates[selectedDefinition.id] ?? 1
     : null;
+  const selectedBlockCanShare = selectedDefinition
+    ? objectCanShareCell(selectedDefinition, {
+        stateId: selectedOrangeWallState ?? 0,
+      })
+    : false;
   const selectedToolName = groupSelectionMode
     ? "Select group"
     : activeGroupSelection
@@ -1650,6 +1656,7 @@ export default function VoxelBench() {
       activeFrame.voxels,
       { ...origin, selectionKey },
       shareableBlockIds,
+      blockDefinitionsById,
     );
     if (!keys.length) {
       if (!additive) setGroupSelection(null);
@@ -1674,7 +1681,7 @@ export default function VoxelBench() {
         ? `${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added · ${combinedKeys.length} selected`
         : "That group is already selected"
       : `${keys.length} touching ${keys.length === 1 ? "cube" : "cubes"} selected · click again to deselect`);
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex, shareableBlockIds]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, blockDefinitionsById, frameKind, intermediateIndex, shareableBlockIds]);
 
   const selectVoxelGroups = useCallback((origins: Array<{ x: number; y: number; z: number; selectionKey?: string }>, additive: boolean) => {
     if (!activeTest) return;
@@ -1690,6 +1697,7 @@ export default function VoxelBench() {
         activeFrame.voxels,
         origin,
         shareableBlockIds,
+        blockDefinitionsById,
       );
       if (!groupKeys.length) continue;
       groupCount += 1;
@@ -1708,7 +1716,7 @@ export default function VoxelBench() {
     setToast(addedCount > 0
       ? `${groupCount} ${groupCount === 1 ? "group" : "groups"} boxed · ${addedCount} ${addedCount === 1 ? "cube" : "cubes"} added`
       : "Every group in that rectangle is already selected");
-  }, [activeFrame.voxels, activeGroupSelection, activeTest, frameKind, intermediateIndex, shareableBlockIds]);
+  }, [activeFrame.voxels, activeGroupSelection, activeTest, blockDefinitionsById, frameKind, intermediateIndex, shareableBlockIds]);
 
   const moveSelectedGroup = useCallback((direction: Direction, verticalDelta = 0) => {
     if (!activeTest || !activeGroupSelection) return;
@@ -1742,6 +1750,7 @@ export default function VoxelBench() {
       activeWorld,
       verticalDelta,
       shareableBlockIds,
+      blockDefinitionsById,
     );
     if (!movement.moved) {
       setToast(verticalDelta
@@ -1782,7 +1791,7 @@ export default function VoxelBench() {
         ? "lowered one layer"
         : `moved ${direction} relative to camera`;
     setToast(`${movement.selectedKeys.length} ${movement.selectedKeys.length === 1 ? "cube" : "cubes"} ${movementLabel}`);
-  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, cameraQuarterTurns, floorBlockIds, frameKind, intermediateIndex, pushHistory, shareableBlockIds, syncHistoryState]);
+  }, [activeGroupSelection, activeTest, activeTestLocked, activeWorld, blockDefinitionsById, cameraQuarterTurns, floorBlockIds, frameKind, intermediateIndex, pushHistory, shareableBlockIds, syncHistoryState]);
 
   const deleteSelectedGroup = useCallback(() => {
     if (!activeTest || !activeGroupSelection || !groupToolPinned) return;
@@ -2733,7 +2742,7 @@ export default function VoxelBench() {
               {activeTestLocked && <span className="lock-pill"><span className="lock-glyph" aria-hidden="true" /> Read only</span>}
               <span className="coordinate-pill">{activeWorld.width} × {activeWorld.height} × ∞</span>
             </div>
-            <MazeBenchCanvas frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
+            <MazeBenchCanvas frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} selectedBlockCanShare={selectedBlockCanShare} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
             {generatedTimeline?.testId === activeTest.id && (
               <section className="timeline-review" aria-label="Generated C++ timeline review">
                 <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.cycle ? `${generatedTimeline.cycle.repeatTick} ticks + rollback · loop ${generatedTimeline.cycle.startTick}→${generatedTimeline.cycle.repeatTick}` : `${generatedTimeline.frames.length} tick ${generatedTimeline.frames.length === 1 ? "frame" : "frames"}`}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>

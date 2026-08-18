@@ -438,6 +438,36 @@ bool OrangeMechanismsNeedTick(
   return false;
 }
 
+bool OrangeButtonRidesWallSurface(
+    const Voxel& button,
+    const Voxel& wall,
+    int32_t wall_surface_z) {
+  if (button.role != kOrangeButtonRole || button.generic_id < 0) return false;
+  const int32_t orientation = button.generic_id / 2;
+  if (orientation == 0) {
+    return button.x == wall.x && button.y == wall.y &&
+        button.z == wall_surface_z;
+  }
+  if (orientation == 1) {
+    return button.x == wall.x && button.y + 1 == wall.y &&
+        button.z + 1 == wall_surface_z;
+  }
+  if (orientation == 2) {
+    return button.x - 1 == wall.x && button.y == wall.y &&
+        button.z + 1 == wall_surface_z;
+  }
+  if (orientation == 3) {
+    return button.x == wall.x && button.y - 1 == wall.y &&
+        button.z + 1 == wall_surface_z;
+  }
+  if (orientation == 4) {
+    return button.x + 1 == wall.x && button.y == wall.y &&
+        button.z + 1 == wall_surface_z;
+  }
+  return orientation == 5 && button.x == wall.x && button.y == wall.y &&
+      button.z + 2 == wall_surface_z;
+}
+
 bool AdvanceOrangeMechanismsOneTick(
     MotionState* state,
     Voxel* voxels,
@@ -476,7 +506,15 @@ bool AdvanceOrangeMechanismsOneTick(
       player_rides_wall |= player.x == wall.x && player.y == wall.y &&
           player.z == old_surface;
       for (int32_t object = 0; object < g_object_count; ++object) {
-        if (g_object_kind[object] == kMechanismObject) continue;
+        if (g_object_kind[object] == kMechanismObject) {
+          const int32_t member = g_object_head[object];
+          if (member >= 0 && OrangeButtonRidesWallSurface(
+                  voxels[member], wall, old_surface)) {
+            g_mandatory_objects[object] = 1;
+            g_moving_objects[object] = 1;
+          }
+          continue;
+        }
         for (int32_t member = g_object_head[object]; member >= 0;
              member = g_next_object_voxel[member]) {
           if (voxels[member].x == wall.x && voxels[member].y == wall.y &&

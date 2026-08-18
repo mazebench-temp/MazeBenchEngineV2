@@ -50,6 +50,14 @@ test("multiple distinct sensors may share a cell with one body", () => {
   assert.deepEqual(result.objects, [at("box"), at("gem"), at("button")]);
 });
 
+test("differently oriented buttons may share one cell", () => {
+  const north = at("button", { orientation: "north", variantId: 1 });
+  const east = at("button", { orientation: "east", variantId: 2 });
+  const result = placeObjectInCell([north], east, definitions);
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.objects, [north, east]);
+});
+
 test("only a lowered orange wall becomes a shareable support surface", () => {
   const definition = definitions.get("orange-wall");
   assert.equal(objectCanShareCell(definition, at("orange-wall", { stateId: 0 })), true);
