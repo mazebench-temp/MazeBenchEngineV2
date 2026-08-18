@@ -13,6 +13,7 @@ import {
   normalizeTestTagPlacement,
   rootTagId,
   tagCombinationKey,
+  testUsesTag,
 } from "../app/testTags.mjs";
 
 const tagList = [
@@ -67,6 +68,15 @@ test("multi-subtag cases only appear in their exact derived combination", () => 
   assert.equal(combinationViewIncludesTest(["slopes", "ice"], ["ice", "slopes"], order), true);
   assert.equal(combinationViewIncludesTest(["ice", "slopes"], ["ice"], order), false);
   assert.equal(tagCombinationKey(["slopes", "ice"], order), tagCombinationKey(["ice", "slopes"], order));
+});
+
+test("combination cases keep every constituent subtag non-empty for deletion", () => {
+  const combinationCase = { folderId: "physics", tagIds: ["ice", "slopes"] };
+  assert.equal(testUsesTag(combinationCase, tagList[0]), true);
+  assert.equal(testUsesTag(combinationCase, tagList[2]), true);
+  assert.equal(testUsesTag(combinationCase, tagList[3]), true);
+  assert.equal(testUsesTag(combinationCase, tagList[4]), false);
+  assert.equal(testUsesTag({ folderId: "physics", tagIds: ["ice"] }, tagList[3]), false);
 });
 
 test("tag placement keeps only subtags from one parent group", () => {

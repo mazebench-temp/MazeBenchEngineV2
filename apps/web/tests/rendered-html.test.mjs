@@ -137,8 +137,14 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /Open combination →/);
   assert.match(component, /renderTestCard\(test, index, scopeTests\)/);
   assert.match(component, /className="suite-tree__rename-button"/);
+  assert.match(component, /className="suite-tree__delete-button"/);
   assert.match(component, /className="suite-tree__rename"/);
   assert.match(component, /onRenameFolder\(folder\.id, name\)/);
+  assert.match(component, /onDeleteFolder\(folder\.id\)/);
+  assert.match(component, /folderMembershipCounts/);
+  assert.match(component, /testUsesTag\(test, folder\)/);
+  assert.match(component, /Default is a reserved subtag and cannot be deleted/);
+  assert.match(component, /The final parent tag group cannot be deleted/);
   assert.match(component, /if \(event\.key === "Escape"\)/);
   assert.match(component, /Move \$\{test\.name\} left/);
   assert.match(component, /Move \$\{test\.name\} right/);
@@ -148,6 +154,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(styles, /\.suite-test-row__identity[^}]*grid-template-columns/);
   assert.match(styles, /\.test-tag-picker__menu/);
   assert.match(styles, /\.suite-tree__row--alias/);
+  assert.match(styles, /\.suite-tree__delete-button/);
   assert.match(styles, /\.suite-browser__content/);
   assert.match(styles, /\.suite-related-combinations/);
   assert.match(styles, /\.suite-related-combination/);

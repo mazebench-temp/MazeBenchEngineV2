@@ -42,6 +42,7 @@ import {
   flattenSubtags,
   normalizeTestTagPlacement,
   rootTagId,
+  testUsesTag,
 } from "./testTags.mjs";
 import { enforceFloorLayer, selectionContainsFloor } from "./floorLayer.mjs";
 import {
@@ -1262,6 +1263,7 @@ function TestSuiteWorkspace({
   lockedFolderIds,
   onAddFolder,
   onAddTest,
+  onDeleteFolder,
   onDeleteTest,
   onDuplicateTest,
   onChangeTestGroup,
@@ -1284,6 +1286,7 @@ function TestSuiteWorkspace({
   lockedFolderIds: ReadonlySet<string>;
   onAddFolder: (name: string, parentId?: string) => void;
   onAddTest: (folderId?: string, tagIds?: string[]) => void;
+  onDeleteFolder: (folderId: string) => void;
   onDeleteTest: (testId: string) => void;
   onDuplicateTest: (testId: string) => void;
   onChangeTestGroup: (testId: string, groupTagId: string) => void;
@@ -1372,6 +1375,11 @@ function TestSuiteWorkspace({
     }
     return counts;
   }, [folders, tests]);
+  const folderMembershipCounts = useMemo(() => new Map(folders.map((folder) => [
+    folder.id,
+    tests.filter((test) => testUsesTag(test, folder)).length,
+  ])), [folders, tests]);
+  const rootFolderCount = folders.filter((folder) => !folder.parentId).length;
 
   const testIsInSelectedView = useCallback((test: TestCase) => {
     if (selectedFolderId === null) return true;
@@ -1421,10 +1429,10 @@ function TestSuiteWorkspace({
       ? lockedFolderIds.has(selectedAlias.groupTagId) || selectedAlias.tagIds.some((tagId) => lockedFolderIds.has(tagId))
       : false;
   useEffect(() => {
-    if (selectedFolderId?.startsWith("combo:") && !aliasesById.has(selectedFolderId)) {
+    if (selectedFolderId && !foldersById.has(selectedFolderId) && !aliasesById.has(selectedFolderId)) {
       setSelectedFolderId(null);
     }
-  }, [aliasesById, selectedFolderId]);
+  }, [aliasesById, foldersById, selectedFolderId]);
   const completed = Object.values(results);
   const passed = completed.filter((result) => result.pass).length;
   const failed = completed.length - passed;
@@ -1495,6 +1503,18 @@ function TestSuiteWorkspace({
         : combinationAliases.filter((alias) => alias.groupTagId === folder.id);
       const hasChildren = children.length > 0 || aliases.length > 0;
       const effectiveLocked = lockedFolderIds.has(folder.id);
+      const membershipCount = folderMembershipCounts.get(folder.id) ?? 0;
+      const deletionLocked = effectiveLocked || (!folder.parentId && children.some((child) => lockedFolderIds.has(child.id)));
+      const canDelete = membershipCount === 0 && !folder.default && !deletionLocked && (folder.parentId !== undefined || rootFolderCount > 1);
+      const deleteTitle = folder.default
+        ? "Default is a reserved subtag"
+        : membershipCount > 0
+          ? `${membershipCount} test${membershipCount === 1 ? "" : "s"} still use this tag, including combination memberships`
+          : deletionLocked
+            ? "Unlock this tag and its subtags before deleting it"
+            : !folder.parentId && rootFolderCount <= 1
+              ? "The final parent tag group cannot be deleted"
+              : `Delete empty ${folder.parentId ? "subtag" : "tag group"}`;
       return (
         <div className="suite-tree__branch" key={folder.id}>
           <div className={`suite-tree__row ${selectedFolderId === folder.id ? "is-selected" : ""} ${effectiveLocked ? "is-locked" : ""}`} style={{ "--tree-depth": depth } as React.CSSProperties}>
@@ -1509,6 +1529,7 @@ function TestSuiteWorkspace({
               <>
                 <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
                 <button className="suite-tree__rename-button" type="button" disabled={effectiveLocked || folder.default} aria-label={`Rename ${folder.name}`} title={folder.default ? "Default is a reserved subtag" : `Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
+                <button className="suite-tree__delete-button" type="button" disabled={!canDelete} aria-label={`Delete ${folder.name}`} title={deleteTitle} onClick={() => onDeleteFolder(folder.id)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5M14 11v5" /></svg></button>
               </>
             )}
           </div>
@@ -2791,6 +2812,34 @@ export default function VoxelBench() {
     setToast(`${name} ${effectiveParentId ? "subtag" : "tag group"} created`);
   };
 
+  const deleteFolder = (folderId: string) => {
+    const folder = folders.find((item) => item.id === folderId);
+    if (!folder) return;
+    const rootFolders = folders.filter((item) => !item.parentId);
+    if (folder.default) {
+      setToast("Default is a reserved subtag and cannot be deleted");
+      return;
+    }
+    if (!folder.parentId && rootFolders.length <= 1) {
+      setToast("The final parent tag group cannot be deleted");
+      return;
+    }
+    const deletedIds = new Set(folder.parentId
+      ? [folder.id]
+      : folders.filter((item) => item.id === folder.id || item.parentId === folder.id).map((item) => item.id));
+    const referencedTests = tests.filter((test) => testUsesTag(test, folder));
+    if (referencedTests.length) {
+      setToast(`${folder.name} is still used by ${referencedTests.length} test${referencedTests.length === 1 ? "" : "s"}`);
+      return;
+    }
+    if ([...deletedIds].some((id) => lockedFolderIds.has(id))) {
+      setToast("Unlock the tag and its subtags before deleting it");
+      return;
+    }
+    setFolders((current) => current.filter((item) => !deletedIds.has(item.id)));
+    setToast(`${folder.name} deleted`);
+  };
+
   const toggleFolderCollapsed = (folderId: string) => {
     setFolders((current) => current.map((folder) =>
       folder.id === folderId ? { ...folder, collapsed: !folder.collapsed } : folder,
@@ -3463,6 +3512,7 @@ export default function VoxelBench() {
           tests={tests}
           onAddFolder={addFolder}
           onAddTest={addTest}
+          onDeleteFolder={deleteFolder}
           onDeleteTest={deleteTest}
           onDuplicateTest={duplicateTest}
           onChangeTestGroup={changeTestTagGroup}

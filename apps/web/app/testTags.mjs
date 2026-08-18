@@ -89,6 +89,19 @@ export function directSubtagViewIncludesTest(testTagIds, tagId) {
 }
 
 /**
+ * Count true saved membership rather than cards visible in an individual
+ * subtag view. Multi-subtag combination cases still use every constituent tag.
+ *
+ * @param {{ folderId: string, tagIds: readonly string[] }} test
+ * @param {{ id: string, parentId?: string }} tag
+ */
+export function testUsesTag(test, tag) {
+  return tag.parentId
+    ? test.folderId === tag.parentId && test.tagIds.includes(tag.id)
+    : test.folderId === tag.id;
+}
+
+/**
  * @param {readonly string[]} testTagIds
  * @param {readonly string[]} combinationTagIds
  * @param {ReadonlyMap<string, number>} tagOrder

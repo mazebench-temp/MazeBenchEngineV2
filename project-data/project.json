@@ -246,20 +246,6 @@
     },
     {
       "collapsed": true,
-      "id": "ice",
-      "locked": false,
-      "name": "Ice Movement"
-    },
-    {
-      "collapsed": false,
-      "default": true,
-      "id": "ice-default",
-      "locked": false,
-      "name": "Default",
-      "parentId": "ice"
-    },
-    {
-      "collapsed": true,
       "id": "weightless-box",
       "locked": true,
       "name": "Box"
@@ -271,20 +257,6 @@
       "locked": false,
       "name": "Default",
       "parentId": "weightless-box"
-    },
-    {
-      "collapsed": true,
-      "id": "box-hole",
-      "locked": false,
-      "name": "Box + Hole"
-    },
-    {
-      "collapsed": false,
-      "default": true,
-      "id": "box-hole-default",
-      "locked": false,
-      "name": "Default",
-      "parentId": "box-hole"
     },
     {
       "collapsed": true,
