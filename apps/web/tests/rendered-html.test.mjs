@@ -106,9 +106,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /className="suite-test-row__details"/);
   assert.match(component, /onUpdateTest\(test\.id, \{ name: event\.target\.value \}\)/);
   assert.match(component, /onUpdateTest\(test\.id, \{ description: event\.target\.value \}\)/);
-  assert.match(component, /Title[\s\S]*?disabled=\{folderLocked\}[\s\S]*?onUpdateTest\(test\.id, \{ name:/);
-  assert.match(component, /Description[\s\S]*?disabled=\{folderLocked\}[\s\S]*?onUpdateTest\(test\.id, \{ description:/);
-  assert.match(component, /function testTagsAreLocked/);
+  assert.doesNotMatch(component, /lockedFolderIds|testTagsAreLocked|onToggleFolderLocked|suite-folder-lock/);
   assert.match(component, /normalizeTestTagPlacement/);
   assert.match(component, /flattenSubtags/);
   assert.match(component, /type TagCombinationAlias/);
@@ -121,11 +119,10 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /className="test-tag-picker"/);
   assert.match(component, /test\.tagIds\.includes\(folder\.id\)/);
   assert.doesNotMatch(component, /via subtag/);
-  assert.match(component, /if \(!test \|\| testTagsAreLocked\(test, lockedFolderIds\)\) return;/);
   assert.match(component, /onToggleTestTag\(test\.id, tagId\)/);
-  assert.match(component, /disabled=\{folderLocked \|\| scopeIndex === 0\}/);
+  assert.match(component, /disabled=\{scopeIndex === 0\}/);
   assert.doesNotMatch(component, /Locked tests cannot be reordered/);
-  assert.match(component, /Unlock the affected tags before changing membership/);
+  assert.doesNotMatch(component, /Locked by tag|Unlock the affected tags|Unlock tag|Lock tag/);
   assert.match(component, /testIsInSelectedView/);
   assert.match(component, /folderTestCounts\.get\(folder\.id\)/);
   assert.match(component, /suite-tree__row--alias/);
@@ -158,6 +155,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(styles, /\.suite-browser__content/);
   assert.match(styles, /\.suite-related-combinations/);
   assert.match(styles, /\.suite-related-combination/);
+  assert.doesNotMatch(styles, /\.suite-folder-lock|\.suite-tree__row\.is-locked/);
   assert.match(styles, /\.suite-test-row__details input:focus/);
   assert.match(styles, /button\.is-locked[^}]*color: var\(--amber\)/);
   assert.doesNotMatch(styles, /\.lock-glyph/);

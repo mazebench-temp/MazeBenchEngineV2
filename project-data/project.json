@@ -219,7 +219,7 @@
     {
       "collapsed": true,
       "id": "general",
-      "locked": true,
+      "locked": false,
       "name": "Movement"
     },
     {
@@ -233,7 +233,7 @@
     {
       "collapsed": true,
       "id": "push-boxes",
-      "locked": true,
+      "locked": false,
       "name": "Sokoban crates"
     },
     {
@@ -275,7 +275,7 @@
     {
       "collapsed": true,
       "id": "3d-box-hole",
-      "locked": true,
+      "locked": false,
       "name": "3D Box + Hole"
     },
     {
@@ -289,7 +289,7 @@
     {
       "collapsed": true,
       "id": "box-ice",
-      "locked": true,
+      "locked": false,
       "name": "Box + Ice"
     },
     {
@@ -303,7 +303,7 @@
     {
       "collapsed": true,
       "id": "3d-box-ice",
-      "locked": true,
+      "locked": false,
       "name": "3D Box + Ice"
     },
     {
@@ -317,7 +317,7 @@
     {
       "collapsed": true,
       "id": "lifts",
-      "locked": true,
+      "locked": false,
       "name": "Ice slopes"
     },
     {
@@ -331,7 +331,7 @@
     {
       "collapsed": true,
       "id": "ice-slopes-box",
-      "locked": true,
+      "locked": false,
       "name": "ice slopes + box"
     },
     {
@@ -345,7 +345,7 @@
     {
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
-      "locked": true,
+      "locked": false,
       "name": "ICE SLOPES + 3D BOXES"
     },
     {
@@ -359,7 +359,7 @@
     {
       "collapsed": true,
       "id": "lift",
-      "locked": true,
+      "locked": false,
       "name": "Lift"
     },
     {
@@ -373,7 +373,7 @@
     {
       "collapsed": true,
       "id": "orange-walls",
-      "locked": true,
+      "locked": false,
       "name": "Orange Walls"
     },
     {

@@ -6,7 +6,6 @@ import {
   combinationViewIncludesTest,
   defaultSubtagId,
   directSubtagViewIncludesTest,
-  directTagsAreLocked,
   directTagsIncludeTag,
   ensureDefaultSubtags,
   flattenSubtags,
@@ -43,11 +42,6 @@ test("a direct subtag assignment belongs to itself and its parent group", () => 
 test("multiple direct tags independently contribute inherited membership", () => {
   assert.equal(directTagsIncludeTag(["slopes", "orange"], "physics", tags), true);
   assert.equal(directTagsIncludeTag(["slopes", "orange"], "orange", tags), true);
-});
-
-test("any effectively locked direct tag locks organization for the test", () => {
-  assert.equal(directTagsAreLocked(["slopes", "orange"], new Set(["orange"])), true);
-  assert.equal(directTagsAreLocked(["slopes"], new Set(["orange"])), false);
 });
 
 test("legacy sub-subtags are promoted directly under their root group", () => {

@@ -10,7 +10,8 @@ import {
 
 const projectDirectory = new URL("../project-data/", import.meta.url);
 const project = await readProjectDirectory(projectDirectory);
-const tags = ensureDefaultSubtags(flattenSubtags(project.tags ?? project.folders ?? []));
+const tags = ensureDefaultSubtags(flattenSubtags(project.tags ?? project.folders ?? []))
+  .map((tag) => ({ ...tag, locked: false }));
 const tests = project.tests.map((test) => {
   const placement = normalizeTestTagPlacement({
     directTagIds: test.tagIds ?? [test.folderId],

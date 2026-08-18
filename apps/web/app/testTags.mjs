@@ -19,11 +19,6 @@ export function directTagsIncludeTag(directTagIds, tagId, tagsById) {
   });
 }
 
-/** @param {readonly string[]} directTagIds @param {ReadonlySet<string>} lockedTagIds */
-export function directTagsAreLocked(directTagIds, lockedTagIds) {
-  return directTagIds.some((tagId) => lockedTagIds.has(tagId));
-}
-
 /**
  * @param {string} tagId
  * @param {ReadonlyMap<string, { id: string, parentId?: string }>} tagsById
