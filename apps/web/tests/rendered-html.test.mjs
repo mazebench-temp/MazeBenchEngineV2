@@ -53,14 +53,10 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Suite folder/);
   assert.match(html, /Movement &amp; walls/);
   assert.match(html, /Push boxes/);
-  assert.match(html, /New folder/);
-  assert.match(html, /aria-label="Collapse Movement &amp; walls"/);
-  assert.match(html, /aria-label="Lock Movement &amp; walls folder"/);
-  assert.match(html, /aria-label="Lock Push crate onto goal"/);
-  assert.match(html, /aria-label="Move Push crate onto goal up"/);
-  assert.match(html, /aria-label="Move Push crate onto goal down"/);
-  assert.match(html, /aria-label="Duplicate Push crate onto goal"/);
-  assert.match(html, /aria-label="Delete Push crate onto goal"/);
+  assert.match(html, />Test Suite<\/button>/);
+  assert.match(html, /Open Test Suite/);
+  assert.match(html, /Browse, search, reorder, and organize the complete test library on its own page/);
+  assert.doesNotMatch(html, /aria-label="Collapse Movement &amp; walls"/);
   assert.match(html, /Run suite/);
   assert.match(html, /Z is unbounded/);
   assert.match(html, /Test World/);
@@ -88,6 +84,22 @@ test("MazeBench renderer prints each generic ID on exposed polycube faces", asyn
   assert.match(renderer, /addWeightlessGroupFaceLabels\([\s\S]*?descriptor\.layer\.genericLabel/);
   assert.match(renderer, /modelAssetsReady/);
   assert.match(renderer, /modelAssetsFailed/);
+});
+
+test("the suite uses proper lock icons and one lazy serialized 3D preview renderer", async () => {
+  const [component, styles] = await Promise.all([
+    readFile(new URL("../app/VoxelBench.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(component, /function LockIcon/);
+  assert.match(component, /M7 11V7a5 5 0 0 1 10 0v4/);
+  assert.match(component, /M7 11V7a5 5 0 0 1 9\.9-1/);
+  assert.match(component, /new IntersectionObserver/);
+  assert.match(component, /className="suite-preview-capture"[\s\S]*?<MazeBenchCanvas/);
+  assert.match(component, /previewQueue/);
+  assert.match(styles, /\.suite-test-table[^}]*grid-template-columns: repeat\(auto-fill, minmax\(300px, 1fr\)\)/);
+  assert.match(styles, /\.suite-test-preview img[^}]*object-fit: contain/);
+  assert.doesNotMatch(styles, /\.lock-glyph/);
 });
 
 test("non-cube editor meshes use exact full-cell picking proxies", async () => {

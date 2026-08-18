@@ -216,7 +216,7 @@ export function decodeCompactTest(compact) {
 
 export function encodeProjectBundle(project) {
   return {
-    schemaVersion: Math.max(12, Number(project.schemaVersion) || 0),
+    schemaVersion: Math.max(13, Number(project.schemaVersion) || 0),
     storageFormat: COMPACT_BUNDLE_FORMAT,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,

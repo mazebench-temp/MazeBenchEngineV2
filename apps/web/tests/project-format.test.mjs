@@ -56,7 +56,10 @@ const project = {
   coordinateSystem: { floorLayer: 0 },
   roles: [{ id: "solid", name: "Solid" }],
   blocks: [{ id: "player", name: "Player", roleId: "solid" }],
-  folders: [{ id: "folder-a", name: "Folder A" }],
+  folders: [
+    { id: "folder-a", name: "Folder A" },
+    { id: "folder-b", name: "Nested Folder", parentId: "folder-a" },
+  ],
   searches: [{ id: "search-a", name: "Search A" }],
   tests: [{
     id: "test / unusual id",
@@ -86,7 +89,7 @@ test("compact project format losslessly round-trips frame content", () => {
   assert.equal(compact.storageFormat, COMPACT_BUNDLE_FORMAT);
   const restored = decodeProjectPayload(JSON.parse(JSON.stringify(compact)));
 
-  assert.equal(restored.schemaVersion, 12);
+  assert.equal(restored.schemaVersion, 13);
   assert.deepEqual(restored.coordinateSystem, project.coordinateSystem);
   assert.deepEqual(restored.roles, project.roles);
   assert.deepEqual(restored.blocks, project.blocks);
