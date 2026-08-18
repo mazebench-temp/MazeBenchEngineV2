@@ -180,7 +180,7 @@ function simulateFinal(voxels, direction, world) {
 }
 
 function identity(voxel) {
-  return `${voxel.x},${voxel.y},${voxel.z}:${voxel.blockId}:${voxel.genericId ?? -1}:${voxel.stateId ?? 0}:${voxel.orientation ?? "none"}`;
+  return `${voxel.x},${voxel.y},${voxel.z}:${voxel.blockId}:${voxel.genericId ?? -1}:${voxel.stateId ?? 0}:${voxel.mechanismDepth ?? -1}:${voxel.orientation ?? "none"}`;
 }
 
 function summarize(voxels) {

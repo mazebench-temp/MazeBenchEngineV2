@@ -26,6 +26,11 @@ const definitions = new Map([
     occupancy: "support",
     visual: { kind: "orange-wall", orangeForm: "face" },
   }],
+  ["orange-hidden", {
+    roleId: "orange-wall",
+    occupancy: "inactive",
+    visual: { kind: "orange-wall", orangeForm: "hidden" },
+  }],
 ]);
 
 const at = (blockId, extras = {}) => ({ x: 2, y: 3, z: 1, blockId, ...extras });
@@ -67,13 +72,15 @@ test("differently oriented buttons may share one cell", () => {
   assert.deepEqual(result.objects, [north, east]);
 });
 
-test("only the dedicated Orange Face is shareable regardless of number", () => {
+test("Orange Faces and hidden volumes are shareable regardless of number", () => {
   const cubeDefinition = definitions.get("orange-wall");
   const faceDefinition = definitions.get("orange-face");
+  const hiddenDefinition = definitions.get("orange-hidden");
   assert.equal(objectCanShareCell(cubeDefinition, at("orange-wall", { stateId: 0 })), false);
   assert.equal(objectCanShareCell(cubeDefinition, at("orange-wall", { stateId: 1 })), false);
   assert.equal(objectCanShareCell(faceDefinition, at("orange-face", { stateId: 0 })), true);
   assert.equal(objectCanShareCell(faceDefinition, at("orange-face", { stateId: 1 })), true);
+  assert.equal(objectCanShareCell(hiddenDefinition, at("orange-hidden", { stateId: 2 })), true);
 
   const lowered = at("orange-face", { stateId: 0, mechanismDepth: 2 });
   const result = placeObjectInCell(
@@ -82,6 +89,10 @@ test("only the dedicated Orange Face is shareable regardless of number", () => {
     definitions,
   );
   assert.deepEqual(result.objects, [lowered, at("box")]);
+
+  const buried = at("orange-hidden", { stateId: 2, mechanismDepth: 4 });
+  const buriedResult = placeObjectInCell([at("wall")], buried, definitions);
+  assert.deepEqual(buriedResult.objects, [at("wall"), buried]);
 });
 
 test("repainting an Orange Face replaces its remaining-rise number", () => {

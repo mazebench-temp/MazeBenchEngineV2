@@ -17,6 +17,10 @@ export function orangeWallIsDedicatedFace(wall, definitions) {
   return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "face";
 }
 
+export function orangeWallIsHiddenVolume(wall, definitions) {
+  return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "hidden";
+}
+
 // Negative mechanism values are private ABI encoding, not user-facing IDs.
 // -1 remains the ordinary "no generic value" sentinel. Values <= -2 identify
 // a dedicated Orange Face while preserving its nonnegative remaining rise.
@@ -74,6 +78,14 @@ export function orangeWallSupportZ(wall, voxels, definitions) {
 export function orangeWallPhysicalState(wall, voxels, definitions) {
   const mechanismDepth = orangeWallMechanismDepth(wall);
   const supportZ = orangeWallSupportZ(wall, voxels, definitions);
+  if (orangeWallIsHiddenVolume(wall, definitions)) {
+    return {
+      mechanismDepth,
+      physicalZ: wall.z,
+      stateId: 2,
+      supportZ,
+    };
+  }
   if (orangeWallIsDedicatedFace(wall, definitions)) {
     return {
       mechanismDepth,
@@ -110,7 +122,9 @@ export function normalizeOrangeWallFrame(frame, definitions) {
       return {
         ...voxel,
         mechanismDepth: state.mechanismDepth,
-        stateId: orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
+        stateId: orangeWallIsHiddenVolume(voxel, definitions)
+          ? 2
+          : orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
       };
     }),
   };
@@ -122,6 +136,9 @@ export function orangeWallVisualFrame(frame, definitions) {
       const definition = definitionFor(definitions, voxel.blockId);
       if (definition?.visual?.kind !== "orange-wall") return [voxel];
       const state = orangeWallPhysicalState(voxel, normalized.voxels, definitions);
+      if (orangeWallIsHiddenVolume(voxel, definitions)) {
+        return [{ ...voxel, z: state.physicalZ, stateId: 2 }];
+      }
       const visible = {
         ...voxel,
         z: state.physicalZ,
@@ -154,6 +171,7 @@ export function orangeWallVisualFrame(frame, definitions) {
       if (definition?.visual?.kind !== "orange-wall") {
         return true;
       }
+      if (orangeWallIsHiddenVolume(voxel, definitions)) return true;
       const cell = `${voxel.x},${voxel.y},${voxel.z}`;
       if (Number(voxel.stateId) === 1) {
         if (retainedBrickCells.has(cell)) return false;

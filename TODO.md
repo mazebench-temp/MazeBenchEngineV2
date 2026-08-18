@@ -86,6 +86,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Gem: real model, editor sensor occupancy, existing C++ player collection, and box overlap.
 - [x] Pressure button: single-state six-face cylinder whose hidden activation comes from overlapping rigid occupants.
 - [x] Orange wall: additive lowering depth driven by the number of concurrently pressed buttons.
+- [x] Orange hidden volume: overlap-safe per-cell metadata, translucent editor cube, and gameplay-hidden rendering.
+- [ ] Replace inferred Orange Wall anchors with explicit cube → face → hidden-volume transitions in C++ once the revised authored traces are final.
 - [x] Ice slope: four directions with discrete ramp traversal.
 - [x] Detect exact whole-level slope cycles, show their tick interval, and roll the command back.
 - [x] Keep falling momentum when a player or box is caught by a directional slope.
@@ -108,6 +110,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Automatic rotations correctly transform future punchers, face symbols, and unrestricted orientations.
 - [x] Search distinguishes identical coordinates with different mechanism states.
 - [x] A supported orange wall flattens into a surface; over a void it descends as a full cube.
+- [x] Hidden Orange Wall volumes can be painted, selected, translated, and stored inside any occupied editor cell.
 - [ ] Custom shapes remain pickable from above and below.
 - [x] All 321 authored physics tests and their automatic rotations remain green.
 - [x] Native C++ tests, WASM API tests, web tests, lint, and production build remain green.

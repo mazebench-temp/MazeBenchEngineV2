@@ -151,10 +151,23 @@ test("Orange Face and Orange Cube rendering ignores remaining-rise depth", async
   );
   assert.match(
     canvas,
-    /definition\.visual\.kind === "orange-wall"[\s\S]*?definition\.visual\.orangeForm !== "face"/,
+    /definition\.visual\.kind === "orange-wall"[\s\S]*?orangeForm !== "face"/,
   );
   assert.match(canvas, /elevation: voxel\.z \+ layerOffset/);
   assert.doesNotMatch(canvas, /elevation: \(orangeWall\?\.physicalZ \?\? voxel\.z\)/);
+});
+
+test("hidden Orange Wall volumes are translucent only in editor rendering", async () => {
+  const [canvas, renderer] = await Promise.all([
+    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.match(canvas, /orangeForm === "hidden"[\s\S]*?editorOnly: true[\s\S]*?editorOpacity/);
+  assert.match(renderer, /layer\?\.editorOnly !== true \|\| isEditorRenderMode\(\)/);
+  assert.match(renderer, /descriptor\.layer\?\.editorOpacity/);
 });
 
 test("the cell inspector imports its Orange Wall number formatter", async () => {

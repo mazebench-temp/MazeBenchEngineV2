@@ -193,6 +193,17 @@
       }
     },
     {
+      "id": "orange-wall-hidden",
+      "name": "Orange hidden cube",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "orange-wall",
+        "orangeForm": "hidden"
+      }
+    },
+    {
       "id": "orange-button",
       "name": "Orange button",
       "color": "#F59E0B",
@@ -286,7 +297,7 @@
     {
       "collapsed": false,
       "id": "orange-walls",
-      "locked": false,
+      "locked": true,
       "name": "orange walls"
     }
   ],
@@ -20559,10 +20570,22 @@
       "file": "test-325.json"
     },
     {
+      "id": "test-325-copy-2",
+      "name": "Untitled test 325 copy",
+      "folderId": "orange-walls",
+      "file": "test-325-copy-2.json"
+    },
+    {
       "id": "test-325-copy",
       "name": "Untitled test 325 copy",
       "folderId": "orange-walls",
       "file": "test-325-copy.json"
+    },
+    {
+      "id": "test-325-copy-copy",
+      "name": "Untitled test 325 copy copy",
+      "folderId": "orange-walls",
+      "file": "test-325-copy-copy.json"
     },
     {
       "id": "test-325-copy-copy-copy",

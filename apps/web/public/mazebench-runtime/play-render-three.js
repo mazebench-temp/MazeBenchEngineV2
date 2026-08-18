@@ -4939,7 +4939,9 @@
       const cell = renderTerrainAt(x, y, state);
 
       if (Array.isArray(cell.layers)) {
-        return cell.layers;
+        return cell.layers.filter(
+          (layer) => layer?.editorOnly !== true || isEditorRenderMode()
+        );
       }
 
       return cell.type === "empty"
@@ -6410,6 +6412,8 @@
           layer.direction || "",
           layer.modelUrl || "",
           layer.genericLabel || "",
+          layer.editorOpacity ?? 1,
+          layer.editorOnly === true ? 1 : 0,
           type === "player_lift" ? `${x},${y}` : ""
         ].join(":"),
         layer,
@@ -6502,6 +6506,8 @@
         descriptor.layer?.voxelKey || "",
         descriptor.layer?.voxelColor || "",
         descriptor.layer?.genericLabel || "",
+        descriptor.layer?.editorOpacity ?? 1,
+        descriptor.layer?.editorOnly === true ? 1 : 0,
         descriptor.type === "player_lift" ? `${x},${y}` : ""
       ].join(":");
     }
@@ -6657,6 +6663,8 @@
         (lower.layer?.voxelKey || "") === (upper.layer?.voxelKey || "") &&
         (lower.layer?.voxelColor || "") === (upper.layer?.voxelColor || "") &&
         (lower.layer?.genericLabel || "") === (upper.layer?.genericLabel || "") &&
+        (lower.layer?.editorOpacity ?? 1) === (upper.layer?.editorOpacity ?? 1) &&
+        (lower.layer?.editorOnly === true) === (upper.layer?.editorOnly === true) &&
         lower.type !== "tree" &&
         lower.type !== "shrub" &&
         lower.type !== "block_asset" &&
@@ -6801,6 +6809,7 @@
       }
 
       const descriptor = entries[0].descriptor;
+      const editorOpacity = clamp01(descriptor.layer?.editorOpacity ?? 1);
       const bottomY = Math.min(...entries.map((entry) => entry.descriptor.bottomY));
       const topY = Math.max(...entries.map((entry) => entry.descriptor.topY));
       const joinsSlopeFamily =
@@ -6822,7 +6831,10 @@
               descriptor.type === "wall" || descriptor.type === "ice_block"
           }),
           edgeThreshold: 18,
-          opacity: visibility,
+          opacity: visibility * editorOpacity,
+          edgeOpacity: visibility * Math.max(editorOpacity, 0.68),
+          depthWrite: editorOpacity >= 0.999,
+          renderOrder: editorOpacity < 0.999 ? 12 : 0,
           castShadow: renderContextCastsShadows(),
           receiveShadow: descriptor.type !== "orange_wall",
           editorPick: {
@@ -6840,7 +6852,7 @@
           voxels,
           descriptor.layer.genericLabel,
           { x: 0, y: 0, z: 0 },
-          visibility
+          visibility * Math.max(editorOpacity, 0.74)
         );
       }
     }
@@ -6853,7 +6865,9 @@
           entry.descriptor.type,
           entry.descriptor.layer?.voxelKey || "",
           entry.descriptor.layer?.voxelColor || "",
-          entry.descriptor.layer?.genericLabel || ""
+          entry.descriptor.layer?.genericLabel || "",
+          entry.descriptor.layer?.editorOpacity ?? 1,
+          entry.descriptor.layer?.editorOnly === true ? 1 : 0
         ].join(":");
 
         if (!groups.has(key)) {
@@ -6938,15 +6952,20 @@
       }));
       const bottomY = Math.min(...boxes.map((box) => box.bottomY));
       const topY = Math.max(...boxes.map((box) => box.topY));
+      const descriptor = entries[0].descriptor;
+      const editorOpacity = clamp01(descriptor.layer?.editorOpacity ?? 1);
 
       addOutlinedMesh(
         variableSolidGeometry(boxes),
-        terrainColor("orange_wall"),
+        terrainColor("orange_wall", descriptor),
         { x: 0, y: 0, z: 0 },
         {
           edgeGeometry: variableSolidEdgeGeometry(boxes, now),
           edgeThreshold: 18,
-          opacity: visibility,
+          opacity: visibility * editorOpacity,
+          edgeOpacity: visibility * Math.max(editorOpacity, 0.68),
+          depthWrite: editorOpacity >= 0.999,
+          renderOrder: editorOpacity < 0.999 ? 12 : 0,
           castShadow: renderContextCastsShadows(),
           receiveShadow: false,
           editorPick: {
@@ -7696,7 +7715,8 @@
         return;
       }
 
-      addComponent(cells, descriptor.blockHeight, terrainColor(descriptor.type), descriptor.topY, {
+      const editorOpacity = clamp01(descriptor.layer?.editorOpacity ?? 1);
+      addComponent(cells, descriptor.blockHeight, terrainColor(descriptor.type, descriptor), descriptor.topY, {
         outline: shouldOutlineTerrainRegion(descriptor),
         radius: shapeCornerRadius,
         rounded: !descriptor.isSunkenFloor,
@@ -7705,7 +7725,8 @@
           (descriptor.terrainHeight ?? 0) > 0 &&
           renderContextCastsShadows(),
         receiveShadow: descriptor.type !== "orange_wall",
-        opacity: visibility,
+        opacity: visibility * editorOpacity,
+        edgeOpacity: visibility * Math.max(editorOpacity, 0.68),
         editorPick: {
           kind: "terrain",
           cells: cells.map((cell) => ({
@@ -9407,7 +9428,9 @@
         layer.modelUrl || "",
         layer.voxelKey || "",
         layer.voxelColor || "",
-        layer.genericLabel || ""
+        layer.genericLabel || "",
+        layer.editorOpacity ?? 1,
+        layer.editorOnly === true ? 1 : 0
       ].join(":");
     }
 

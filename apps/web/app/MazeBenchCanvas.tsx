@@ -25,7 +25,11 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope"; modelUrl?: string };
+  visual: {
+    kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
+    modelUrl?: string;
+    orangeForm?: "cube" | "face" | "hidden";
+  };
 };
 
 type Voxel = {
@@ -140,10 +144,13 @@ type MazeBenchModules = {
 
 type TerrainLayer = {
   direction?: string;
+  editorOnly?: boolean;
+  editorOpacity?: number;
   elevation: number;
   genericLabel?: string;
   label: string;
   raised: boolean;
+  orangeForm?: "cube" | "face" | "hidden";
   selectionKey: string;
   type: "wall" | "ice_slope" | "orange_wall" | "player_lift";
   voxelColor: string;
@@ -407,6 +414,9 @@ function frameToPlayData(
           if (!definition || !["cube", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
+          const orangeForm = definition.visual.kind === "orange-wall"
+            ? definition.visual.orangeForm ?? "cube"
+            : null;
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
@@ -418,6 +428,9 @@ function frameToPlayData(
             // at consecutive rows must stay stacked even when their numbers
             // differ or are nonzero.
             elevation: voxel.z + layerOffset,
+            ...(orangeForm === "hidden"
+              ? { editorOnly: true, editorOpacity: selected ? 0.72 : 0.45 }
+              : {}),
             genericLabel: definition.visual.kind === "orange-wall"
               ? String(orangeWallMechanismDepth(voxel))
               : genericBlockIds.has(definition.id) && !isLift
@@ -430,8 +443,9 @@ function frameToPlayData(
                 // Orange Face and Orange Cube are permanent editor forms.
                 // Remaining-rise depth may move the mechanism, but it must
                 // never swap item 10 and item 11's rendered geometry.
-                ? definition.visual.orangeForm !== "face"
+                ? orangeForm !== "face"
                 : true,
+            ...(orangeForm === null ? {} : { orangeForm }),
             selectionKey: cellObjectSelectionKey(voxel),
             type: definition.visual.kind === "slope"
               ? "ice_slope"

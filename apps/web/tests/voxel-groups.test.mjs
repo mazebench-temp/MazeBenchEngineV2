@@ -27,6 +27,11 @@ const definitions = new Map([
     occupancy: "support",
     visual: { kind: "orange-wall", orangeForm: "face" },
   }],
+  ["orange-hidden", {
+    roleId: "orange-wall",
+    occupancy: "inactive",
+    visual: { kind: "orange-wall", orangeForm: "hidden" },
+  }],
   ["button", { roleId: "orange-button", occupancy: "sensor" }],
 ]);
 
@@ -263,4 +268,29 @@ test("moves a body onto a flattened orange panel but not a raised wall", () => {
     definitions,
   );
   assert.equal(blocked.moved, false);
+});
+
+test("moves hidden Orange Wall metadata through occupied cells", () => {
+  const wall = { ...voxel(2, 1, -2, "crate"), instanceId: "wall-a" };
+  const hidden = {
+    ...voxel(1, 1, -2, "orange-hidden"),
+    instanceId: "hidden-a",
+    mechanismDepth: 4,
+    stateId: 2,
+  };
+  const result = moveVoxelGroup(
+    [wall, hidden],
+    ["instance:hidden-a"],
+    1,
+    0,
+    { width: 4, height: 3 },
+    0,
+    new Set(),
+    definitions,
+  );
+  assert.equal(result.moved, true);
+  assert.deepEqual(result.voxels.map(({ x, y, z, blockId }) => ({ x, y, z, blockId })), [
+    { x: 2, y: 1, z: -2, blockId: "crate" },
+    { x: 2, y: 1, z: -2, blockId: "orange-hidden" },
+  ]);
 });

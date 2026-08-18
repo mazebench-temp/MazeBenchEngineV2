@@ -6,6 +6,7 @@ import {
   orangeWallDepthFromMechanismValue,
   orangeWallDepthForState,
   orangeWallIsDedicatedFace,
+  orangeWallIsHiddenVolume,
   orangeWallMechanismValue,
   orangeWallPhysicalState,
   orangeWallVisualFrame,
@@ -22,6 +23,11 @@ const definitions = new Map([
     id: "orange-wall",
     occupancy: "solid",
     visual: { kind: "orange-wall", orangeForm: "cube" },
+  }],
+  ["orange-wall-hidden", {
+    id: "orange-wall-hidden",
+    occupancy: "inactive",
+    visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
 ]);
 
@@ -55,6 +61,29 @@ test("Orange Cube and Orange Face definitions stay distinct at every depth", () 
   assert.equal(orangeWallIsDedicatedFace(flattened, definitions), false);
 });
 
+test("hidden Orange Wall volumes preserve their authored cells and rise metadata", () => {
+  const floor = { x: 2, y: 3, z: -3, blockId: "floor" };
+  const hidden = {
+    x: 2,
+    y: 3,
+    z: -2,
+    blockId: "orange-wall-hidden",
+    mechanismDepth: 5,
+    stateId: 2,
+  };
+  assert.equal(orangeWallIsHiddenVolume(hidden, definitions), true);
+  assert.deepEqual(orangeWallPhysicalState(hidden, [floor, hidden], definitions), {
+    mechanismDepth: 5,
+    physicalZ: -2,
+    stateId: 2,
+    supportZ: -3,
+  });
+  assert.deepEqual(
+    orangeWallVisualFrame({ voxels: [floor, hidden] }, definitions).voxels,
+    [floor, hidden],
+  );
+});
+
 test("legacy depth-in-state frames migrate without moving their authored anchors", () => {
   const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
   const legacy = { x: 1, y: 1, z: 3, blockId: "orange-wall", stateId: 3 };
@@ -62,7 +91,7 @@ test("legacy depth-in-state frames migrate without moving their authored anchors
   assert.deepEqual(normalized.voxels[1], {
     ...legacy,
     mechanismDepth: 3,
-    stateId: 0,
+    stateId: 1,
   });
 });
 
