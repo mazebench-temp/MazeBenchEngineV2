@@ -90,6 +90,18 @@ test("MazeBench renderer prints each generic ID on exposed polycube faces", asyn
   assert.match(renderer, /modelAssetsFailed/);
 });
 
+test("non-cube editor meshes use exact full-cell picking proxies", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(renderer, /function addNonCubeEditorPickVolume/);
+  assert.match(renderer, /addNonCubeEditorPickVolume\(center\.x, center\.z, baseY, editorPick\)/);
+  assert.match(renderer, /descriptor\.isLoweredPlayerLift[\s\S]*?addNonCubeEditorPickVolume/);
+  assert.match(renderer, /selectionKey: actor\.selectionKey/);
+  assert.match(renderer, /selectionKey: cell\.selectionKey \|\| pick\.selectionKey/);
+});
+
 test("the MazeBench GLTF loader has every local module dependency", async () => {
   const [loader, threeModule, threeCore, geometryUtils, skeletonUtils] = await Promise.all([
     readFile(new URL("../public/vendor/GLTFLoader.js", import.meta.url), "utf8"),

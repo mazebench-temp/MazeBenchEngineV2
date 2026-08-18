@@ -14,6 +14,7 @@ export type SearchVoxel = {
   genericId?: number;
   groupId?: number;
   instanceId?: string;
+  mechanismDepth?: number;
   orientation?: string;
   stateId?: number;
   variantId?: number;
@@ -59,7 +60,7 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "cube" | "gem" | "lift" | "slope"; modelUrl?: string };
+  visual: { kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope"; modelUrl?: string };
 };
 
 type SearchBenchProps = {

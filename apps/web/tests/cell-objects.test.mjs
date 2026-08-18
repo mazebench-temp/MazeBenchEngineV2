@@ -7,6 +7,7 @@ import {
   diffObjectMultisets,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
+  objectCanShareCell,
   placeObjectInCell,
 } from "../app/cellObjects.mjs";
 
@@ -15,6 +16,7 @@ const definitions = new Map([
   ["wall", { roleId: "solid", occupancy: "solid" }],
   ["gem", { roleId: "goal", occupancy: "sensor" }],
   ["button", { roleId: "button", occupancy: "sensor" }],
+  ["orange-wall", { roleId: "orange-wall", occupancy: "solid" }],
 ]);
 
 const at = (blockId, extras = {}) => ({ x: 2, y: 3, z: 1, blockId, ...extras });
@@ -42,10 +44,24 @@ test("a solid joins a sensor-only cell but replaces another solid", () => {
 test("multiple distinct sensors may share a cell with one body", () => {
   const result = placeObjectInCell(
     [at("box"), at("gem")],
-    at("button", { stateId: 1 }),
+    at("button"),
     definitions,
   );
-  assert.deepEqual(result.objects, [at("box"), at("gem"), at("button", { stateId: 1 })]);
+  assert.deepEqual(result.objects, [at("box"), at("gem"), at("button")]);
+});
+
+test("only a lowered orange wall becomes a shareable support surface", () => {
+  const definition = definitions.get("orange-wall");
+  assert.equal(objectCanShareCell(definition, at("orange-wall", { stateId: 0 })), true);
+  assert.equal(objectCanShareCell(definition, at("orange-wall", { stateId: 1 })), false);
+
+  const lowered = at("orange-wall", { stateId: 0, mechanismDepth: 2 });
+  const result = placeObjectInCell(
+    [lowered],
+    at("box"),
+    definitions,
+  );
+  assert.deepEqual(result.objects, [lowered, at("box")]);
 });
 
 test("semantic identity separates group, variant, state, and orientation", () => {
@@ -74,4 +90,16 @@ test("erase removes one occupant and preserves the rest of the cell", () => {
   assert.equal(result.changed, true);
   assert.deepEqual(result.removed, at("button"));
   assert.deepEqual(result.objects, [at("box"), at("gem")]);
+});
+
+test("erase may target the exact custom occupant picked inside an overlap", () => {
+  const box = at("box", { instanceId: "box-a" });
+  const gem = at("gem", { instanceId: "gem-a" });
+  const result = eraseOneObjectAtCell(
+    [box, gem],
+    { x: 2, y: 3, z: -20 },
+    "instance:gem-a",
+  );
+  assert.deepEqual(result.removed, gem);
+  assert.deepEqual(result.objects, [box]);
 });

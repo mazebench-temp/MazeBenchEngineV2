@@ -15,6 +15,8 @@ constexpr uint32_t kIceSlopeLeftRole = HashRoleLiteral("ice-slope-left");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
+constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
+constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
 
 // Spatial and rigid-object indexes contain at most kVoxelCapacity entries.
 // The 2x backing table preserves a <= 0.5 load factor at maximum scene size.
@@ -44,8 +46,101 @@ bool IsLoweredPlayerLift(const Voxel& voxel) {
   return voxel.role == kPlayerLiftRole && !PlayerLiftIsRaised(voxel);
 }
 
-bool IsPassThroughVoxel(const Voxel& voxel) {
+bool IsOrdinaryPassThroughVoxel(const Voxel& voxel) {
   return voxel.role == kGoalRole || IsLoweredPlayerLift(voxel);
+}
+
+bool IsPassThroughVoxel(const Voxel& voxel) {
+  return IsOrdinaryPassThroughVoxel(voxel) ||
+      voxel.role == kOrangeButtonRole;
+}
+
+int32_t OrangeWallDepth(const Voxel& voxel) {
+  return voxel.role == kOrangeWallRole && voxel.generic_id > 0
+      ? voxel.generic_id
+      : 0;
+}
+
+// Orange walls retain their authored anchor coordinate. Their deterministic
+// state is the number of active buttons, and collision/rendering derives the
+// physical cube from that pair. A non-orange support clamps the descent; once
+// the cube would enter that support it becomes a pass-through surface instead.
+int32_t OrangeWallSupportZ(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index) {
+  const Voxel& wall = voxels[wall_index];
+  int32_t support_z = INT32_MIN;
+  for (int32_t index = 0; index < count; ++index) {
+    if (index == wall_index || voxels[index].x != wall.x ||
+        voxels[index].y != wall.y || voxels[index].role == kOrangeWallRole ||
+        IsPassThroughVoxel(voxels[index]) || voxels[index].z >= wall.z ||
+        voxels[index].z == INT32_MIN) {
+      continue;
+    }
+    if (voxels[index].z > support_z) support_z = voxels[index].z;
+  }
+  return support_z;
+}
+
+int32_t OrangeWallPhysicalZForDepth(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index,
+    int32_t depth) {
+  const Voxel& wall = voxels[wall_index];
+  if (depth <= 0) return wall.z;
+  const int64_t desired = static_cast<int64_t>(wall.z) - depth;
+  const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
+  if (support_z != INT32_MIN && desired <= support_z) {
+    return support_z == INT32_MAX ? INT32_MAX : support_z + 1;
+  }
+  if (desired < INT32_MIN) return INT32_MIN;
+  return static_cast<int32_t>(desired);
+}
+
+bool OrangeWallIsFlatForDepth(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index,
+    int32_t depth) {
+  if (depth <= 0) return false;
+  const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
+  return support_z != INT32_MIN &&
+      static_cast<int64_t>(voxels[wall_index].z) - depth <= support_z;
+}
+
+int32_t OrangeWallPhysicalZ(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index) {
+  return OrangeWallPhysicalZForDepth(
+      voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
+}
+
+int32_t OrangeWallSurfaceZForDepth(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index,
+    int32_t depth) {
+  const int32_t physical = OrangeWallPhysicalZForDepth(
+      voxels, count, wall_index, depth);
+  return OrangeWallIsFlatForDepth(voxels, count, wall_index, depth)
+      ? physical
+      : physical == INT32_MAX ? INT32_MAX : physical + 1;
+}
+
+int32_t VoxelPhysicalZ(Voxel* voxels, int32_t count, int32_t index) {
+  return voxels[index].role == kOrangeWallRole
+      ? OrangeWallPhysicalZ(voxels, count, index)
+      : voxels[index].z;
+}
+
+bool VoxelBlocksSpace(Voxel* voxels, int32_t count, int32_t index) {
+  if (IsPassThroughVoxel(voxels[index])) return false;
+  return voxels[index].role != kOrangeWallRole ||
+      !OrangeWallIsFlatForDepth(
+          voxels, count, index, OrangeWallDepth(voxels[index]));
 }
 
 int32_t IceSlopeDirection(uint32_t role) {
@@ -126,6 +221,8 @@ struct WorkspaceData {
   bool prepared_dense_columns;
   bool prepared_has_ice_slopes;
   bool prepared_has_player_lifts;
+  bool prepared_has_orange_mechanisms;
+  bool scene_has_orange_mechanisms;
   bool assume_quiescent_start;
   int32_t motion_voxel_count;
   bool prepared_index_active;
@@ -324,10 +421,29 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
         g_dynamic_column_generation = 1;
       }
     }
+    if (!ActiveWorkspace().scene_has_orange_mechanisms) {
+      for (int32_t index = 0; index < dynamic_count; ++index) {
+        g_next_dynamic_column_voxel[index] = -1;
+        const Voxel& voxel = voxels[index];
+        if (IsOrdinaryPassThroughVoxel(voxel) ||
+            !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+        if (g_dense_columns) {
+          const int32_t cell = voxel.y * width + voxel.x;
+          if (g_dynamic_column_stamps[cell] != g_dynamic_column_generation) {
+            g_dynamic_column_stamps[cell] = g_dynamic_column_generation;
+            g_dynamic_column_heads[cell] = -1;
+          }
+          g_next_dynamic_column_voxel[index] = g_dynamic_column_heads[cell];
+          g_dynamic_column_heads[cell] = index;
+        }
+        HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
+      }
+      return;
+    }
     for (int32_t index = 0; index < dynamic_count; ++index) {
       g_next_dynamic_column_voxel[index] = -1;
       const Voxel& voxel = voxels[index];
-      if (IsPassThroughVoxel(voxel) ||
+      if (!VoxelBlocksSpace(voxels, count, index) ||
           !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
       if (g_dense_columns) {
         const int32_t cell = voxel.y * width + voxel.x;
@@ -338,7 +454,9 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
         g_next_dynamic_column_voxel[index] = g_dynamic_column_heads[cell];
         g_dynamic_column_heads[cell] = index;
       }
-      HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
+      HashInsert(
+          SpatialKey(voxel.x, voxel.y, VoxelPhysicalZ(voxels, count, index), width),
+          index);
     }
     return;
   }
@@ -357,17 +475,34 @@ void BuildSpatialIndex(Voxel* voxels, int32_t count, int32_t width, int32_t heig
       g_column_heads[cell] = -1;
     }
   }
+  if (!ActiveWorkspace().scene_has_orange_mechanisms) {
+    for (int32_t index = 0; index < count; ++index) {
+      g_next_column_voxel[index] = -1;
+      const Voxel& voxel = voxels[index];
+      if (IsOrdinaryPassThroughVoxel(voxel) ||
+          !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+      if (g_dense_columns) {
+        const int32_t cell = voxel.y * width + voxel.x;
+        g_next_column_voxel[index] = g_column_heads[cell];
+        g_column_heads[cell] = index;
+      }
+      HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
+    }
+    return;
+  }
   for (int32_t index = 0; index < count; ++index) {
     g_next_column_voxel[index] = -1;
     const Voxel& voxel = voxels[index];
-    if (IsPassThroughVoxel(voxel) ||
+    if (!VoxelBlocksSpace(voxels, count, index) ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
     if (g_dense_columns) {
       const int32_t cell = voxel.y * width + voxel.x;
       g_next_column_voxel[index] = g_column_heads[cell];
       g_column_heads[cell] = index;
     }
-    HashInsert(SpatialKey(voxel.x, voxel.y, voxel.z, width), index);
+    HashInsert(
+        SpatialKey(voxel.x, voxel.y, VoxelPhysicalZ(voxels, count, index), width),
+        index);
   }
 }
 
@@ -381,9 +516,9 @@ int32_t FindVoxelAt(
   if (!IsInsideRoom(x, y, width, height)) return -1;
   if (g_linear_spatial) {
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
-      if (!IsPassThroughVoxel(voxels[index]) &&
+      if (VoxelBlocksSpace(voxels, g_spatial_voxel_count, index) &&
           voxels[index].x == x && voxels[index].y == y &&
-          voxels[index].z == z) {
+          VoxelPhysicalZ(voxels, g_spatial_voxel_count, index) == z) {
         return index;
       }
     }

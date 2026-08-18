@@ -44,6 +44,19 @@ test("connected selection separates authored state and variant values", () => {
   );
 });
 
+test("an exact pick key selects a shareable custom object over its solid cell mate", () => {
+  const player = { ...voxel(1, 1, 1, "player"), instanceId: "player-a" };
+  const button = { ...voxel(1, 1, 1, "button"), instanceId: "button-a" };
+  assert.deepEqual(
+    selectConnectedVoxelGroup(
+      [player, button],
+      { x: 1, y: 1, z: -20, selectionKey: "instance:button-a" },
+      new Set(["button"]),
+    ),
+    ["instance:button-a"],
+  );
+});
+
 test("clicking an already selected group deselects only that group", () => {
   assert.deepEqual(
     toggleVoxelGroupSelection(

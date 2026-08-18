@@ -19,6 +19,28 @@
           "/utils/SkeletonUtils.js"
         ]
       }
+    },
+    "mazebench-orange-button": {
+      "kind": "primitive",
+      "shape": "cylinder",
+      "anchor": "selected-cell-face",
+      "orientations": ["top", "north", "east", "south", "west", "bottom"],
+      "states": ["single visual state; pressure is derived from occupancy"],
+      "pickProxy": "cell",
+      "source": {
+        "repository": "MazeBenchEngine",
+        "path": "public/play-render-three.js:addOrangeButtonMesh"
+      }
+    },
+    "mazebench-orange-wall": {
+      "kind": "primitive",
+      "shape": "lowering-cube-or-surface",
+      "anchor": "cell-center-bottom",
+      "pickProxy": "cell",
+      "source": {
+        "repository": "MazeBenchEngine",
+        "path": "public/play-render-three.js:terrainPieceDescriptorForLayer"
+      }
     }
   }
 }

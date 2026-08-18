@@ -63,6 +63,18 @@
       "name": "Player Lift",
       "description": "A two-state purple lift. State 0 is a lowered slab; state 1 is a raised cube. A player entering it toggles the state and rides the platform.",
       "generic": true
+    },
+    {
+      "id": "orange-button",
+      "name": "Orange Button",
+      "description": "A six-face pressure sensor. Every independently pressed button lowers every Orange Wall by one additional unit.",
+      "generic": false
+    },
+    {
+      "id": "orange-wall",
+      "name": "Orange Wall",
+      "description": "A globally linked wall whose lowering depth equals the number of currently pressed Orange Buttons.",
+      "generic": false
     }
   ],
   "blocks": [
@@ -157,6 +169,27 @@
       "visual": {
         "kind": "lift"
       }
+    },
+    {
+      "id": "orange-wall",
+      "name": "Orange wall",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "solid",
+      "visual": {
+        "kind": "orange-wall"
+      }
+    },
+    {
+      "id": "orange-button",
+      "name": "Orange button",
+      "color": "#F59E0B",
+      "roleId": "orange-button",
+      "variantMax": 5,
+      "occupancy": "sensor",
+      "visual": {
+        "kind": "button"
+      }
     }
   ],
   "folders": [
@@ -235,8 +268,14 @@
     {
       "collapsed": true,
       "id": "lift",
-      "locked": false,
+      "locked": true,
       "name": "Lift"
+    },
+    {
+      "collapsed": false,
+      "id": "orange-walls",
+      "locked": false,
+      "name": "orange walls"
     }
   ],
   "searches": [
@@ -20446,6 +20485,36 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
       "folderId": "lift",
       "file": "test-284-copy-copy-copy-copy-2-copy-copy-copy.json"
+    },
+    {
+      "id": "test-319-copy",
+      "name": "Untitled test 319 copy",
+      "folderId": "orange-walls",
+      "file": "test-319-copy.json"
+    },
+    {
+      "id": "test-319-copy-copy-2",
+      "name": "Untitled test 319 copy copy",
+      "folderId": "orange-walls",
+      "file": "test-319-copy-copy-2.json"
+    },
+    {
+      "id": "test-319-copy-copy",
+      "name": "Untitled test 319 copy copy",
+      "folderId": "orange-walls",
+      "file": "test-319-copy-copy.json"
+    },
+    {
+      "id": "test-319",
+      "name": "Untitled test 319",
+      "folderId": "orange-walls",
+      "file": "test-319.json"
+    },
+    {
+      "id": "test-319-copy-2",
+      "name": "Untitled test 319 copy",
+      "folderId": "orange-walls",
+      "file": "test-319-copy-2.json"
     }
   ]
 }

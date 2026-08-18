@@ -78,6 +78,12 @@ TickResult step_tick(
       phase = kMotionGravity;
       state->reserved[0] = kResumeNothing;
     }
+    if (OrangeMechanismsNeedTick(voxels, count, width, height)) {
+      if (state->phase != kMotionOrangeMechanisms) {
+        state->reserved[1] = static_cast<uint8_t>(phase);
+      }
+      phase = kMotionOrangeMechanisms;
+    }
     state->phase = phase;
     if (advanced) ++state->tick;
     if (phase == kMotionComplete) {
@@ -174,6 +180,19 @@ TickResult step_tick(
     state->player_falling = 1;
     return true;
   };
+
+  if (state->phase != kMotionOrangeMechanisms &&
+      OrangeMechanismsNeedTick(voxels, count, width, height)) {
+    state->reserved[1] = static_cast<uint8_t>(state->phase);
+    state->phase = kMotionOrangeMechanisms;
+  }
+
+  if (state->phase == kMotionOrangeMechanisms) {
+    const int32_t resume_phase = state->reserved[1];
+    const bool advanced = AdvanceOrangeMechanismsOneTick(
+        state, voxels, count, player_index, width, height);
+    return store_and_finish(resume_phase, advanced);
+  }
 
   if (state->phase == kMotionPlayerLift) {
     bool lift_will_raise = false;

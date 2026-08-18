@@ -13,7 +13,8 @@ import {
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
-import { liftIsRaised, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
+import { liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
+import { orangeWallPhysicalState } from "./orangeWalls.mjs";
 
 type BlockDefinition = {
   id: string;
@@ -21,7 +22,7 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "cube" | "gem" | "lift" | "slope"; modelUrl?: string };
+  visual: { kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope"; modelUrl?: string };
 };
 
 type Voxel = {
@@ -32,6 +33,7 @@ type Voxel = {
   genericId?: number;
   groupId?: number;
   instanceId?: string;
+  mechanismDepth?: number;
   orientation?: string;
   stateId?: number;
   variantId?: number;
@@ -51,6 +53,7 @@ type MazeBenchPick = {
   sourceLayer: number;
   sourceX: number;
   sourceY: number;
+  selectionKey?: string;
   topY?: number;
 };
 
@@ -58,6 +61,7 @@ export type PaintSurface = {
   dx: number;
   dy: number;
   face?: string;
+  selectionKey?: string;
 };
 
 type PaintPointerInput = {
@@ -78,7 +82,7 @@ type PaintStroke = {
   pointerId: number;
 };
 
-type SelectedVoxelOrigin = { x: number; y: number; z: number };
+type SelectedVoxelOrigin = { x: number; y: number; z: number; selectionKey?: string };
 
 type MarqueeDrag = {
   currentX: number;
@@ -136,7 +140,8 @@ type TerrainLayer = {
   genericLabel?: string;
   label: string;
   raised: boolean;
-  type: "wall" | "ice_slope" | "player_lift";
+  selectionKey: string;
+  type: "wall" | "ice_slope" | "orange_wall" | "player_lift";
   voxelColor: string;
   voxelKey: string;
 };
@@ -154,8 +159,10 @@ type RenderActor = {
   elevation: number;
   label: string;
   modelUrl?: string;
+  orientation?: string;
   removed: false;
-  type: "gem";
+  selectionKey: string;
+  type: "gem" | "orange_button";
   x: number;
   y: number;
 };
@@ -221,7 +228,7 @@ type CanvasProps = {
   onPaintGestureEnd?: () => void;
   onPaintGestureStart?: () => void;
   onCameraQuarterTurnChange?: (quarterTurns: number) => void;
-  onSelectVoxel?: (x: number, y: number, z: number, additive: boolean) => void;
+  onSelectVoxel?: (x: number, y: number, z: number, additive: boolean, selectionKey?: string) => void;
   onSelectVoxels?: (voxels: SelectedVoxelOrigin[], additive: boolean) => void;
 };
 
@@ -364,16 +371,28 @@ function frameToPlayData(
   // out of MazeBench's normal camera envelope.
   const layerOffset = 1 - minLayer;
   const definitions = new Map(blocks.map((block) => [block.id, block]));
+  const orangeWallRenderState = (wall: Voxel) => {
+    const state = orangeWallPhysicalState(wall, frame.voxels, definitions);
+    return {
+      physicalZ: state.physicalZ,
+      raised: state.stateId === 1,
+    };
+  };
   const actors: RenderActor[] = frame.voxels.flatMap((voxel) => {
     const definition = definitions.get(voxel.blockId);
-    if (!definition || definition.visual.kind !== "gem") return [];
+    if (!definition || (definition.visual.kind !== "gem" && definition.visual.kind !== "button")) return [];
     return [{
       collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
       elevation: voxel.z + layerOffset,
       label: definition.name,
-      modelUrl: definition.visual.modelUrl,
+      ...(definition.visual.kind === "gem"
+        ? { modelUrl: definition.visual.modelUrl }
+        : {
+            orientation: normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+          }),
       removed: false,
-      type: "gem",
+      selectionKey: cellObjectSelectionKey(voxel),
+      type: definition.visual.kind === "gem" ? "gem" : "orange_button",
       x: voxel.x,
       y: voxel.y,
     }];
@@ -385,27 +404,35 @@ function frameToPlayData(
         .sort((left, right) => left.z - right.z)
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
-          if (!definition || !["cube", "lift", "slope"].includes(definition.visual.kind)) return null;
+          if (!definition || !["cube", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
+          const orangeWall = definition.visual.kind === "orange-wall"
+            ? orangeWallRenderState(voxel)
+            : null;
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
               : isLift
                 ? { direction: normalizeLiftOrientation(voxel.orientation, voxel.variantId, voxel.genericId) }
               : {}),
-            elevation: voxel.z + layerOffset,
+            elevation: (orangeWall?.physicalZ ?? voxel.z) + layerOffset,
             genericLabel: genericBlockIds.has(definition.id) && !isLift
               ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
               : undefined,
             label: definition.name,
             raised: isLift
               ? liftIsRaised(voxel.genericId)
-              : true,
+              : definition.visual.kind === "orange-wall"
+                ? orangeWall?.raised === true
+                : true,
+            selectionKey: cellObjectSelectionKey(voxel),
             type: definition.visual.kind === "slope"
               ? "ice_slope"
               : isLift
                 ? "player_lift"
+              : definition.visual.kind === "orange-wall"
+                ? "orange_wall"
                 : "wall",
             voxelColor: selected
               ? lerpHexColor(definition.color, "#34e7f0", 0.48)
@@ -915,6 +942,7 @@ export default function MazeBenchCanvas({
       dx: Number(target.dx) || 0,
       dy: Number(target.dy) || 0,
       face: target.face,
+      selectionKey: target.selectionKey,
     });
     if (!erase) {
       paintStrokeRef.current = {
@@ -992,6 +1020,7 @@ export default function MazeBenchCanvas({
           target.sourceY,
           target.sourceLayer - runtime.layerOffset,
           true,
+          target.selectionKey,
         );
       }
       return true;
@@ -1015,8 +1044,9 @@ export default function MazeBenchCanvas({
         x: target.sourceX,
         y: target.sourceY,
         z: target.sourceLayer - runtime.layerOffset,
+        selectionKey: target.selectionKey,
       };
-      origins.set(`${origin.x},${origin.y},${origin.z}`, origin);
+      origins.set(origin.selectionKey ?? `${origin.x},${origin.y},${origin.z}`, origin);
     }
     onSelectVoxels?.([...origins.values()], true);
     return true;
@@ -1050,6 +1080,7 @@ export default function MazeBenchCanvas({
               target.sourceY,
               target.sourceLayer - runtime.layerOffset,
               false,
+              target.selectionKey,
             );
             return;
           }

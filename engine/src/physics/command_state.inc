@@ -4,6 +4,7 @@ constexpr int32_t kMotionObjectIce = 2;
 constexpr int32_t kMotionGravity = 3;
 constexpr int32_t kMotionComplete = 4;
 constexpr int32_t kMotionPlayerLift = 5;
+constexpr int32_t kMotionOrangeMechanisms = 6;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;
@@ -297,6 +298,8 @@ void InitializeMotion(
   state->player_falling = 0;
   state->reserved[0] = kResumeNothing;
   state->reserved[1] = 0;
+  // reserved[1] stores the phase resumed after an orange mechanism tick.
+  state->reserved[1] = static_cast<uint8_t>(kMotionReady);
   // StoreObjectMotion below replaces the falling/gravity arrays completely;
   // only horizontal momentum needs an independent reset here.
   ClearHorizontalMomentum(state, count);
@@ -349,6 +352,7 @@ void InitializeQuiescentMotion(
   state->player_falling = 0;
   state->reserved[0] = kResumeNothing;
   state->reserved[1] = 0;
+  state->reserved[1] = static_cast<uint8_t>(kMotionReady);
   // StoreObjectMotion below replaces the falling/gravity arrays completely.
   ClearHorizontalMomentum(state, count);
   for (int32_t object = 0; object < g_object_count; ++object) {
@@ -386,6 +390,148 @@ void CollectGoalsAtPlayer(
   }
 }
 
+bool OrangeButtonShouldBePressed(
+    Voxel* voxels,
+    int32_t button_index,
+    int32_t width,
+    int32_t height) {
+  const Voxel& button = voxels[button_index];
+  if (button.role != kOrangeButtonRole ||
+      !IsInsideRoom(button.x, button.y, width, height) ||
+      button.z == INT32_MIN) {
+    return false;
+  }
+  return FindVoxelAt(
+      voxels, button.x, button.y, button.z, width, height) >= 0;
+}
+
+int32_t PressedOrangeButtonCount(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  int32_t pressed = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kOrangeButtonRole &&
+        OrangeButtonShouldBePressed(
+            voxels, index, width, height)) {
+      ++pressed;
+    }
+  }
+  return pressed;
+}
+
+bool OrangeMechanismsNeedTick(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  if (!ActiveWorkspace().scene_has_orange_mechanisms) return false;
+  const int32_t pressed = PressedOrangeButtonCount(
+      voxels, count, width, height);
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kOrangeWallRole &&
+        OrangeWallDepth(voxels[index]) != pressed) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool AdvanceOrangeMechanismsOneTick(
+    MotionState* state,
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  const int32_t target_depth = PressedOrangeButtonCount(
+      voxels, count, width, height);
+  const RiderSnapshot player_rider = CapturePlayerRider(
+      voxels, player_index, width, height);
+  bool changed = false;
+  bool player_rides_wall = false;
+  int32_t vertical_delta = 0;
+  bool conflicting_deltas = false;
+  ClearMovingObjects();
+
+  for (int32_t index = 0; index < count; ++index) {
+    Voxel& wall = voxels[index];
+    if (wall.role != kOrangeWallRole) continue;
+    const int32_t old_depth = OrangeWallDepth(wall);
+    if (old_depth == target_depth) continue;
+    const int32_t new_depth = old_depth + (old_depth < target_depth ? 1 : -1);
+    const int32_t old_surface = OrangeWallSurfaceZForDepth(
+        voxels, count, index, old_depth);
+    const int32_t new_surface = OrangeWallSurfaceZForDepth(
+        voxels, count, index, new_depth);
+    const int32_t wall_delta = new_surface - old_surface;
+    if (wall_delta != 0) {
+      if (vertical_delta != 0 && vertical_delta != wall_delta) {
+        conflicting_deltas = true;
+      } else {
+        vertical_delta = wall_delta;
+      }
+      const Voxel& player = voxels[player_index];
+      player_rides_wall |= player.x == wall.x && player.y == wall.y &&
+          player.z == old_surface;
+      for (int32_t object = 0; object < g_object_count; ++object) {
+        if (g_object_kind[object] == kMechanismObject) continue;
+        for (int32_t member = g_object_head[object]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          if (voxels[member].x == wall.x && voxels[member].y == wall.y &&
+              voxels[member].z == old_surface) {
+            g_mandatory_objects[object] = 1;
+            g_moving_objects[object] = 1;
+            break;
+          }
+        }
+      }
+    }
+    wall.generic_id = new_depth;
+    changed = true;
+  }
+
+  if (!changed) return false;
+  BuildSpatialIndex(voxels, count, width, height);
+
+  bool has_wall_rider = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    has_wall_rider |= g_mandatory_objects[object] != 0;
+  }
+  if (!conflicting_deltas && vertical_delta != 0 && has_wall_rider) {
+    (void)TranslateMovingObjects(
+        voxels,
+        count,
+        player_index,
+        0,
+        0,
+        vertical_delta,
+        width,
+        height,
+        true,
+        true,
+        true);
+  }
+
+  const bool player_rides_object = player_rider.object >= 0 &&
+      g_moving_objects[player_rider.object] != 0;
+  if (!conflicting_deltas && vertical_delta != 0 &&
+      (player_rides_wall || player_rides_object)) {
+    Voxel& player = voxels[player_index];
+    const int32_t target_z = player.z + vertical_delta;
+    const int32_t occupant = FindVoxelAt(
+        voxels, player.x, player.y, target_z, width, height);
+    if (occupant < 0 || g_voxel_object[occupant] == player_rider.object) {
+      player.z = target_z;
+    }
+  }
+  BuildSpatialIndex(voxels, count, width, height);
+  MarkObjectsForDeferredGravity(voxels, width, height, false);
+  state->player_gravity_armed = 1;
+  return true;
+}
+
 // Exact accelerator for a quiescent command whose only possible moving body is
 // the player. It deliberately declines pushes and carried-body interactions;
 // those continue through the same full command kernel. Keeping this decision
@@ -404,7 +550,8 @@ int32_t TrySimulatePassiveQuiescentTurn(
   // Directional slopes can change both the motion vector and elevation. They
   // stay on the generalized command kernel, including exact cycle handling.
   if (ActiveWorkspace().prepared_has_ice_slopes ||
-      ActiveWorkspace().prepared_has_player_lifts) return 0;
+      ActiveWorkspace().prepared_has_player_lifts ||
+      ActiveWorkspace().prepared_has_orange_mechanisms) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;
   if (player_index < 0 || player_index >= count ||
       voxels[player_index].role != kPlayerRole) {

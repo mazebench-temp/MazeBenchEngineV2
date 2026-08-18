@@ -24,6 +24,8 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_dense_columns = false;
   data->prepared_has_ice_slopes = false;
   data->prepared_has_player_lifts = false;
+  data->prepared_has_orange_mechanisms = false;
+  data->scene_has_orange_mechanisms = false;
   data->assume_quiescent_start = false;
   data->motion_voxel_count = -1;
   data->prepared_index_active = false;
@@ -57,7 +59,8 @@ bool prepare_scene(
   for (int32_t index = dynamic_voxel_count; index < count; ++index) {
     const uint32_t role = voxels[index].role;
     if (role == kPlayerRole || role == kPushableRole ||
-        role == kWeightlessPushableRole || role == kPlayerLiftRole) {
+        role == kWeightlessPushableRole || role == kPlayerLiftRole ||
+        role == kOrangeButtonRole || role == kOrangeWallRole) {
       data.prepared_dynamic_voxel_count = -1;
       return false;
     }
@@ -67,9 +70,13 @@ bool prepare_scene(
   data.prepared_goal_count = 0;
   data.prepared_has_ice_slopes = false;
   data.prepared_has_player_lifts = false;
+  data.prepared_has_orange_mechanisms = false;
   for (int32_t index = 0; index < count; ++index) {
     data.prepared_has_ice_slopes |= IsIceSlopeRole(voxels[index].role);
     data.prepared_has_player_lifts |= voxels[index].role == kPlayerLiftRole;
+    data.prepared_has_orange_mechanisms |=
+        voxels[index].role == kOrangeButtonRole ||
+        voxels[index].role == kOrangeWallRole;
     if (voxels[index].role == kGoalRole) {
       data.prepared_goal_indices[data.prepared_goal_count++] = index;
     }
@@ -87,20 +94,44 @@ bool prepare_scene(
       g_static_column_heads[cell] = -1;
     }
   }
-  for (int32_t index = dynamic_voxel_count; index < count; ++index) {
-    g_next_static_column_voxel[index] = -1;
-    const Voxel& voxel = voxels[index];
-    if (IsPassThroughVoxel(voxel) ||
-        !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
-    if (!StaticHashInsert(
-            SpatialKey(voxel.x, voxel.y, voxel.z, width), index)) {
-      data.prepared_dynamic_voxel_count = -1;
-      return false;
+  if (!data.prepared_has_orange_mechanisms) {
+    for (int32_t index = dynamic_voxel_count; index < count; ++index) {
+      g_next_static_column_voxel[index] = -1;
+      const Voxel& voxel = voxels[index];
+      if (IsOrdinaryPassThroughVoxel(voxel) ||
+          !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+      if (!StaticHashInsert(
+              SpatialKey(voxel.x, voxel.y, voxel.z, width), index)) {
+        data.prepared_dynamic_voxel_count = -1;
+        return false;
+      }
+      if (data.prepared_dense_columns) {
+        const int32_t cell = voxel.y * width + voxel.x;
+        g_next_static_column_voxel[index] = g_static_column_heads[cell];
+        g_static_column_heads[cell] = index;
+      }
     }
-    if (data.prepared_dense_columns) {
-      const int32_t cell = voxel.y * width + voxel.x;
-      g_next_static_column_voxel[index] = g_static_column_heads[cell];
-      g_static_column_heads[cell] = index;
+  } else {
+    for (int32_t index = dynamic_voxel_count; index < count; ++index) {
+      g_next_static_column_voxel[index] = -1;
+      const Voxel& voxel = voxels[index];
+      if (!VoxelBlocksSpace(voxels, count, index) ||
+          !IsInsideRoom(voxel.x, voxel.y, width, height)) continue;
+      if (!StaticHashInsert(
+              SpatialKey(
+                  voxel.x,
+                  voxel.y,
+                  VoxelPhysicalZ(voxels, count, index),
+                  width),
+              index)) {
+        data.prepared_dynamic_voxel_count = -1;
+        return false;
+      }
+      if (data.prepared_dense_columns) {
+        const int32_t cell = voxel.y * width + voxel.x;
+        g_next_static_column_voxel[index] = g_static_column_heads[cell];
+        g_static_column_heads[cell] = index;
+      }
     }
   }
   data.prepared_voxels = voxels;

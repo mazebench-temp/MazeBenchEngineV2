@@ -19,6 +19,8 @@ constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
+constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
+constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
 constexpr int32_t kHashCapacity = 262144;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
@@ -33,6 +35,9 @@ struct SearchNode {
   uint64_t lift_states;
   uint32_t parent;
   uint16_t cost;
+  // Occupies the two bytes that were padding in the original 40-byte node;
+  // orange mechanics must not make every non-orange search node less cacheable.
+  uint16_t orange_depth;
   int16_t approach_coordinates[3];
   uint8_t direction;
 };
@@ -64,6 +69,7 @@ struct SearchData {
   int32_t goal_count;
   uint64_t candidate_collected_goals;
   uint64_t candidate_lift_states;
+  uint16_t candidate_orange_depth;
   int32_t heap_nodes[kSearchNodeCapacity];
   int32_t heap_positions[kSearchNodeCapacity];
   int32_t heap_size;
@@ -96,7 +102,8 @@ uint64_t Mix64(uint64_t value) {
 
 bool IsDynamic(uint32_t role) {
   return role == kPlayerRole || role == kPushableRole ||
-      role == kWeightlessPushableRole || role == kPlayerLiftRole;
+      role == kWeightlessPushableRole || role == kPlayerLiftRole ||
+      role == kOrangeButtonRole;
 }
 
 bool EncodeCoordinate(int32_t value, int16_t* output) {
@@ -117,7 +124,8 @@ uint64_t HashState(
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
     uint64_t collected_goals,
-    uint64_t lift_states) {
+    uint64_t lift_states,
+    uint16_t orange_depth) {
   uint64_t hash = 0xcbf29ce484222325ULL;
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
@@ -129,6 +137,12 @@ uint64_t HashState(
   hash *= 0x100000001b3ULL;
   hash ^= lift_states;
   hash *= 0x100000001b3ULL;
+  // Preserve the common depth-zero hash path exactly. Equality still compares
+  // the field, while active orange states receive a distinct mixed suffix.
+  if (orange_depth != 0) {
+    hash ^= orange_depth;
+    hash *= 0x100000001b3ULL;
+  }
   return Mix64(hash);
 }
 
@@ -137,9 +151,11 @@ bool CoordinatesEqual(
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
     uint64_t collected_goals,
-    uint64_t lift_states) {
+    uint64_t lift_states,
+    uint16_t orange_depth) {
   if (node.collected_goals != collected_goals ||
-      node.lift_states != lift_states) return false;
+      node.lift_states != lift_states ||
+      node.orange_depth != orange_depth) return false;
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
       if (node.coordinates[entity][axis] != coordinates[entity][axis]) {
@@ -164,7 +180,8 @@ int32_t FindState(
     uint64_t hash,
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     uint64_t collected_goals,
-    uint64_t lift_states) {
+    uint64_t lift_states,
+    uint16_t orange_depth) {
   int32_t slot = static_cast<int32_t>(hash) & kHashMask;
   for (;;) {
     if (data->hash_stamps[slot] != data->hash_generation) return -1;
@@ -175,7 +192,8 @@ int32_t FindState(
             coordinates,
             data->entity_count,
             collected_goals,
-            lift_states)) {
+            lift_states,
+            orange_depth)) {
       return node;
     }
     slot = (slot + 1) & kHashMask;
@@ -197,7 +215,8 @@ void StoreNodeCoordinates(
     const int16_t coordinates[kSearchDynamicEntityCapacity][3],
     int32_t entity_count,
     uint64_t collected_goals,
-    uint64_t lift_states) {
+    uint64_t lift_states,
+    uint16_t orange_depth) {
   for (int32_t entity = 0; entity < entity_count; ++entity) {
     for (int32_t axis = 0; axis < 3; ++axis) {
       node->coordinates[entity][axis] = coordinates[entity][axis];
@@ -205,6 +224,7 @@ void StoreNodeCoordinates(
   }
   node->collected_goals = collected_goals;
   node->lift_states = lift_states;
+  node->orange_depth = orange_depth;
 }
 
 uint64_t LocalCoordinateKey(const int16_t coordinates[3]) {
@@ -293,6 +313,12 @@ void HeapDecrease(SearchData* data, int32_t node) {
 void LoadNode(SearchData* data, const SearchNode& node) {
   for (int32_t dynamic = 0; dynamic < data->dynamic_voxel_count; ++dynamic) {
     const int32_t entity = data->voxel_entities[dynamic];
+    if (entity < 0) {
+      if (data->scene[dynamic].role == kOrangeWallRole) {
+        data->scene[dynamic].generic_id = node.orange_depth;
+      }
+      continue;
+    }
     const int32_t anchor_x = DecodeCoordinate(node.coordinates[entity][0]);
     if (anchor_x < 0) {
       data->scene[dynamic].x = -1;
@@ -313,6 +339,11 @@ void LoadNode(SearchData* data, const SearchNode& node) {
       data->scene[dynamic].generic_id =
           orientation_base +
           ((node.lift_states & (uint64_t{1} << entity)) != 0 ? 1 : 0);
+    } else if (data->scene[dynamic].role == kOrangeButtonRole) {
+      const int32_t authored_id = data->entity_generic_ids[entity];
+      data->scene[dynamic].generic_id = authored_id >= 0
+          ? authored_id - authored_id % 2
+          : 0;
     }
   }
   for (int32_t goal = 0; goal < data->goal_count; ++goal) {
@@ -327,6 +358,7 @@ void LoadNode(SearchData* data, const SearchNode& node) {
 
 bool CaptureCandidate(SearchData* data) {
   data->candidate_lift_states = 0;
+  data->candidate_orange_depth = 0;
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     const Voxel& anchor = data->scene[data->entity_anchors[entity]];
     if (anchor.role == kPlayerLiftRole && anchor.generic_id >= 0 &&
@@ -340,6 +372,17 @@ bool CaptureCandidate(SearchData* data) {
         !EncodeCoordinate(y, &data->candidate[entity][1]) ||
         !EncodeCoordinate(z, &data->candidate[entity][2])) {
       return false;
+    }
+  }
+  for (int32_t index = 0; index < data->dynamic_voxel_count; ++index) {
+    if (data->scene[index].role == kOrangeWallRole) {
+      data->candidate_orange_depth = static_cast<uint16_t>(
+          data->scene[index].generic_id < 0
+              ? 0
+              : data->scene[index].generic_id > UINT16_MAX
+                ? UINT16_MAX
+                : data->scene[index].generic_id);
+      break;
     }
   }
   data->candidate_collected_goals = 0;
@@ -385,6 +428,7 @@ void BuildPassiveCandidate(
   data->candidate[data->player_entity][2] = player_coordinates[2];
   data->candidate_collected_goals = collected_goals;
   data->candidate_lift_states = parent.lift_states;
+  data->candidate_orange_depth = parent.orange_depth;
 }
 
 bool CandidatePlayerIsActive(
@@ -452,6 +496,7 @@ bool DynamicObjectsChangedExceptPlayer(
     const SearchData* data,
     const SearchNode& parent) {
   if (data->candidate_lift_states != parent.lift_states) return true;
+  if (data->candidate_orange_depth != parent.orange_depth) return true;
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
     if (entity == data->player_entity) continue;
     for (int32_t axis = 0; axis < 3; ++axis) {
@@ -478,13 +523,15 @@ bool AddGeneralNode(
       data->candidate,
       data->entity_count,
       data->candidate_collected_goals,
-      data->candidate_lift_states);
+      data->candidate_lift_states,
+      data->candidate_orange_depth);
   const int32_t existing = FindState(
       data,
       hash,
       data->candidate,
       data->candidate_collected_goals,
-      data->candidate_lift_states);
+      data->candidate_lift_states,
+      data->candidate_orange_depth);
   if (existing >= 0) {
     ++result->transpositions;
     SearchNode& node = data->nodes[existing];
@@ -511,7 +558,8 @@ bool AddGeneralNode(
       data->candidate,
       data->entity_count,
       data->candidate_collected_goals,
-      data->candidate_lift_states);
+      data->candidate_lift_states,
+      data->candidate_orange_depth);
   child.parent = static_cast<uint32_t>(parent);
   child.cost = cost;
   child.approach_coordinates[0] = approach[0];
@@ -960,9 +1008,19 @@ SearchResult search_shortest(
       data->player_entity = entity;
     }
   }
+  // Orange-wall anchors never translate, but their compact lowering depth is
+  // mutable. Keep them in physics' rebuilt prefix without spending a search
+  // coordinate entity per wall; one global depth value identifies the state.
+  for (int32_t source = 0; source < count; ++source) {
+    if (voxels[source].role != kOrangeWallRole) continue;
+    const int32_t target = data->dynamic_voxel_count++;
+    data->scene[target] = voxels[source];
+    data->voxel_entities[target] = -1;
+  }
   static_count = data->dynamic_voxel_count;
   for (int32_t source = 0; source < count; ++source) {
-    if (IsDynamic(voxels[source].role)) continue;
+    if (IsDynamic(voxels[source].role) ||
+        voxels[source].role == kOrangeWallRole) continue;
     const int32_t target = static_count++;
     data->scene[target] = voxels[source];
     if (voxels[source].role == kGoalRole) {
@@ -1004,7 +1062,8 @@ SearchResult search_shortest(
       data->candidate,
       data->entity_count,
       data->candidate_collected_goals,
-      data->candidate_lift_states);
+      data->candidate_lift_states,
+      data->candidate_orange_depth);
   root.parent = 0;
   root.cost = 0;
   root.approach_coordinates[0] = root.coordinates[data->player_entity][0];
@@ -1016,7 +1075,8 @@ SearchResult search_shortest(
       root.coordinates,
       data->entity_count,
       root.collected_goals,
-      root.lift_states), 0);
+      root.lift_states,
+      root.orange_depth), 0);
   int32_t node_count = 1;
 
   if (IsGoal(data)) {

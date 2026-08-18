@@ -1,5 +1,6 @@
 export const SLOPE_DIRECTIONS = ["up", "right", "down", "left"];
 export const LIFT_ORIENTATIONS = ["top", "north", "east", "south", "west"];
+export const BUTTON_ORIENTATIONS = ["top", "north", "east", "south", "west", "bottom"];
 export const LIFT_GENERIC_MAX = 9;
 
 const DIRECTION_ALIASES = new Map([
@@ -75,6 +76,42 @@ export function liftOrientationFromPaintFace(facePick = {}) {
   return "top";
 }
 
+// Orange buttons use the same face-normal convention as lifts, with the
+// additional downward mounting that the lift family deliberately reserves.
+export function buttonOrientationFromPaintFace(facePick = {}) {
+  if (facePick?.face === "bottom-face") return "bottom";
+  return liftOrientationFromPaintFace(facePick) ?? "top";
+}
+
+export function normalizeButtonOrientation(orientation, variantId = 0) {
+  const candidate = String(orientation ?? "").trim().toLowerCase();
+  const normalized = LIFT_ORIENTATION_ALIASES.get(candidate) ?? candidate;
+  if (normalized === "down" || normalized === "downward" || normalized === "ceiling") {
+    return "bottom";
+  }
+  if (BUTTON_ORIENTATIONS.includes(normalized)) return normalized;
+  const index = Number.isInteger(Number(variantId)) ? Number(variantId) : 0;
+  return BUTTON_ORIENTATIONS[
+    ((index % BUTTON_ORIENTATIONS.length) + BUTTON_ORIENTATIONS.length) % BUTTON_ORIENTATIONS.length
+  ];
+}
+
+export function buttonOrientationIndex(orientation) {
+  return BUTTON_ORIENTATIONS.indexOf(normalizeButtonOrientation(orientation));
+}
+
+// The compact C++ ABI carries mechanism metadata in one integer. Keep the
+// established even-numbered orientation encoding, but pressure is derived
+// entirely from cell occupancy and is not a button state or visual variant.
+export function buttonMechanismId(orientation) {
+  return buttonOrientationIndex(orientation) * 2;
+}
+
+export function buttonOrientationFromMechanismId(mechanismId = 0) {
+  const id = Math.max(0, Math.min(11, Math.floor(Number(mechanismId) || 0)));
+  return BUTTON_ORIENTATIONS[Math.floor(id / 2)];
+}
+
 export function liftOrientationFromGenericId(genericId = 0) {
   const id = Math.max(0, Math.min(LIFT_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
   return LIFT_ORIENTATIONS[Math.floor(id / 2)];
@@ -126,8 +163,30 @@ export function rotateLiftMetadata(voxel, quarterTurns) {
   };
 }
 
+export function rotateButtonMetadata(voxel, quarterTurns) {
+  const orientation = normalizeButtonOrientation(voxel?.orientation, voxel?.variantId);
+  if (orientation === "top" || orientation === "bottom") {
+    return {
+      ...voxel,
+      orientation,
+      variantId: buttonOrientationIndex(orientation),
+    };
+  }
+  const horizontal = BUTTON_ORIENTATIONS.slice(1, 5);
+  const index = horizontal.indexOf(orientation);
+  const turns = ((quarterTurns % 4) + 4) % 4;
+  const nextOrientation = horizontal[(index + turns) % 4];
+  return {
+    ...voxel,
+    orientation: nextOrientation,
+    variantId: buttonOrientationIndex(nextOrientation),
+  };
+}
+
 export function rotateVoxelVisualMetadata(voxel, quarterTurns) {
   return voxel?.blockId === "player-lift"
     ? rotateLiftMetadata(voxel, quarterTurns)
+    : voxel?.blockId === "orange-button"
+      ? rotateButtonMetadata(voxel, quarterTurns)
     : rotateSlopeMetadata(voxel, quarterTurns);
 }

@@ -1155,6 +1155,116 @@ void TestSearchTracksPlayerLiftState() {
         "exact search should preserve lift state while solving through a toggle");
 }
 
+void TestOrangeButtonUsesASeparateWallTick() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("orange-button"), 0},
+      {2, 1, 1, Role("orange-wall"), 0},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "entering an orange button should expose its entry frame");
+  Check(state.tick == 1 && voxels[0].y == 1 &&
+            voxels[1].generic_id == 0 && voxels[2].generic_id == 0,
+        "the entry frame should precede the linked mechanism animation");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the linked orange-wall tick should complete the command");
+  Check(state.tick == 2 && voxels[1].generic_id == 0 &&
+            voxels[2].generic_id == 1,
+        "button pressure should lower every wall without changing the button");
+  Check(voxelbench::simulate_turn(voxels, 6, 3, 3, 2) == 0 &&
+            voxels[0].y == 2 && voxels[1].generic_id == 0 &&
+            voxels[2].generic_id == 0,
+        "leaving an orange button should release it and raise every wall");
+}
+
+void TestOrangeWallsCountEveryPressedButton() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {1, 1, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("pushable"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 1, Role("orange-button"), 2},
+      {2, 1, 1, Role("pushable"), -1},
+      {2, 1, 0, Role("floor"), -1},
+      {2, 2, 1, Role("solid"), -1},
+      {3, 1, 3, Role("orange-wall"), 0},
+  };
+  Check(voxelbench::simulate_turn(voxels, 10, 4, 3, 3) == 0,
+        "a command should synchronize multiple pressed orange buttons");
+  Check(voxels[2].generic_id == 0 && voxels[5].generic_id == 2,
+        "button pressure should preserve the orientation-only mechanism IDs");
+  Check(voxels[9].generic_id == 2,
+        "two independently pressed buttons should lower a wall two units");
+}
+
+void TestFlattenedOrangeWallIsPassThroughOnFloor() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {2, 2, 1, Role("orange-button"), 0},
+      {2, 2, 1, Role("pushable"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 0) == 0,
+        "walking through a button-flattened orange wall should run");
+  Check(voxels[0].x == 1 && voxels[0].y == 1 && voxels[0].z == 1,
+        "a wall flattened against Floor should not block the player");
+  Check(voxels[1].generic_id == 1 && voxels[2].generic_id == 0,
+        "the final frame should retain wall depth without a button state");
+}
+
+void TestFloatingOrangeWallLowersAsACube() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {1, 1, 2, Role("pushable"), -1},
+      {2, 2, 1, Role("orange-button"), 0},
+      {2, 2, 1, Role("pushable"), -1},
+      {2, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 3) == 0,
+        "a floating linked orange wall should finish its lowering tick");
+  Check(voxels[2].generic_id == 1 && voxels[3].z == 1,
+        "a wall over empty space should descend as a full cube and carry its rider");
+}
+
+void TestSearchTracksOrangeWallDepth() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {2, 2, 1, Role("orange-button"), 0},
+      {2, 2, 1, Role("pushable"), -1},
+      {1, 0, 1, Role("goal"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {1, 0, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 9, 3, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved &&
+            result.moves == 2,
+        "exact search should hash linked orange-wall depth and solve through it");
+}
+
 }  // namespace
 
 int main() {
@@ -1205,10 +1315,15 @@ int main() {
   TestLiftRidesWeightlessCarrierWithStatefulCollision();
   TestBlockedPlayerLiftRefusesToRaise();
   TestSearchTracksPlayerLiftState();
+  TestOrangeButtonUsesASeparateWallTick();
+  TestOrangeWallsCountEveryPressedButton();
+  TestFlattenedOrangeWallIsPassThroughOnFloor();
+  TestFloatingOrangeWallLowersAsACube();
+  TestSearchTracksOrangeWallDepth();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 47 C++ physics/search tests passed\n";
+  std::cout << "all 52 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

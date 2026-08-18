@@ -111,6 +111,37 @@ test("WebAssembly preserves the player lift state transition", async () => {
   ]);
 });
 
+test("WebAssembly exposes orange button entry before its linked wall tick", async () => {
+  const engine = await loadEngine();
+  const voxels = [
+    { x: 1, y: 2, z: 1, roleId: "player", genericId: -1 },
+    { x: 1, y: 1, z: 1, roleId: "orange-button", genericId: 0 },
+    { x: 2, y: 1, z: 1, roleId: "orange-wall", genericId: 0 },
+    { x: 1, y: 2, z: 0, roleId: "floor", genericId: -1 },
+    { x: 1, y: 1, z: 0, roleId: "floor", genericId: -1 },
+    { x: 2, y: 1, z: 0, roleId: "floor", genericId: -1 },
+  ];
+  const stride = engine.voxel_stride();
+  const buffer = new Int32Array(
+    engine.memory.buffer,
+    engine.voxel_buffer(),
+    voxels.length * stride,
+  );
+  voxels.forEach((voxel, index) => buffer.set([
+    voxel.x,
+    voxel.y,
+    voxel.z,
+    roleCode(engine, voxel.roleId),
+    voxel.genericId,
+  ], index * stride));
+
+  engine.reset_command();
+  assert.equal(engine.step_command_tick(voxels.length, 3, 3, 0), 1);
+  assert.deepEqual([buffer[1], buffer[stride + 4], buffer[stride * 2 + 4]], [1, 0, 0]);
+  assert.equal(engine.step_command_tick(voxels.length, 3, 3, 0), 0);
+  assert.deepEqual([buffer[stride + 4], buffer[stride * 2 + 4]], [0, 1]);
+});
+
 test("WebAssembly exposes one resumable frame per C++ tick", async () => {
   const engine = await loadEngine();
   const voxels = [

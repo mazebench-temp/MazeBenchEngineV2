@@ -45,7 +45,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Keep lift authoring binary (`0` lowered / `1` raised) and derive the full directional ID from the clicked cube face.
 - [x] Add a four-direction selector and hotbar workflow for the first bounded Ice-slope variant.
 - [ ] Reuse the numbered toolbar entry workflow for bounded state/variant selection.
-- [ ] Keep `groupId`, `variantId`, `stateId`, and orientation independently editable.
+- [x] Keep `groupId`, `variantId`, `stateId`, mechanism depth, and orientation independently editable.
 - [x] Add per-variant rotation mappings for Ice slopes and the five supported lift mountings.
 - [x] Rotate authored Ice-slope direction metadata through all four automatic test rotations.
 - [x] Rotate positions and authored horizontal orientations in all four automatic unit-test rotations.
@@ -59,7 +59,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Keep the existing outlined cube renderer as the default visual.
 - [x] Add the MazeBench outlined wedge/ramp primitive with a full-cell editor pick volume.
 - [ ] Add a six-direction face/plane primitive.
-- [ ] Add a pressure-button cylinder primitive.
+- [x] Add a six-face orange pressure-button cylinder primitive.
 - [ ] Add cube-face symbols/decals.
 - [ ] Support GLB models with anchor, scale, offset, orientation, and pick proxy metadata.
 - [x] Import the MazeBench gem GLB with source/provenance documentation.
@@ -84,8 +84,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 ## Phase 6 — Mechanics vertical slices
 
 - [x] Gem: real model, editor sensor occupancy, existing C++ player collection, and box overlap.
-- [ ] Pressure button: pressed/released state from overlapping occupants.
-- [ ] Orange wall: raised/lowered state driven by button conditions.
+- [x] Pressure button: single-state six-face cylinder whose hidden activation comes from overlapping rigid occupants.
+- [x] Orange wall: additive lowering depth driven by the number of concurrently pressed buttons.
 - [x] Ice slope: four directions with discrete ramp traversal.
 - [x] Detect exact whole-level slope cycles, show their tick interval, and roll the command back.
 - [x] Keep falling momentum when a player or box is caught by a directional slope.
@@ -98,7 +98,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 ## Required acceptance coverage
 
 - [x] A box and gem coexist at exactly the same coordinate.
-- [ ] A player and button coexist and the button changes state.
+- [x] A player and button coexist and activate the mechanism without changing the button visual.
 - [x] Multiple sensors coexist with one body.
 - [x] Two incompatible solid bodies never coexist.
 - [x] Removing one occupant preserves every other occupant.
@@ -106,8 +106,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Frame differences identify the exact missing state/variant/occupant.
 - [x] Automatic rotations correctly transform authored ramps and their cycle traces.
 - [ ] Automatic rotations correctly transform future punchers, face symbols, and unrestricted orientations.
-- [ ] Search distinguishes identical coordinates with different mechanism states.
-- [ ] A lowered wall does not create support over a void unless its state explicitly says so.
+- [x] Search distinguishes identical coordinates with different mechanism states.
+- [x] A supported orange wall flattens into a surface; over a void it descends as a full cube.
 - [ ] Custom shapes remain pickable from above and below.
-- [x] All 151 authored physics tests, including three exact cycle traces, remain green.
+- [x] All 321 authored physics tests and their automatic rotations remain green.
 - [x] Native C++ tests, WASM API tests, web tests, lint, and production build remain green.

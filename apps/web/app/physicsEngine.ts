@@ -1,3 +1,9 @@
+import { buttonMechanismId, normalizeButtonOrientation } from "./visualVariants.mjs";
+import {
+  normalizeOrangeWallFrame,
+  orangeWallMechanismDepth,
+} from "./orangeWalls.mjs";
+
 type Direction = "up" | "down" | "left" | "right";
 type PhysicsRole = { id: string; generic: boolean };
 type BlockDefinition = {
@@ -12,7 +18,9 @@ type Voxel = {
   blockId: string;
   genericId?: number;
   groupId?: number;
+  mechanismDepth?: number;
   orientation?: string;
+  stateId?: number;
   variantId?: number;
 };
 type Frame = { voxels: Voxel[] };
@@ -62,7 +70,8 @@ function framesHaveSameCoordinates(left: Frame, right: Frame) {
     left.voxels.every((voxel, index) => {
       const other = right.voxels[index];
       return voxel.x === other.x && voxel.y === other.y && voxel.z === other.z &&
-        voxel.genericId === other.genericId;
+        voxel.genericId === other.genericId && voxel.stateId === other.stateId &&
+        voxel.mechanismDepth === other.mechanismDepth;
     });
 }
 
@@ -138,6 +147,20 @@ export async function simulateCommandWithCpp(
   const genericBlockIds = new Set(
     blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id),
   );
+  const mechanismValue = (voxel: Voxel) => {
+    const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;
+    if (visualKind === "button") {
+      return buttonMechanismId(
+        normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+      );
+    }
+    if (visualKind === "orange-wall") {
+      return orangeWallMechanismDepth(voxel);
+    }
+    return genericBlockIds.has(voxel.blockId)
+      ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
+      : -1;
+  };
   const stride = physics.voxel_stride();
   const voxelBuffer = new Int32Array(
     physics.memory.buffer,
@@ -150,19 +173,24 @@ export async function simulateCommandWithCpp(
     voxelBuffer[offset + 1] = voxel.y;
     voxelBuffer[offset + 2] = voxel.z;
     voxelBuffer[offset + 3] = blockRole(voxel);
-    voxelBuffer[offset + 4] = genericBlockIds.has(voxel.blockId)
-      ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
-      : -1;
+    voxelBuffer[offset + 4] = mechanismValue(voxel);
   });
 
-  const readFrame = (): Frame => ({
+  const readFrame = (): Frame => normalizeOrangeWallFrame({
     voxels: frame.voxels.map((voxel, index) => {
       const offset = index * stride;
+      const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;
+      const mechanismId = voxelBuffer[offset + 4];
       return {
         ...voxel,
         x: voxelBuffer[offset],
         y: voxelBuffer[offset + 1],
         z: voxelBuffer[offset + 2],
+        ...(visualKind === "button"
+          ? { stateId: 0 }
+          : visualKind === "orange-wall"
+            ? { mechanismDepth: Math.max(0, mechanismId) }
+            : {}),
         ...(genericBlockIds.has(voxel.blockId)
           ? {
               genericId: voxelBuffer[offset + 4],
@@ -173,7 +201,7 @@ export async function simulateCommandWithCpp(
           : {}),
       };
     }),
-  });
+  }, blocksById) as Frame;
 
   physics.reset_command();
   const frames: Frame[] = [];

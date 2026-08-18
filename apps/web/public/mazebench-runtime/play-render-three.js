@@ -5038,6 +5038,7 @@
         target.sourceY,
         target.paintX,
         target.paintY,
+        target.selectionKey || "",
         Math.round((target.topY ?? 0) * 1000),
         Math.round((target.bottomY ?? 0) * 1000)
       ].join(":");
@@ -5464,6 +5465,7 @@
             sourceLayer,
             sourceX: cell.gridX,
             sourceY: cell.gridY,
+            selectionKey: cell.selectionKey || pick.selectionKey,
             topY: targetTopY
           };
         }
@@ -5500,6 +5502,7 @@
               : sidePaintLayerCandidates,
           sourceX: cell.gridX,
           sourceY: cell.gridY,
+          selectionKey: cell.selectionKey || pick.selectionKey,
           topY: targetTopY
         };
       }
@@ -5764,6 +5767,14 @@
 
       if (activeRenderContext?.raisedOrangeWalls) {
         return activeRenderContext.raisedOrangeWalls.has(key) ? 1 : 0;
+      }
+
+      // VoxelBench authors every orange layer's current lowering depth in the
+      // frame itself. The normal MazeBench runtime owns a binary per-cell
+      // animation state; editor renders must instead respect this explicit
+      // layer state so stacked and multi-step walls remain inspectable.
+      if (app.isEditorRenderApp && typeof layer.raised === "boolean") {
+        return layer.raised ? 1 : 0;
       }
 
       return renderState() === app.state
@@ -6048,6 +6059,19 @@
       scene.add(triangle);
     }
 
+    function addNonCubeEditorPickVolume(centerX, centerZ, bottomY, editorPick) {
+      if (!isEditorRenderMode() || !editorPick) return;
+      const pickMesh = new THREE.Mesh(
+        boxGeometry(unit * 0.94, elevationUnit * 0.94, unit * 0.94),
+        invisibleEditorPickMaterial()
+      );
+      pickMesh.position.set(centerX, bottomY + elevationUnit / 2, centerZ);
+      pickMesh.castShadow = false;
+      pickMesh.receiveShadow = false;
+      pickMesh.userData.editorPick = editorPickForRenderContext(editorPick);
+      scene.add(pickMesh);
+    }
+
     function addSidePlayerLiftCell(cell, descriptor, visibility, now) {
       const orientation = normalizePlayerLiftOrientation(descriptor.layer?.direction);
       const lift = clamp01(renderTerrainLayerLiftValue(
@@ -6074,6 +6098,7 @@
       }
       const editorPick = {
         kind: "terrain",
+        selectionKey: descriptor.layer?.selectionKey,
         cells: [{
           gridX: cell.gridX,
           gridY: cell.gridY,
@@ -6098,6 +6123,12 @@
           editorPick
         }
       );
+      addNonCubeEditorPickVolume(
+        center.x,
+        center.z,
+        (descriptor.elevation ?? 0) * elevationUnit + actorVisualLift,
+        editorPick
+      );
       const centerY = descriptor.bottomY + descriptor.blockHeight / 2;
       const surfaceDistance = extension - unit / 2;
       addSidePlayerLiftTriangle(
@@ -6114,26 +6145,52 @@
       return unit * 0.21;
     }
 
-    function addOrangeButtonMesh(center, baseY, opacity, edgeOpacity, editorPick = null) {
+    function addOrangeButtonMesh(
+      center,
+      baseY,
+      opacity,
+      edgeOpacity,
+      editorPick = null,
+      orientation = "top"
+    ) {
       const buttonHeight = orangeButtonHeight();
+      const geometry = cylinderGeometry(orangeButtonRadius(), buttonHeight);
+      const normalized = ["top", "north", "east", "south", "west", "bottom"].includes(orientation)
+        ? orientation
+        : "top";
+      const position = new THREE.Vector3(center.x, baseY + buttonHeight / 2, center.z);
+      const rotation = new THREE.Euler(0, 0, 0);
 
-      addOutlinedMesh(
-        cylinderGeometry(orangeButtonRadius(), buttonHeight),
-        "#f59e0b",
-        {
-          x: center.x,
-          y: baseY + buttonHeight / 2,
-          z: center.z
-        },
-        {
-          castShadow: renderContextCastsShadows(),
-          edgeThreshold: 24,
-          edgeOpacity,
-          opacity,
-          receiveShadow: false,
-          editorPick
-        }
-      );
+      if (normalized === "bottom") {
+        position.y = baseY + elevationUnit - buttonHeight / 2;
+        rotation.x = Math.PI;
+      } else if (normalized === "north") {
+        position.y = baseY + elevationUnit / 2;
+        position.z += unit / 2 - buttonHeight / 2;
+        rotation.x = -Math.PI / 2;
+      } else if (normalized === "east") {
+        position.x -= unit / 2 - buttonHeight / 2;
+        position.y = baseY + elevationUnit / 2;
+        rotation.z = -Math.PI / 2;
+      } else if (normalized === "south") {
+        position.y = baseY + elevationUnit / 2;
+        position.z -= unit / 2 - buttonHeight / 2;
+        rotation.x = Math.PI / 2;
+      } else if (normalized === "west") {
+        position.x += unit / 2 - buttonHeight / 2;
+        position.y = baseY + elevationUnit / 2;
+        rotation.z = Math.PI / 2;
+      }
+
+      const mesh = new THREE.Mesh(geometry, material("#f59e0b", opacity));
+      mesh.position.copy(position);
+      mesh.rotation.copy(rotation);
+      mesh.castShadow = renderContextCastsShadows();
+      mesh.receiveShadow = false;
+      if (editorPick) mesh.userData.editorPick = editorPickForRenderContext(editorPick);
+      scene.add(mesh);
+      addNonCubeEditorPickVolume(center.x, center.z, baseY, editorPick);
+      addOrientedEdgeLines(geometry, position, rotation, edgeOpacity, 24);
     }
 
     function orangeButtonTerrainEditorPick(x, y, elevation, baseY) {
@@ -7389,6 +7446,7 @@
       const suppressContacts = iceSlopeSuppressedEdgeContacts(cell, descriptor, now);
       const editorPick = {
         kind: "terrain",
+        selectionKey: descriptor.layer?.selectionKey,
         cells: [
           {
             gridX: cell.gridX,
@@ -7493,10 +7551,33 @@
               })),
               topY: descriptor.topY,
               bottomY: descriptor.bottomY,
-              sourceLayer: descriptor.elevation ?? 0
+              sourceLayer: descriptor.elevation ?? 0,
+              selectionKey: descriptor.layer?.selectionKey
             }
           }
         );
+        if (descriptor.isLoweredPlayerLift) {
+          cells.forEach((cell) => addNonCubeEditorPickVolume(
+            (cell.left + cell.right) / 2 + renderOffsetX(),
+            (cell.top + cell.bottom) / 2 + renderOffsetZ(),
+            (descriptor.elevation ?? 0) * elevationUnit + actorVisualLift,
+            {
+              kind: "terrain",
+              selectionKey: descriptor.layer?.selectionKey,
+              cells: [{
+                gridX: cell.gridX,
+                gridY: cell.gridY,
+                left: cell.left + renderOffsetX(),
+                right: cell.right + renderOffsetX(),
+                top: cell.top + renderOffsetZ(),
+                bottom: cell.bottom + renderOffsetZ()
+              }],
+              topY: descriptor.topY,
+              bottomY: descriptor.bottomY,
+              sourceLayer: descriptor.elevation ?? 0
+            }
+          ));
+        }
         return;
       }
 
@@ -7522,7 +7603,8 @@
           })),
           topY: descriptor.topY,
           bottomY: descriptor.bottomY ?? descriptor.topY - descriptor.blockHeight,
-          sourceLayer: descriptor.elevation ?? 0
+          sourceLayer: descriptor.elevation ?? 0,
+          selectionKey: descriptor.layer?.selectionKey
         },
         edgeOptions: {
           descriptor,
@@ -8223,6 +8305,7 @@
         logicalBottomLayer: sourceLayer,
         logicalLayerCount: 1,
         logicalSourceFollowsPaint: true,
+        selectionKey: actor.selectionKey,
         topY,
         bottomY,
         sourceLayer
@@ -8676,12 +8759,20 @@
           logicalBottomLayer: sourceLayer,
           logicalLayerCount: 1,
           logicalSourceFollowsPaint: true,
-          topY: baseY + buttonHeight,
+          selectionKey: actor.selectionKey,
+          topY: baseY + elevationUnit,
           bottomY: baseY,
           sourceLayer
         };
 
-        addOrangeButtonMesh(center, baseY, opacity, fade * visibility, editorPick);
+        addOrangeButtonMesh(
+          center,
+          baseY,
+          opacity,
+          fade * visibility,
+          editorPick,
+          actor.orientation
+        );
         return;
       }
 

@@ -135,3 +135,18 @@ test("clockwise level rotations rotate wall-facing lifts but keep top lifts upwa
     { x: 1, y: 2, z: 4, blockId: "player-lift", orientation: "top", variantId: 0, genericId: 0, groupId: 0 },
   ]);
 });
+
+test("clockwise level rotations rotate side buttons and preserve top and bottom mountings", () => {
+  const world = { width: 4, height: 3 };
+  const buttons = [
+    { x: 1, y: 0, z: 2, blockId: "orange-button", orientation: "north", variantId: 1, stateId: 0 },
+    { x: 2, y: 1, z: 4, blockId: "orange-button", orientation: "top", variantId: 0, stateId: 0 },
+    { x: 0, y: 2, z: -1, blockId: "orange-button", orientation: "bottom", variantId: 5, stateId: 0 },
+  ];
+
+  assert.deepEqual(rotateVoxelsClockwise(buttons, world, 1), [
+    { x: 2, y: 1, z: 2, blockId: "orange-button", orientation: "east", variantId: 2, stateId: 0 },
+    { x: 1, y: 2, z: 4, blockId: "orange-button", orientation: "top", variantId: 0, stateId: 0 },
+    { x: 0, y: 0, z: -1, blockId: "orange-button", orientation: "bottom", variantId: 5, stateId: 0 },
+  ]);
+});

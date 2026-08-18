@@ -7,6 +7,15 @@ import {
   rotateVoxelsClockwise,
   rotateWorldClockwise,
 } from "../../apps/web/app/worldBounds.mjs";
+import {
+  buttonMechanismId,
+  normalizeButtonOrientation,
+} from "../../apps/web/app/visualVariants.mjs";
+import {
+  normalizeOrangeWallFrame,
+  orangeWallMechanismDepth,
+  orangeWallVisualFrame,
+} from "../../apps/web/app/orangeWalls.mjs";
 
 import { readProjectDirectory } from "../../scripts/lib/project-store.mjs";
 
@@ -47,6 +56,20 @@ const genericRoles = new Set(project.roles.filter((role) => role.generic).map((r
 const genericBlocks = new Set(
   project.blocks.filter((block) => genericRoles.has(block.roleId)).map((block) => block.id),
 );
+function voxelMechanismId(voxel) {
+  const block = blocksById.get(voxel.blockId);
+  if (block?.visual?.kind === "button") {
+    return buttonMechanismId(
+      normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+    );
+  }
+  if (block?.visual?.kind === "orange-wall") {
+    return orangeWallMechanismDepth(voxel);
+  }
+  return genericBlocks.has(voxel.blockId)
+    ? Math.max(0, Math.floor(voxel.genericId ?? 0))
+    : -1;
+}
 
 function simulateFrames(voxels, direction, world) {
   assert.equal(engine.physics_abi_version(), 4);
@@ -64,23 +87,32 @@ function simulateFrames(voxels, direction, world) {
       voxel.y,
       voxel.z,
       voxelRole(voxel),
-      genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
+      voxelMechanismId(voxel),
     ], index * stride);
   });
-  const readFrame = () => voxels.map((voxel, index) => ({
-    ...voxel,
-    x: buffer[index * stride],
-    y: buffer[index * stride + 1],
-    z: buffer[index * stride + 2],
-    ...(genericBlocks.has(voxel.blockId)
-      ? { genericId: buffer[index * stride + 4] }
-      : {}),
-  }));
+  const readFrame = () => normalizeOrangeWallFrame({
+    voxels: voxels.map((voxel, index) => ({
+      ...voxel,
+      x: buffer[index * stride],
+      y: buffer[index * stride + 1],
+      z: buffer[index * stride + 2],
+      ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
+        ? { stateId: 0 }
+        : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
+          ? { mechanismDepth: Math.max(0, buffer[index * stride + 4]) }
+          : {}),
+      ...(genericBlocks.has(voxel.blockId)
+        ? { genericId: buffer[index * stride + 4] }
+        : {}),
+    })),
+  }, blocksById).voxels;
   const frames = [];
   const sameCoordinates = (left, right) => left.length === right.length &&
     left.every((voxel, index) => voxel.x === right[index].x &&
       voxel.y === right[index].y && voxel.z === right[index].z &&
-      voxel.genericId === right[index].genericId);
+      voxel.genericId === right[index].genericId &&
+      voxel.stateId === right[index].stateId &&
+      voxel.mechanismDepth === right[index].mechanismDepth);
   let tick = 0;
   engine.reset_command();
   for (;;) {
@@ -121,26 +153,33 @@ function simulateFinal(voxels, direction, world) {
       voxel.y,
       voxel.z,
       voxelRole(voxel),
-      genericBlocks.has(voxel.blockId) ? Math.max(0, Math.floor(voxel.genericId ?? 0)) : -1,
+      voxelMechanismId(voxel),
     ], index * stride);
   });
   assert.equal(
     engine.simulate_turn(voxels.length, world.width, world.height, direction),
     0,
   );
-  return voxels.map((voxel, index) => ({
-    ...voxel,
-    x: buffer[index * stride],
-    y: buffer[index * stride + 1],
-    z: buffer[index * stride + 2],
-    ...(genericBlocks.has(voxel.blockId)
-      ? { genericId: buffer[index * stride + 4] }
-      : {}),
-  }));
+  return normalizeOrangeWallFrame({
+    voxels: voxels.map((voxel, index) => ({
+      ...voxel,
+      x: buffer[index * stride],
+      y: buffer[index * stride + 1],
+      z: buffer[index * stride + 2],
+      ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
+        ? { stateId: 0 }
+        : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
+          ? { mechanismDepth: Math.max(0, buffer[index * stride + 4]) }
+          : {}),
+      ...(genericBlocks.has(voxel.blockId)
+        ? { genericId: buffer[index * stride + 4] }
+        : {}),
+    })),
+  }, blocksById).voxels;
 }
 
 function identity(voxel) {
-  return `${voxel.x},${voxel.y},${voxel.z}:${voxel.blockId}:${voxel.genericId ?? -1}`;
+  return `${voxel.x},${voxel.y},${voxel.z}:${voxel.blockId}:${voxel.genericId ?? -1}:${voxel.stateId ?? 0}:${voxel.orientation ?? "none"}`;
 }
 
 function summarize(voxels) {
@@ -150,8 +189,14 @@ function summarize(voxels) {
 }
 
 function frameDifference(expected, actual, world) {
-  const expectedMap = new Map(cropVoxelsToWorld(expected, world).map((voxel) => [identity(voxel), voxel]));
-  const actualMap = new Map(cropVoxelsToWorld(actual, world).map((voxel) => [identity(voxel), voxel]));
+  const visibleExpected = orangeWallVisualFrame({
+    voxels: cropVoxelsToWorld(expected, world),
+  }, blocksById).voxels;
+  const visibleActual = orangeWallVisualFrame({
+    voxels: cropVoxelsToWorld(actual, world),
+  }, blocksById).voxels;
+  const expectedMap = new Map(visibleExpected.map((voxel) => [identity(voxel), voxel]));
+  const actualMap = new Map(visibleActual.map((voxel) => [identity(voxel), voxel]));
   return {
     missing: [...expectedMap].filter(([key]) => !actualMap.has(key)).map(([, voxel]) => voxel),
     unexpected: [...actualMap].filter(([key]) => !expectedMap.has(key)).map(([, voxel]) => voxel),
@@ -163,10 +208,16 @@ for (const authoredTest of project.tests) {
     const failures = [];
     for (let quarterTurns = 0; quarterTurns < 4; quarterTurns += 1) {
       const world = rotateWorldClockwise(authoredTest.world, quarterTurns);
-      const start = rotateVoxelsClockwise(authoredTest.start.voxels, authoredTest.world, quarterTurns);
-      const expected = rotateVoxelsClockwise(authoredTest.expected.voxels, authoredTest.world, quarterTurns);
+      const start = normalizeOrangeWallFrame({
+        voxels: rotateVoxelsClockwise(authoredTest.start.voxels, authoredTest.world, quarterTurns),
+      }, blocksById).voxels;
+      const expected = normalizeOrangeWallFrame({
+        voxels: rotateVoxelsClockwise(authoredTest.expected.voxels, authoredTest.world, quarterTurns),
+      }, blocksById).voxels;
       const expectedIntermediate = (authoredTest.intermediate ?? []).map((frame) =>
-        rotateVoxelsClockwise(frame.voxels, authoredTest.world, quarterTurns));
+        normalizeOrangeWallFrame({
+          voxels: rotateVoxelsClockwise(frame.voxels, authoredTest.world, quarterTurns),
+        }, blocksById).voxels);
       const actualFrames = simulateFrames(start, quarterTurns, world);
       const expectedCycle = authoredTest.cycle ?? null;
       if ((actualFrames.cycle?.startTick ?? null) !==

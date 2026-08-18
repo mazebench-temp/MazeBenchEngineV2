@@ -6,6 +6,7 @@ const OPTIONAL_VOXEL_PROPERTIES = [
   "genericId",
   "groupId",
   "instanceId",
+  "mechanismDepth",
   "orientation",
   "stateId",
   "variantId",
@@ -109,6 +110,7 @@ function semanticVoxelKey(voxel) {
     groupId,
     Number.isInteger(voxel.variantId) ? voxel.variantId : 0,
     Number.isInteger(voxel.stateId) ? voxel.stateId : 0,
+    Number.isInteger(voxel.mechanismDepth) ? voxel.mechanismDepth : -1,
     String(voxel.orientation ?? "none"),
     String(voxel.instanceId ?? ""),
   ].join(":");

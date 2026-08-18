@@ -16,6 +16,7 @@ void AddVoxelToObject(int32_t voxel, int32_t object) {
 void BuildObjects(Voxel* voxels, int32_t count) {
   g_object_count = 0;
   g_weightless_object_count = 0;
+  ActiveWorkspace().scene_has_orange_mechanisms = false;
   ResetHash();
   for (int32_t index = 0; index < count; ++index) {
     g_voxel_object[index] = -1;
@@ -24,11 +25,18 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       AddVoxelToObject(index, CreateObject(kNormalObject));
       continue;
     }
-    if (voxels[index].role == kPlayerLiftRole) {
+    if (voxels[index].role == kPlayerLiftRole ||
+        voxels[index].role == kOrangeButtonRole) {
       // A lift is an independently stateful fixture, but it is still a body:
       // when a moving polycube carries it, it translates and falls with that
       // support. It is not directly player-pushable.
       AddVoxelToObject(index, CreateObject(kMechanismObject));
+      ActiveWorkspace().scene_has_orange_mechanisms |=
+          voxels[index].role == kOrangeButtonRole;
+      continue;
+    }
+    if (voxels[index].role == kOrangeWallRole) {
+      ActiveWorkspace().scene_has_orange_mechanisms = true;
       continue;
     }
     if (voxels[index].role != kWeightlessPushableRole) continue;
@@ -80,6 +88,45 @@ int32_t PlayerLiftSideAttachmentVoxel(
   return support == g_ignored_support_voxel ? -1 : support;
 }
 
+int32_t MechanismAttachmentVoxel(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  if (object < 0 || g_object_kind[object] != kMechanismObject) return -1;
+  const int32_t member = g_object_head[object];
+  if (member < 0) return -1;
+  const Voxel& mechanism = voxels[member];
+  if (mechanism.role != kPlayerLiftRole &&
+      mechanism.role != kOrangeButtonRole) {
+    return -1;
+  }
+  const int32_t orientation = mechanism.generic_id >= 0
+      ? mechanism.generic_id / 2
+      : 0;
+  int32_t support_x = mechanism.x;
+  int32_t support_y = mechanism.y;
+  int32_t support_z = mechanism.z;
+  if (orientation == 0) {
+    --support_z;
+  } else if (orientation == 1) {
+    ++support_y;
+  } else if (orientation == 2) {
+    --support_x;
+  } else if (orientation == 3) {
+    --support_y;
+  } else if (orientation == 4) {
+    ++support_x;
+  } else if (orientation == 5 && mechanism.role == kOrangeButtonRole) {
+    ++support_z;
+  } else {
+    return -1;
+  }
+  const int32_t support = FindVoxelAt(
+      voxels, support_x, support_y, support_z, width, height);
+  return support == g_ignored_support_voxel ? -1 : support;
+}
+
 bool PlayerLiftIsAttachedToObject(
     Voxel* voxels,
     int32_t lift_object,
@@ -90,19 +137,8 @@ bool PlayerLiftIsAttachedToObject(
       g_object_kind[lift_object] != kMechanismObject) {
     return false;
   }
-  int32_t support = PlayerLiftSideAttachmentVoxel(
+  const int32_t support = MechanismAttachmentVoxel(
       voxels, lift_object, width, height);
-  if (support < 0) {
-    const int32_t member = g_object_head[lift_object];
-    if (member < 0 || voxels[member].z == INT32_MIN) return false;
-    support = FindVoxelAt(
-        voxels,
-        voxels[member].x,
-        voxels[member].y,
-        voxels[member].z - 1,
-        width,
-        height);
-  }
   return support >= 0 && g_voxel_object[support] == support_object;
 }
 
@@ -196,13 +232,19 @@ int32_t FindNearestVoxelBelow(
     int32_t width) {
   int32_t best = -1;
   int32_t best_z = INT32_MIN;
+  const bool orange_mechanisms =
+      ActiveWorkspace().scene_has_orange_mechanisms;
   if (g_dense_columns) {
     const int32_t cell = y * width + x;
     auto consider = [&](int32_t index) {
       if (index == g_ignored_support_voxel ||
-          IsPassThroughVoxel(voxels[index])) return;
+          (orange_mechanisms
+              ? !VoxelBlocksSpace(voxels, count, index)
+              : IsOrdinaryPassThroughVoxel(voxels[index]))) return;
       if (excluded_object >= 0 && g_voxel_object[index] == excluded_object) return;
-      const int32_t candidate_z = voxels[index].z;
+      const int32_t candidate_z = orange_mechanisms
+          ? VoxelPhysicalZ(voxels, count, index)
+          : voxels[index].z;
       if (candidate_z < z && candidate_z > best_z) {
         best = index;
         best_z = candidate_z;
@@ -232,13 +274,17 @@ int32_t FindNearestVoxelBelow(
 
   for (int32_t index = 0; index < count; ++index) {
     if (index == g_ignored_support_voxel ||
-        IsPassThroughVoxel(voxels[index])) continue;
+        (orange_mechanisms
+            ? !VoxelBlocksSpace(voxels, count, index)
+            : IsOrdinaryPassThroughVoxel(voxels[index]))) continue;
     if ((excluded_object >= 0 && g_voxel_object[index] == excluded_object) ||
         voxels[index].x != x ||
         voxels[index].y != y) {
       continue;
     }
-    const int32_t candidate_z = voxels[index].z;
+    const int32_t candidate_z = orange_mechanisms
+        ? VoxelPhysicalZ(voxels, count, index)
+        : voxels[index].z;
     if (candidate_z < z && candidate_z > best_z) {
       best = index;
       best_z = candidate_z;
@@ -256,14 +302,20 @@ int32_t FindNearestVoxelBelowComponent(
   int32_t width) {
   int32_t best = -1;
   int32_t best_z = INT32_MIN;
+  const bool orange_mechanisms =
+      ActiveWorkspace().scene_has_orange_mechanisms;
   if (g_dense_columns) {
     const int32_t cell = y * width + x;
     auto consider = [&](int32_t index) {
       if (index == g_ignored_support_voxel ||
-          IsPassThroughVoxel(voxels[index])) return;
+          (orange_mechanisms
+              ? !VoxelBlocksSpace(voxels, count, index)
+              : IsOrdinaryPassThroughVoxel(voxels[index]))) return;
       const int32_t object = g_voxel_object[index];
       if (object >= 0 && g_component_objects[object] != 0) return;
-      const int32_t candidate_z = voxels[index].z;
+      const int32_t candidate_z = orange_mechanisms
+          ? VoxelPhysicalZ(voxels, count, index)
+          : voxels[index].z;
       if (candidate_z < z && candidate_z > best_z) {
         best = index;
         best_z = candidate_z;
@@ -293,13 +345,17 @@ int32_t FindNearestVoxelBelowComponent(
 
   for (int32_t index = 0; index < count; ++index) {
     if (index == g_ignored_support_voxel ||
-        IsPassThroughVoxel(voxels[index]) || voxels[index].x != x ||
+        (orange_mechanisms
+            ? !VoxelBlocksSpace(voxels, count, index)
+            : IsOrdinaryPassThroughVoxel(voxels[index])) || voxels[index].x != x ||
         voxels[index].y != y) {
       continue;
     }
     const int32_t object = g_voxel_object[index];
     if (object >= 0 && g_component_objects[object] != 0) continue;
-    const int32_t candidate_z = voxels[index].z;
+    const int32_t candidate_z = orange_mechanisms
+        ? VoxelPhysicalZ(voxels, count, index)
+        : voxels[index].z;
     if (candidate_z < z && candidate_z > best_z) {
       best = index;
       best_z = candidate_z;
@@ -313,7 +369,7 @@ bool ObjectHasDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
-  const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+  const int32_t attachment = MechanismAttachmentVoxel(
       voxels, object, width, height);
   if (attachment >= 0 && g_voxel_object[attachment] != object) return true;
   for (int32_t member = g_object_head[object]; member >= 0;
@@ -336,7 +392,7 @@ bool ObjectHasStableDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
-  const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+  const int32_t attachment = MechanismAttachmentVoxel(
       voxels, object, width, height);
   if (attachment >= 0) {
     const int32_t support_object = g_voxel_object[attachment];
@@ -426,9 +482,14 @@ int32_t LowestOtherActiveZ(
     bool exclude_component,
     bool exclude_falling_objects) {
   int32_t lowest = INT32_MAX;
+  const bool orange_mechanisms =
+      ActiveWorkspace().scene_has_orange_mechanisms;
   for (int32_t index = 0; index < count; ++index) {
     const Voxel& voxel = voxels[index];
-    if (index == excluded_voxel || IsPassThroughVoxel(voxel) ||
+    if (index == excluded_voxel ||
+        (orange_mechanisms
+            ? !VoxelBlocksSpace(voxels, count, index)
+            : IsOrdinaryPassThroughVoxel(voxel)) ||
         voxel.z == INT32_MIN ||
         !IsInsideRoom(voxel.x, voxel.y, width, height)) {
       continue;
@@ -457,7 +518,10 @@ int32_t LowestOtherActiveZ(
          g_object_falling[object] != 0)) {
       continue;
     }
-    if (voxel.z < lowest) lowest = voxel.z;
+    const int32_t physical_z = orange_mechanisms
+        ? VoxelPhysicalZ(voxels, count, index)
+        : voxel.z;
+    if (physical_z < lowest) lowest = physical_z;
   }
   // Preserve the historical row-zero abyss when a body is literally the
   // room's only remaining geometry. Otherwise the authored room determines

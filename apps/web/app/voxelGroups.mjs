@@ -25,7 +25,7 @@ export function voxelCoordinateKey(voxel) {
  * mechanisms and numbered polycubes remain independently selectable.
  *
  * @param {Voxel[]} voxels
- * @param {{ x: number, y: number, z: number }} origin
+ * @param {{ x: number, y: number, z: number, selectionKey?: string }} origin
  * @returns {string[]}
  */
 export function selectConnectedVoxelGroup(voxels, origin, shareableBlockIds = new Set()) {
@@ -37,8 +37,10 @@ export function selectConnectedVoxelGroup(voxels, origin, shareableBlockIds = ne
     voxelsByCoordinate.set(key, occupants);
   }
   const originOccupants = voxelsByCoordinate.get(voxelCoordinateKey(origin)) ?? [];
-  const first = originOccupants.find((voxel) => !shareableBlockIds.has(voxel.blockId)) ??
-    originOccupants.at(-1);
+  const first = origin.selectionKey
+    ? voxels.find((voxel) => cellObjectSelectionKey(voxel) === origin.selectionKey)
+    : originOccupants.find((voxel) => !shareableBlockIds.has(voxel.blockId)) ??
+      originOccupants.at(-1);
   if (!first) return [];
 
   const groupId = Number.isInteger(first.groupId)

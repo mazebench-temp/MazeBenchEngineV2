@@ -29,6 +29,19 @@ export function blockCanShareCell(block) {
   return normalizeOccupancyProfile(block?.occupancy, String(block?.roleId ?? "")) !== "solid";
 }
 
+/**
+ * Stateful fixtures may override their block's ordinary placement volume. An
+ * orange wall is solid in binary state 1, then becomes a support-height
+ * surface in binary state 0.
+ *
+ * @param {{ occupancy?: string, roleId?: string } | undefined} block
+ * @param {{ stateId?: number } | undefined} object
+ */
+export function objectCanShareCell(block, object) {
+  if (block?.roleId === "orange-wall") return Number(object?.stateId) === 0;
+  return blockCanShareCell(block);
+}
+
 /** @param {{ x: number, y: number, z: number }} object */
 export function cellCoordinateKey(object) {
   return `${object.x},${object.y},${object.z}`;
@@ -125,12 +138,13 @@ export function placeObjectInCell(objects, placement, definitions) {
     return { changed: false, objects: objects.map((object) => ({ ...object })) };
   }
 
-  const placementShareable = blockCanShareCell(definitions.get(placement.blockId));
+  const placementShareable = objectCanShareCell(
+    definitions.get(placement.blockId), placement);
   const kept = placementShareable
     ? objects
     : objects.filter((object) =>
       cellCoordinateKey(object) !== coordinate ||
-      blockCanShareCell(definitions.get(object.blockId)));
+      objectCanShareCell(definitions.get(object.blockId), object));
   return {
     changed: true,
     objects: [...kept.map((object) => ({ ...object })), { ...placement }],
@@ -145,13 +159,16 @@ export function placeObjectInCell(objects, placement, definitions) {
  * @template {Record<string, unknown> & { x: number, y: number, z: number, blockId: string }} T
  * @param {T[]} objects
  * @param {{ x: number, y: number, z: number }} coordinate
+ * @param {string | undefined} selectionKey
  * @returns {{ changed: boolean, objects: T[], removed: T | null }}
  */
-export function eraseOneObjectAtCell(objects, coordinate) {
+export function eraseOneObjectAtCell(objects, coordinate, selectionKey) {
   const key = cellCoordinateKey(coordinate);
   let removeIndex = -1;
   for (let index = objects.length - 1; index >= 0; index -= 1) {
-    if (cellCoordinateKey(objects[index]) === key) {
+    if (selectionKey
+      ? cellObjectSelectionKey(objects[index]) === selectionKey
+      : cellCoordinateKey(objects[index]) === key) {
       removeIndex = index;
       break;
     }

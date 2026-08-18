@@ -15,7 +15,7 @@ function canonicalVoxel(voxel) {
   return JSON.stringify([
     voxel.x, voxel.y, voxel.z, voxel.blockId,
     voxel.genericId, voxel.groupId, voxel.instanceId, voxel.orientation,
-    voxel.stateId, voxel.variantId,
+    voxel.mechanismDepth, voxel.stateId, voxel.variantId,
   ]);
 }
 
