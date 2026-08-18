@@ -1213,6 +1213,7 @@ function TestSuiteWorkspace({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "passed" | "untested">("all");
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
+  const [folderRenameDraft, setFolderRenameDraft] = useState<{ id: string; name: string } | null>(null);
   const [previewQueue, setPreviewQueue] = useState<Array<{
     frameIndex: number;
     key: string;
@@ -1294,7 +1295,18 @@ function TestSuiteWorkspace({
         <div className="suite-tree__branch" key={folder.id}>
           <div className={`suite-tree__row ${selectedFolderId === folder.id ? "is-selected" : ""} ${effectiveLocked ? "is-locked" : ""}`} style={{ "--tree-depth": depth } as React.CSSProperties}>
             <button className="suite-tree__collapse" type="button" disabled={!children.length} aria-label={`${folder.collapsed ? "Expand" : "Collapse"} ${folder.name}`} aria-expanded={!folder.collapsed} onClick={() => onToggleFolderCollapsed(folder.id)}><span aria-hidden="true">▾</span></button>
-            <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
+            {folderRenameDraft?.id === folder.id ? (
+              <form className="suite-tree__rename" onSubmit={(event) => { event.preventDefault(); const name = folderRenameDraft.name.trim(); if (!name) return; onRenameFolder(folder.id, name); setFolderRenameDraft(null); }}>
+                <input autoFocus aria-label={`New name for ${folder.name}`} value={folderRenameDraft.name} onChange={(event) => setFolderRenameDraft({ id: folder.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setFolderRenameDraft(null); } }} />
+                <button type="submit" disabled={!folderRenameDraft.name.trim()} aria-label={`Save name for ${folder.name}`}>✓</button>
+                <button type="button" aria-label={`Cancel renaming ${folder.name}`} onClick={() => setFolderRenameDraft(null)}>×</button>
+              </form>
+            ) : (
+              <>
+                <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
+                <button className="suite-tree__rename-button" type="button" disabled={effectiveLocked} aria-label={`Rename ${folder.name}`} title={`Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
+              </>
+            )}
           </div>
           {!folder.collapsed && children.length > 0 && <div className="suite-tree__children">{renderFolderBranch(folder.id, depth + 1)}</div>}
         </div>

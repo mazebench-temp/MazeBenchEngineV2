@@ -114,6 +114,10 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /selectedFolderId === null \|\| folderId === selectedFolderId/);
   assert.match(component, /folderTestCounts\.get\(folder\.id\)/);
   assert.doesNotMatch(component, /subtreeTestCounts/);
+  assert.match(component, /className="suite-tree__rename-button"/);
+  assert.match(component, /className="suite-tree__rename"/);
+  assert.match(component, /onRenameFolder\(folder\.id, name\)/);
+  assert.match(component, /if \(event\.key === "Escape"\)/);
   assert.match(component, /Move \$\{test\.name\} left/);
   assert.match(component, /Move \$\{test\.name\} right/);
   assert.match(styles, /\.suite-test-table[^}]*grid-template-columns: repeat\(auto-fill, minmax\(320px, 1fr\)\)/);
