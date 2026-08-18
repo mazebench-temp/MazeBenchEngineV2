@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 14,
+  "schemaVersion": 15,
   "storageFormat": "voxelbench-split-project-v1",
   "coordinateSystem": {
     "horizontalAxes": [
@@ -223,10 +223,26 @@
       "name": "Movement"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "general-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "general"
+    },
+    {
       "collapsed": true,
       "id": "push-boxes",
       "locked": true,
       "name": "Sokoban crates"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "push-boxes-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "push-boxes"
     },
     {
       "collapsed": true,
@@ -235,10 +251,26 @@
       "name": "Ice Movement"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "ice-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "ice"
+    },
+    {
       "collapsed": true,
       "id": "weightless-box",
       "locked": true,
       "name": "Weightless Box"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "weightless-box-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "weightless-box"
     },
     {
       "collapsed": true,
@@ -247,10 +279,26 @@
       "name": "Box + Hole"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "box-hole-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "box-hole"
+    },
+    {
       "collapsed": true,
       "id": "3d-boxes",
       "locked": true,
       "name": "3D Boxes"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "3d-boxes-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "3d-boxes"
     },
     {
       "collapsed": true,
@@ -259,10 +307,26 @@
       "name": "3D Box + Hole"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "3d-box-hole-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "3d-box-hole"
+    },
+    {
       "collapsed": true,
       "id": "box-ice",
       "locked": true,
       "name": "Box + Ice"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "box-ice-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "box-ice"
     },
     {
       "collapsed": true,
@@ -271,10 +335,26 @@
       "name": "3D Box + Ice"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "3d-box-ice-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "3d-box-ice"
+    },
+    {
       "collapsed": true,
       "id": "lifts",
       "locked": true,
       "name": "Ice slopes"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "lifts-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "lifts"
     },
     {
       "collapsed": true,
@@ -283,10 +363,26 @@
       "name": "ice slopes + box"
     },
     {
+      "collapsed": false,
+      "default": true,
+      "id": "ice-slopes-box-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "ice-slopes-box"
+    },
+    {
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
       "locked": true,
       "name": "ICE SLOPES + 3D BOXES"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "ice-slopes-3d-boxes-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "ice-slopes-3d-boxes"
     },
     {
       "collapsed": true,
@@ -296,15 +392,31 @@
     },
     {
       "collapsed": false,
+      "default": true,
+      "id": "lift-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "lift"
+    },
+    {
+      "collapsed": false,
       "id": "orange-walls",
       "locked": false,
       "name": "orange walls"
     },
     {
       "collapsed": false,
+      "default": true,
+      "id": "orange-walls-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "orange-walls"
+    },
+    {
+      "collapsed": false,
       "id": "multiple-buttons",
       "locked": false,
-      "name": "Multiple Buttons",
+      "name": "many buttons",
       "parentId": "orange-walls"
     },
     {
@@ -326,6 +438,13 @@
       "id": "stuck-orange-walls",
       "locked": false,
       "name": "stuck orange walls",
+      "parentId": "orange-walls"
+    },
+    {
+      "collapsed": false,
+      "id": "buttons-on-ice",
+      "locked": false,
+      "name": "buttons on ice",
       "parentId": "orange-walls"
     }
   ],
@@ -18644,2862 +18763,2861 @@
     {
       "id": "push-one",
       "name": "Movement",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "push-one.json"
     },
     {
       "id": "wall-stop",
       "name": "Push crate",
-      "folderId": "push-boxes",
+      "groupTagId": "push-boxes",
       "tagIds": [
-        "push-boxes"
+        "push-boxes-default"
       ],
       "file": "wall-stop.json"
     },
     {
       "id": "double-crate",
       "name": "Two crates cannot be pushed",
-      "folderId": "push-boxes",
+      "groupTagId": "push-boxes",
       "tagIds": [
-        "push-boxes"
+        "push-boxes-default"
       ],
       "file": "double-crate.json"
     },
     {
       "id": "future-ice",
       "name": "Ice is slippery",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "future-ice.json"
     },
     {
       "id": "test-5",
       "name": "Fall off floor into void",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-5.json"
     },
     {
       "id": "test-6",
       "name": "Slide off ice into void",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "test-6.json"
     },
     {
       "id": "test-7",
       "name": "Cannot fall off walls",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-7.json"
     },
     {
       "id": "test-8",
       "name": "Player can walk on walls",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-8.json"
     },
     {
       "id": "test-8-copy",
       "name": "Walls are immoveable",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-8-copy.json"
     },
     {
       "id": "test-9",
       "name": "Player can slide off tall ice",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "test-9.json"
     },
     {
       "id": "test-10",
       "name": "Player slides off very tall ice into void",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "test-10.json"
     },
     {
       "id": "test-11",
       "name": "Slide off very tall ice and onto floor1",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "test-11.json"
     },
     {
       "id": "test-11-copy",
       "name": "Slide off very tall ice and onto floor1 copy",
-      "folderId": "ice",
+      "groupTagId": "ice",
       "tagIds": [
-        "ice"
+        "ice-default"
       ],
       "file": "test-11-copy.json"
     },
     {
       "id": "test-12",
       "name": "Push Large Boxes",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-12.json"
     },
     {
       "id": "test-13",
       "name": "Push Group of 2",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-13.json"
     },
     {
       "id": "test-13-copy",
       "name": "Push Group of 2 Overhang",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-13-copy.json"
     },
     {
       "id": "test-13-copy-copy",
       "name": "Push Group of 3",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-13-copy-copy.json"
     },
     {
       "id": "test-14",
       "name": "Push tons of boxes",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-14.json"
     },
     {
       "id": "test-15",
       "name": "Push tons of boxes (2)",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-15.json"
     },
     {
       "id": "test-16",
       "name": "Holey box",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-16.json"
     },
     {
       "id": "test-18",
       "name": "Hook box",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-18.json"
     },
     {
       "id": "test-18-copy",
       "name": "Hook box chain",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-18-copy.json"
     },
     {
       "id": "test-20",
       "name": "In-box",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-20.json"
     },
     {
       "id": "test-20-copy",
       "name": "In-box (2)",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-20-copy.json"
     },
     {
       "id": "test-22",
       "name": "Pull box group",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-22.json"
     },
     {
       "id": "test-23",
       "name": "Interlocking box",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-23.json"
     },
     {
       "id": "test-24",
       "name": "Fork",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-24.json"
     },
     {
       "id": "test-26",
       "name": "Push box into pit",
-      "folderId": "box-hole",
+      "groupTagId": "box-hole",
       "tagIds": [
-        "box-hole"
+        "box-hole-default"
       ],
       "file": "test-26.json"
     },
     {
       "id": "test-26-copy",
       "name": "Overhang",
-      "folderId": "box-hole",
+      "groupTagId": "box-hole",
       "tagIds": [
-        "box-hole"
+        "box-hole-default"
       ],
       "file": "test-26-copy.json"
     },
     {
       "id": "test-27",
       "name": "Push past overhang",
-      "folderId": "box-hole",
+      "groupTagId": "box-hole",
       "tagIds": [
-        "box-hole"
+        "box-hole-default"
       ],
       "file": "test-27.json"
     },
     {
       "id": "test-28",
       "name": "large box falling in",
-      "folderId": "box-hole",
+      "groupTagId": "box-hole",
       "tagIds": [
-        "box-hole"
+        "box-hole-default"
       ],
       "file": "test-28.json"
     },
     {
       "id": "test-29",
       "name": "box group",
-      "folderId": "box-hole",
+      "groupTagId": "box-hole",
       "tagIds": [
-        "box-hole"
+        "box-hole-default"
       ],
       "file": "test-29.json"
     },
     {
       "id": "test-32-copy",
       "name": "Walk on box",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-32-copy.json"
     },
     {
       "id": "test-32-copy-copy-2",
       "name": "Walk on box copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-32-copy-copy-2.json"
     },
     {
       "id": "test-32-copy-copy",
       "name": "Cannot walk off box",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-32-copy-copy.json"
     },
     {
       "id": "test-32",
       "name": "Car",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-32.json"
     },
     {
       "id": "test-34",
       "name": "Push under box",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34.json"
     },
     {
       "id": "test-34-copy",
       "name": "Push under box copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy.json"
     },
     {
       "id": "test-34-copy-copy",
       "name": "Push under box copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-2",
       "name": "Push under box copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-2.json"
     },
     {
       "id": "test-34-copy-copy-2-copy",
       "name": "Push under box copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-2-copy.json"
     },
     {
       "id": "test-34-copy-copy-2-copy-copy",
       "name": "Push under box copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy",
       "name": "Push under box copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-3",
       "name": "Push under box copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-3.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy",
       "name": "Push under box copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy",
       "name": "Push under box copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy-copy",
       "name": "Push under box copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy-copy-copy",
       "name": "Push under box copy copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-35",
       "name": "Player walks from under box",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-35.json"
     },
     {
       "id": "test-36",
       "name": "Player walks from under box (2)",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36.json"
     },
     {
       "id": "test-36-copy",
       "name": "Player walks from under box (2) copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy.json"
     },
     {
       "id": "test-36-copy-copy",
       "name": "Player walks from under box (2) copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy.json"
     },
     {
       "id": "test-36-copy-copy-copy-3",
       "name": "Player walks from under box (2) copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy-3.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-2",
       "name": "Push under box copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy",
       "name": "Push under box copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy",
       "name": "Push under box copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy-copy",
       "name": "Push under box copy copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy-copy.json"
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy-copy-copy",
       "name": "Push under box copy copy copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy-copy-copy.json"
     },
     {
       "id": "test-36-copy-copy-copy-2",
       "name": "Player walks from under box (2) copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy-2.json"
     },
     {
       "id": "test-36-copy-copy-copy-2-copy",
       "name": "Player walks from under box (2) copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-36-copy-copy-copy-2-copy-copy",
       "name": "Player walks from under box (2) copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-36-copy-copy-copy-2-copy-copy-copy",
       "name": "Player walks from under box (2) copy copy copy copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy-2-copy-copy-copy.json"
     },
     {
       "id": "test-36-copy-copy-copy",
       "name": "Player walks from under box (2) copy copy copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-36-copy-copy-copy.json"
     },
     {
       "id": "test-37",
       "name": "holy box",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-37.json"
     },
     {
       "id": "test-38",
       "name": "holy box (2)",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-38.json"
     },
     {
       "id": "test-38-copy",
       "name": "holy box (2) copy",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-38-copy.json"
     },
     {
       "id": "test-38-copy-copy",
       "name": "interlocking boxes",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy.json"
     },
     {
       "id": "test-38-copy-copy-copy-2",
       "name": "interlocking boxes copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy-2.json"
     },
     {
       "id": "test-38-copy-copy-copy",
       "name": "interlocking boxes (2)",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy.json"
     },
     {
       "id": "test-38-copy-copy-copy-copy",
       "name": "interlocking boxes (3)",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy-copy.json"
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy",
       "name": "interlocking boxes (3) copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy-copy",
       "name": "interlocking boxes (3) copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy-copy-copy",
       "name": "interlocking boxes (3) copy copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-38-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-40",
       "name": "fall into pit partially",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-40.json"
     },
     {
       "id": "test-41",
       "name": "fall into pit partially (2)",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-41.json"
     },
     {
       "id": "test-41-copy",
       "name": "fall into pit partially (3)",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-41-copy.json"
     },
     {
       "id": "test-43",
       "name": "fall into put partly (4)",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-43.json"
     },
     {
       "id": "test-43-copy",
       "name": "fall into put partly (4) copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-43-copy.json"
     },
     {
       "id": "test-43-copy-copy",
       "name": "fall into put partly (4) copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-43-copy-copy.json"
     },
     {
       "id": "test-43-copy-copy-copy",
       "name": "fall into put partly (4) copy copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-43-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy",
       "name": "Push box onto ice",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy.json"
     },
     {
       "id": "test-44-copy-copy-2",
       "name": "Push box from on ice",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-2.json"
     },
     {
       "id": "test-44-copy-copy",
       "name": "slide into box on ice",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy",
       "name": "shift box on ice",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy",
       "name": "shift box on ice copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy",
       "name": "shift box on ice copy copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy",
       "name": "shift box on ice copy copy copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy",
       "name": "shift box on ice copy copy copy copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "shift box on ice copy copy copy copy copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "shift box on ice copy copy copy copy copy copy",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-44-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-54",
       "name": "group fall into pit",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-54.json"
     },
     {
       "id": "test-54-copy",
       "name": "group fall into pit copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-54-copy.json"
     },
     {
       "id": "test-54-copy-copy",
       "name": "group fall into pit copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-54-copy-copy.json"
     },
     {
       "id": "test-76-copy",
       "name": "Untitled test 76 copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-76-copy.json"
     },
     {
       "id": "test-68",
       "name": "Untitled test 68",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68.json"
     },
     {
       "id": "test-68-copy",
       "name": "Untitled test 68 copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy.json"
     },
     {
       "id": "test-68-copy-copy",
       "name": "Untitled test 68 copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-3",
       "name": "Untitled test 68 copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-3.json"
     },
     {
       "id": "test-68-copy-copy-copy-2",
       "name": "Untitled test 68 copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-2.json"
     },
     {
       "id": "test-68-copy-copy-copy-2-copy-2",
       "name": "Untitled test 68 copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-2-copy-2.json"
     },
     {
       "id": "test-68-copy-copy-copy-2-copy",
       "name": "Untitled test 68 copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3",
       "name": "Untitled test 68 copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2",
       "name": "Untitled test 68 copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3-copy-2.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-3-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 68 copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 68 copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 68 copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-76",
       "name": "Untitled test 76",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-76.json"
     },
     {
       "id": "test-54-copy-copy-copy",
       "name": "group fall into pit copy copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-54-copy-copy-copy.json"
     },
     {
       "id": "test-54-copy-copy-copy-copy",
       "name": "group fall into pit copy copy copy copy",
-      "folderId": "3d-box-hole",
+      "groupTagId": "3d-box-hole",
       "tagIds": [
-        "3d-box-hole"
+        "3d-box-hole-default"
       ],
       "file": "test-54-copy-copy-copy-copy.json"
     },
     {
       "id": "test-82",
       "name": "Untitled test 82",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-82.json"
     },
     {
       "id": "test-115",
       "name": "Untitled test 115",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-115.json"
     },
     {
       "id": "test-115-copy",
       "name": "Untitled test 115 copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-115-copy.json"
     },
     {
       "id": "test-115-copy-copy",
       "name": "Untitled test 115 copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-115-copy-copy.json"
     },
     {
       "id": "test-123",
       "name": "Untitled test 123",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-123.json"
     },
     {
       "id": "test-124",
       "name": "Untitled test 124",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-124.json"
     },
     {
       "id": "test-124-copy",
       "name": "Untitled test 124 copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-124-copy.json"
     },
     {
       "id": "test-124-copy-copy-2",
       "name": "Untitled test 124 copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-124-copy-copy-2.json"
     },
     {
       "id": "test-124-copy-copy",
       "name": "Untitled test 124 copy copy",
-      "folderId": "3d-box-ice",
+      "groupTagId": "3d-box-ice",
       "tagIds": [
-        "3d-box-ice"
+        "3d-box-ice-default"
       ],
       "file": "test-124-copy-copy.json"
     },
     {
       "id": "test-129",
       "name": "Untitled test 129",
-      "folderId": "3d-boxes",
+      "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes"
+        "3d-boxes-default"
       ],
       "file": "test-129.json"
     },
     {
       "id": "test-131",
       "name": "Untitled test 131",
-      "folderId": "weightless-box",
+      "groupTagId": "weightless-box",
       "tagIds": [
-        "weightless-box"
+        "weightless-box-default"
       ],
       "file": "test-131.json"
     },
     {
       "id": "test-132",
       "name": "Collect gem",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-132.json"
     },
     {
       "id": "test-132-copy",
       "name": "Fall onto gem",
-      "folderId": "general",
+      "groupTagId": "general",
       "tagIds": [
-        "general"
+        "general-default"
       ],
       "file": "test-132-copy.json"
     },
     {
       "id": "test-135",
       "name": "Ice slope",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-135.json"
     },
     {
       "id": "test-134",
       "name": "Ice slope (2)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-134.json"
     },
     {
       "id": "test-136",
       "name": "Ice slope (3)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-136.json"
     },
     {
       "id": "test-138",
       "name": "Ice slope (4)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-138.json"
     },
     {
       "id": "test-137",
       "name": "Ice slope (5)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-137.json"
     },
     {
       "id": "test-140",
       "name": "Ice slide (6)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-140.json"
     },
     {
       "id": "test-139",
       "name": "Ice slide (7)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-139.json"
     },
     {
       "id": "test-141",
       "name": "Ice slide (8)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-141.json"
     },
     {
       "id": "test-142",
       "name": "Ice slide (9)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-142.json"
     },
     {
       "id": "test-143-copy",
       "name": "Ice slide (10) copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-143-copy.json"
     },
     {
       "id": "test-144",
       "name": "Ice slide (11)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-144.json"
     },
     {
       "id": "test-145",
       "name": "Ice slide (12)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-145.json"
     },
     {
       "id": "test-146",
       "name": "Ice slide (13)",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-146.json"
     },
     {
       "id": "test-147",
       "name": "Ice slide loop",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-147.json"
     },
     {
       "id": "test-148",
       "name": "Untitled test 148",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-148.json"
     },
     {
       "id": "test-149",
       "name": "Untitled test 149",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-149.json"
     },
     {
       "id": "test-150",
       "name": "Untitled test 150",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-150.json"
     },
     {
       "id": "test-151",
       "name": "Untitled test 151",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-151.json"
     },
     {
       "id": "test-152",
       "name": "Untitled test 152",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-152.json"
     },
     {
       "id": "test-153",
       "name": "Untitled test 153",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-153.json"
     },
     {
       "id": "test-154",
       "name": "Untitled test 154",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-154.json"
     },
     {
       "id": "test-155",
       "name": "Untitled test 155",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-155.json"
     },
     {
       "id": "test-155-copy",
       "name": "Untitled test 155 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-155-copy.json"
     },
     {
       "id": "test-155-copy-copy",
       "name": "Untitled test 155 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-155-copy-copy.json"
     },
     {
       "id": "test-155-copy-copy-copy",
       "name": "Untitled test 155 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-155-copy-copy-copy.json"
     },
     {
       "id": "test-155-copy-copy-copy-copy",
       "name": "Untitled test 155 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-155-copy-copy-copy-copy.json"
     },
     {
       "id": "test-156",
       "name": "Untitled test 156",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-156.json"
     },
     {
       "id": "test-157",
       "name": "Untitled test 157",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-157.json"
     },
     {
       "id": "test-159",
       "name": "Untitled test 159",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-159.json"
     },
     {
       "id": "test-159-copy",
       "name": "Untitled test 159 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-159-copy.json"
     },
     {
       "id": "test-159-copy-copy",
       "name": "Untitled test 159 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-159-copy-copy.json"
     },
     {
       "id": "test-159-copy-copy-copy",
       "name": "Untitled test 159 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-159-copy-copy-copy.json"
     },
     {
       "id": "test-159-copy-copy-copy-copy",
       "name": "Untitled test 159 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-159-copy-copy-copy-copy.json"
     },
     {
       "id": "test-158",
       "name": "Untitled test 158",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-158.json"
     },
     {
       "id": "test-160",
       "name": "Untitled test 160",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160.json"
     },
     {
       "id": "test-160-copy",
       "name": "Untitled test 160 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160-copy.json"
     },
     {
       "id": "test-160-copy-copy-2",
       "name": "Untitled test 160 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160-copy-copy-2.json"
     },
     {
       "id": "test-160-copy-copy-2-copy",
       "name": "Untitled test 160 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160-copy-copy-2-copy.json"
     },
     {
       "id": "test-160-copy-copy",
       "name": "Untitled test 160 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160-copy-copy.json"
     },
     {
       "id": "test-160-copy-copy-copy",
       "name": "Untitled test 160 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-160-copy-copy-copy.json"
     },
     {
       "id": "test-161",
       "name": "Untitled test 161",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-161.json"
     },
     {
       "id": "test-166-copy",
       "name": "Untitled test 166 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166-copy.json"
     },
     {
       "id": "test-162",
       "name": "Untitled test 162",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-162.json"
     },
     {
       "id": "test-163",
       "name": "Untitled test 163",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-163.json"
     },
     {
       "id": "test-164",
       "name": "Untitled test 164",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-164.json"
     },
     {
       "id": "test-166",
       "name": "Untitled test 166",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166.json"
     },
     {
       "id": "test-166-copy-copy",
       "name": "Untitled test 166 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166-copy-copy.json"
     },
     {
       "id": "test-166-copy-copy-copy",
       "name": "Untitled test 166 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166-copy-copy-copy.json"
     },
     {
       "id": "test-166-copy-copy-copy-copy",
       "name": "Untitled test 166 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166-copy-copy-copy-copy.json"
     },
     {
       "id": "test-166-copy-copy-copy-copy-copy",
       "name": "Untitled test 166 copy copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-166-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-167",
       "name": "Untitled test 166",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-167.json"
     },
     {
       "id": "test-168",
       "name": "Untitled test 167",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-168.json"
     },
     {
       "id": "test-169",
       "name": "Untitled test 168",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-169.json"
     },
     {
       "id": "test-170",
       "name": "Untitled test 169",
-      "folderId": "box-ice",
+      "groupTagId": "box-ice",
       "tagIds": [
-        "box-ice"
+        "box-ice-default"
       ],
       "file": "test-170.json"
     },
     {
       "id": "test-183",
       "name": "Untitled test 183",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183.json"
     },
     {
       "id": "test-183-copy",
       "name": "Untitled test 183 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy.json"
     },
     {
       "id": "test-183-copy-copy-2",
       "name": "Untitled test 183 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-2.json"
     },
     {
       "id": "test-183-copy-copy-2-copy",
       "name": "Untitled test 183 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-2-copy.json"
     },
     {
       "id": "test-183-copy-copy-2-copy-copy",
       "name": "Untitled test 183 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-183-copy-copy",
       "name": "Untitled test 183 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy.json"
     },
     {
       "id": "test-183-copy-copy-copy-2",
       "name": "Untitled test 183 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-2.json"
     },
     {
       "id": "test-183-copy-copy-copy",
       "name": "Untitled test 183 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy.json"
     },
     {
       "id": "test-183-copy-copy-copy-copy-2",
       "name": "Untitled test 183 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-183-copy-copy-copy-copy",
       "name": "Untitled test 183 copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-copy.json"
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 183 copy copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy-2-copy",
       "name": "Untitled test 183 copy copy copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy",
       "name": "Untitled test 183 copy copy copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-183-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-195",
       "name": "Untitled test 195",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-195.json"
     },
     {
       "id": "test-195-copy-2",
       "name": "Untitled test 195 copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-195-copy-2.json"
     },
     {
       "id": "test-195-copy",
       "name": "Untitled test 195 copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-195-copy.json"
     },
     {
       "id": "test-195-copy-copy",
       "name": "Untitled test 195 copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-195-copy-copy.json"
     },
     {
       "id": "test-196",
       "name": "Untitled test 196",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-196.json"
     },
     {
       "id": "test-197",
       "name": "Untitled test 197",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-197.json"
     },
     {
       "id": "test-197-copy",
       "name": "Untitled test 197 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-197-copy.json"
     },
     {
       "id": "test-198",
       "name": "Untitled test 198",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-198.json"
     },
     {
       "id": "test-217",
       "name": "Untitled test 217",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-217.json"
     },
     {
       "id": "test-198-copy",
       "name": "Untitled test 198 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-198-copy.json"
     },
     {
       "id": "test-199",
       "name": "Untitled test 199",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199.json"
     },
     {
       "id": "test-199-copy-2",
       "name": "Untitled test 199 copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-2.json"
     },
     {
       "id": "test-199-copy-2-copy",
       "name": "Untitled test 199 copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-2-copy.json"
     },
     {
       "id": "test-199-copy-2-copy-copy",
       "name": "Untitled test 199 copy copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-2-copy-copy.json"
     },
     {
       "id": "test-199-copy",
       "name": "Untitled test 199 copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy.json"
     },
     {
       "id": "test-199-copy-copy",
       "name": "Untitled test 199 copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-copy.json"
     },
     {
       "id": "test-199-copy-copy-copy",
       "name": "Untitled test 199 copy copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-copy-copy.json"
     },
     {
       "id": "test-199-copy-copy-copy-copy",
       "name": "Untitled test 199 copy copy copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-199-copy-copy-copy-copy.json"
     },
     {
       "id": "test-204",
       "name": "Untitled test 204",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-204.json"
     },
     {
       "id": "test-204-copy",
       "name": "Untitled test 204 copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-204-copy.json"
     },
     {
       "id": "test-204-copy-copy",
       "name": "Untitled test 204 copy copy",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-204-copy-copy.json"
     },
     {
       "id": "test-217-copy",
       "name": "Untitled test 217 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-217-copy.json"
     },
     {
       "id": "test-220",
       "name": "Untitled test 220",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-220.json"
     },
     {
       "id": "test-221",
       "name": "Untitled test 221",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-221.json"
     },
     {
       "id": "test-221-copy",
       "name": "Untitled test 221 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-221-copy.json"
     },
     {
       "id": "test-224",
       "name": "Untitled test 224",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-224.json"
     },
     {
       "id": "test-224-copy",
       "name": "Untitled test 224 copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-224-copy.json"
     },
     {
       "id": "test-226",
       "name": "Untitled test 226",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226.json"
     },
     {
       "id": "test-226-copy",
       "name": "Untitled test 226 copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226-copy.json"
     },
     {
       "id": "test-226-copy-copy",
       "name": "Untitled test 226 copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226-copy-copy.json"
     },
     {
       "id": "test-226-copy-copy-copy",
       "name": "Untitled test 226 copy copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226-copy-copy-copy.json"
     },
     {
       "id": "test-226-copy-copy-copy-copy",
       "name": "Untitled test 226 copy copy copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226-copy-copy-copy-copy.json"
     },
     {
       "id": "test-226-copy-copy-copy-copy-copy",
       "name": "Untitled test 226 copy copy copy copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-226-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-232",
       "name": "Untitled test 232",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-232.json"
     },
     {
       "id": "test-232-copy",
       "name": "Untitled test 232 copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-232-copy.json"
     },
     {
       "id": "test-232-copy-copy",
       "name": "Untitled test 232 copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-232-copy-copy.json"
     },
     {
       "id": "test-232-copy-copy-copy",
       "name": "Untitled test 232 copy copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-232-copy-copy-copy.json"
     },
     {
       "id": "test-236",
       "name": "Untitled test 236",
-      "folderId": "lifts",
+      "groupTagId": "lifts",
       "tagIds": [
-        "lifts"
+        "lifts-default"
       ],
       "file": "test-236.json"
     },
     {
       "id": "test-237",
       "name": "Untitled test 237",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-237.json"
     },
     {
       "id": "test-237-copy",
       "name": "Untitled test 237 copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-237-copy.json"
     },
     {
       "id": "test-237-copy-copy",
       "name": "Untitled test 237 copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-237-copy-copy.json"
     },
     {
       "id": "test-240",
       "name": "Untitled test 240",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240.json"
     },
     {
       "id": "test-240-copy-4",
       "name": "Untitled test 240 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy-4.json"
     },
     {
       "id": "test-240-copy-3",
       "name": "Untitled test 240 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy-3.json"
     },
     {
       "id": "test-240-copy",
       "name": "Untitled test 240 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy.json"
     },
     {
       "id": "test-240-copy-2",
       "name": "Untitled test 240 copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy-2.json"
     },
     {
       "id": "test-240-copy-2-copy",
       "name": "Untitled test 240 copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy-2-copy.json"
     },
     {
       "id": "test-240-copy-2-copy-copy",
       "name": "Untitled test 240 copy copy copy",
-      "folderId": "ice-slopes-box",
+      "groupTagId": "ice-slopes-box",
       "tagIds": [
-        "ice-slopes-box"
+        "ice-slopes-box-default"
       ],
       "file": "test-240-copy-2-copy-copy.json"
     },
     {
       "id": "test-249",
       "name": "Untitled test 249",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-249.json"
     },
     {
       "id": "test-250",
       "name": "Untitled test 250",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-250.json"
     },
     {
       "id": "test-250-copy",
       "name": "Untitled test 250 copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-250-copy.json"
     },
     {
       "id": "test-250-copy-copy",
       "name": "Untitled test 250 copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-250-copy-copy.json"
     },
     {
       "id": "test-250-copy-copy-copy",
       "name": "Untitled test 250 copy copy copy",
-      "folderId": "ice-slopes-3d-boxes",
+      "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
-        "ice-slopes-3d-boxes"
+        "ice-slopes-3d-boxes-default"
       ],
       "file": "test-250-copy-copy-copy.json"
     },
     {
       "id": "test-254",
       "name": "Untitled test 254",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-254.json"
     },
     {
       "id": "test-254-copy",
       "name": "Untitled test 254 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-254-copy.json"
     },
     {
       "id": "test-254-copy-copy",
       "name": "Untitled test 254 copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-254-copy-copy.json"
     },
     {
       "id": "test-256",
       "name": "Untitled test 256",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-256.json"
     },
     {
       "id": "test-256-copy",
       "name": "Untitled test 256 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-256-copy.json"
     },
     {
       "id": "test-258",
       "name": "Untitled test 258",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258.json"
     },
     {
       "id": "test-258-copy",
       "name": "Untitled test 258 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy.json"
     },
     {
       "id": "test-258-copy-copy",
       "name": "Untitled test 258 copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy-copy.json"
     },
     {
       "id": "test-258-copy-copy-copy",
       "name": "Untitled test 258 copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy-copy-copy.json"
     },
     {
       "id": "test-258-copy-copy-copy-copy",
       "name": "Untitled test 258 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy-copy-copy-copy.json"
     },
     {
       "id": "test-258-copy-copy-copy-copy-copy",
       "name": "Untitled test 258 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-258-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 258 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-258-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-265",
       "name": "Untitled test 265",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-265.json"
     },
     {
       "id": "test-266",
       "name": "Untitled test 266",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-266.json"
     },
     {
       "id": "test-266-copy",
       "name": "Untitled test 266 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-266-copy.json"
     },
     {
       "id": "test-266-copy-copy",
       "name": "Untitled test 266 copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-266-copy-copy.json"
     },
     {
       "id": "test-269",
       "name": "Untitled test 269",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-269.json"
     },
     {
       "id": "test-271",
       "name": "Untitled test 271",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-271.json"
     },
     {
       "id": "test-272",
       "name": "Untitled test 272",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272.json"
     },
     {
       "id": "test-272-copy",
       "name": "Untitled test 272 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy.json"
     },
     {
       "id": "test-272-copy-copy",
       "name": "Untitled test 272 copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 272 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-2-copy",
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 272 copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284",
       "name": "Untitled test 284",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284.json"
     },
     {
       "id": "test-284-copy-2",
       "name": "Untitled test 284 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-2.json"
     },
     {
       "id": "test-284-copy",
       "name": "Untitled test 284 copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy.json"
     },
     {
       "id": "test-284-copy-copy",
       "name": "Untitled test 284 copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2",
       "name": "Untitled test 284 copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-2",
       "name": "Untitled test 284 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-2.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy",
       "name": "Untitled test 284 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-4",
       "name": "Untitled test 284 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-4.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-3",
       "name": "Untitled test 284 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-3.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-2",
       "name": "Untitled test 284 copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-2.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-2",
       "name": "Untitled test 284 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-2.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy",
       "name": "Untitled test 284 copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-copy-copy",
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
-      "folderId": "lift",
+      "groupTagId": "lift",
       "tagIds": [
-        "lift"
+        "lift-default"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-copy-copy.json"
     },
     {
       "id": "test-319-copy",
       "name": "Step on button",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "orange-walls-default"
       ],
       "file": "test-319-copy.json"
     },
     {
       "id": "test-319-copy-copy-2",
       "name": "Press sideways button",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "sideways-button"
       ],
       "file": "test-319-copy-copy-2.json"
@@ -21507,7 +21625,7 @@
     {
       "id": "test-319-copy-copy",
       "name": "Box presses button",
-      "folderId": "orange-walls-boxes",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes"
       ],
@@ -21516,35 +21634,37 @@
     {
       "id": "test-319",
       "name": "3D shaped orange wall",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "orange-walls-default"
       ],
       "file": "test-319.json"
     },
     {
       "id": "test-319-copy-2",
       "name": "Multiple buttons pressed",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-319-copy-2.json"
     },
     {
       "id": "test-319-copy-2-copy",
       "name": "Buttons attached to box",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
-        "sideways-button"
+        "sideways-button",
+        "orange-walls-boxes"
       ],
       "file": "test-319-copy-2-copy.json"
     },
     {
       "id": "test-323-copy",
       "name": "box resting on orange (1)",
-      "folderId": "orange-walls-boxes",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes"
       ],
@@ -21553,7 +21673,7 @@
     {
       "id": "test-323-copy-copy-2",
       "name": "box resting on orange (2)",
-      "folderId": "orange-walls-boxes",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes"
       ],
@@ -21562,7 +21682,7 @@
     {
       "id": "test-323",
       "name": "Buttons attached to orange (1)",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons"
       ],
@@ -21571,7 +21691,7 @@
     {
       "id": "test-323-copy-2",
       "name": "Buttons attached to orange (2)",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
         "orange-walls-boxes",
@@ -21582,16 +21702,16 @@
     {
       "id": "test-325",
       "name": "Stepping off button",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "orange-walls-default"
       ],
       "file": "test-325.json"
     },
     {
       "id": "test-325-copy-2",
       "name": "Buttons attached to orange (3)",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons"
       ],
@@ -21600,16 +21720,16 @@
     {
       "id": "test-325-copy",
       "name": "Step onto raising wall",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "orange-walls-default"
       ],
       "file": "test-325-copy.json"
     },
     {
       "id": "test-325-copy-copy",
       "name": "Step onto maybe raising wall",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons"
       ],
@@ -21618,16 +21738,17 @@
     {
       "id": "test-325-copy-copy-copy",
       "name": "Step onto raising wall (2)",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-325-copy-copy-copy.json"
     },
     {
       "id": "test-325-copy-copy-copy-copy-copy-2",
       "name": "Orange will not raise if stuck",
-      "folderId": "orange-walls-boxes",
+      "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes",
         "stuck-orange-walls"
@@ -21637,9 +21758,8 @@
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-2",
       "name": "Orange will raise once unstuck",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "stuck-orange-walls"
       ],
       "file": "test-325-copy-copy-copy-copy-copy-copy-2.json"
@@ -21647,9 +21767,8 @@
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-3",
       "name": "Orange will not raise as group",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "stuck-orange-walls"
       ],
       "file": "test-325-copy-copy-copy-copy-copy-copy-copy-3.json"
@@ -21657,9 +21776,8 @@
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "stuck-orange-walls"
       ],
       "file": "test-325-copy-copy-copy-copy-copy-copy-copy-copy.json"
@@ -21667,9 +21785,8 @@
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-2",
       "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "stuck-orange-walls"
       ],
       "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-2.json"
@@ -21677,9 +21794,8 @@
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-copy",
       "name": "Untitled test 325 copy copy copy copy copy copy copy copy copy",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls",
         "stuck-orange-walls"
       ],
       "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-copy.json"
@@ -21687,73 +21803,78 @@
     {
       "id": "test-331",
       "name": "Untitled test 331",
-      "folderId": "orange-walls",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "buttons-on-ice"
       ],
       "file": "test-331.json"
     },
     {
       "id": "test-332",
       "name": "Untitled test 332",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "buttons-on-ice"
       ],
       "file": "test-332.json"
     },
     {
       "id": "test-332-copy",
-      "name": "Untitled test 332 copy",
-      "folderId": "orange-walls",
+      "name": "Slide off ice onto button",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "orange-walls"
+        "orange-walls-default"
       ],
       "file": "test-332-copy.json"
     },
     {
       "id": "test-338-copy",
       "name": "Untitled test 338 copy",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons",
-        "stuck-orange-walls"
+        "stuck-orange-walls",
+        "orange-walls-boxes"
       ],
       "file": "test-338-copy.json"
     },
     {
       "id": "test-339",
       "name": "Untitled test 339",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-339.json"
     },
     {
       "id": "test-340",
       "name": "Untitled test 340",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-340.json"
     },
     {
       "id": "test-342",
       "name": "Untitled test 342",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-342.json"
     },
     {
       "id": "test-345",
       "name": "Untitled test 345",
-      "folderId": "multiple-buttons",
+      "groupTagId": "orange-walls",
       "tagIds": [
-        "multiple-buttons"
+        "multiple-buttons",
+        "orange-walls-boxes"
       ],
       "file": "test-345.json"
     }

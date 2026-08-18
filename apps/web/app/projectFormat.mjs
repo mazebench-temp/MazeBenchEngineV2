@@ -159,7 +159,7 @@ export function encodeCompactTest(test) {
     id: test.id,
     name: test.name,
     description: test.description ?? "",
-    primaryTagId: test.folderId,
+    groupTagId: test.folderId,
     tagIds: Array.isArray(test.tagIds) && test.tagIds.length
       ? [...test.tagIds]
       : [test.folderId],
@@ -199,7 +199,7 @@ export function decodeCompactTest(compact) {
   }));
   const test = {
     description: compact.description ?? "",
-    folderId: compact.primaryTagId ?? compact.folderId,
+    folderId: compact.groupTagId ?? compact.primaryTagId ?? compact.folderId,
     tagIds: Array.isArray(compact.tagIds) ? [...compact.tagIds] : undefined,
     id: compact.id,
     locked: Boolean(compact.locked),
@@ -221,7 +221,7 @@ export function decodeCompactTest(compact) {
 export function encodeProjectBundle(project) {
   const tags = project.tags ?? project.folders ?? [];
   return {
-    schemaVersion: Math.max(14, Number(project.schemaVersion) || 0),
+    schemaVersion: Math.max(15, Number(project.schemaVersion) || 0),
     storageFormat: COMPACT_BUNDLE_FORMAT,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,

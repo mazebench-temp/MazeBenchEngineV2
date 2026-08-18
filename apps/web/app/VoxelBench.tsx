@@ -32,7 +32,14 @@ import {
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
 import { deleteTestCase } from "./testSuite.mjs";
-import { directTagsAreLocked, directTagsIncludeTag } from "./testTags.mjs";
+import {
+  defaultSubtagId,
+  directTagsAreLocked,
+  directTagsIncludeTag,
+  ensureDefaultSubtags,
+  normalizeTestTagPlacement,
+  rootTagId,
+} from "./testTags.mjs";
 import { enforceFloorLayer, selectionContainsFloor } from "./floorLayer.mjs";
 import {
   OCCUPANCY_PROFILES,
@@ -139,6 +146,7 @@ type Frame = { voxels: Voxel[] };
 type WorldSettings = { width: number; height: number; floorLayer: 0 };
 type TestFolder = {
   collapsed: boolean;
+  default?: boolean;
   id: string;
   locked: boolean;
   name: string;
@@ -436,25 +444,26 @@ function nonnegativeInteger(value: unknown, fallback = 0) {
 }
 
 function normalizeFolders(folders?: StoredTestFolder[]) {
-  if (!folders?.length) return DEFAULT_FOLDERS.map((folder) => ({ ...folder }));
+  const sourceFolders = folders?.length ? folders : DEFAULT_FOLDERS;
   const seen = new Set<string>();
-  const normalized = folders.flatMap((folder) => {
+  const normalized = sourceFolders.flatMap((folder) => {
     const id = String(folder?.id ?? "").trim();
     if (!id || seen.has(id)) return [];
     seen.add(id);
     const parentId = String(folder.parentId ?? "").trim();
     return [{
       collapsed: Boolean(folder.collapsed),
+      ...(folder.default ? { default: true } : {}),
       id,
       locked: Boolean(folder.locked),
       name: String(folder.name ?? "").trim() || "Untitled tag",
       ...(parentId ? { parentId } : {}),
     }];
   });
-  if (!normalized.length) return DEFAULT_FOLDERS.map((folder) => ({ ...folder }));
+  if (!normalized.length) return [];
 
   const foldersById = new Map(normalized.map((folder) => [folder.id, folder]));
-  return normalized.map((folder) => {
+  const validated = normalized.map((folder) => {
     if (!folder.parentId || folder.parentId === folder.id || !foldersById.has(folder.parentId)) {
       const rootFolder = { ...folder };
       delete rootFolder.parentId;
@@ -473,6 +482,7 @@ function normalizeFolders(folders?: StoredTestFolder[]) {
     }
     return folder;
   });
+  return ensureDefaultSubtags(validated) as TestFolder[];
 }
 
 function normalizeGenericIds(
@@ -575,16 +585,19 @@ function normalizeTests(
     const legacyFolderId = test.folderId && folderIds.has(test.folderId)
       ? test.folderId
       : fallbackFolderId;
-    const tagIds = [...new Set((test.tagIds ?? [])
+    const directTagIds = [...new Set((test.tagIds ?? [])
       .map((tagId) => String(tagId))
       .filter((tagId) => folderIds.has(tagId)))];
-    if (!tagIds.length) tagIds.push(legacyFolderId);
-    const folderId = tagIds.includes(legacyFolderId) ? legacyFolderId : tagIds[0];
+    if (!directTagIds.length) directTagIds.push(legacyFolderId);
+    const placement = normalizeTestTagPlacement({
+      directTagIds,
+      preferredTagId: legacyFolderId,
+    }, folders);
     return cropTestToWorld({
       ...test,
       description: String(test.description ?? ""),
-      folderId,
-      tagIds,
+      folderId: placement.groupTagId,
+      tagIds: placement.tagIds,
       locked: Boolean(test.locked),
       intermediate: (test.intermediate ?? []).map((frame) =>
         normalizeGenericIds(frame, blocks, roles, legacyBlocks)),
@@ -642,7 +655,7 @@ function withIceStrip(actors: Voxel[]) {
   };
 }
 
-const DEFAULT_TESTS: TestCase[] = [
+const DEFAULT_TESTS: StoredTestCase[] = [
   {
     description: "Moving Up pushes the single crate one cell onto the goal, and the player occupies the crate's previous cell.",
     folderId: "push-boxes",
@@ -1193,12 +1206,14 @@ function TestTagPicker({
   folders,
   folderPaths,
   lockedFolderIds,
+  onChangeGroup,
   onToggle,
   test,
 }: {
   folders: TestFolder[];
   folderPaths: ReadonlyMap<string, string>;
   lockedFolderIds: ReadonlySet<string>;
+  onChangeGroup: (groupTagId: string) => void;
   onToggle: (tagId: string) => void;
   test: TestCase;
 }) {
@@ -1207,14 +1222,25 @@ function TestTagPicker({
     [folders],
   );
   const organizationLocked = testTagsAreLocked(test, lockedFolderIds);
+  const groups = folders.filter((folder) => !folder.parentId);
+  const subtags = folders.filter((folder) =>
+    folder.id !== test.folderId && rootTagId(folder.id, tagsById) === test.folderId);
+  const groupName = tagsById.get(test.folderId)?.name ?? "Unknown group";
   return (
     <details className="test-tag-picker">
-      <summary><span>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")}</span><i aria-hidden="true">▾</i></summary>
+      <summary><span><b>{groupName}</b> · {test.tagIds.map((tagId) => tagsById.get(tagId)?.name ?? "Unknown subtag").join(" + ")}</span><i aria-hidden="true">▾</i></summary>
       <div className="test-tag-picker__menu">
-        {folders.map((folder) => {
+        <label className="test-tag-picker__group">
+          <span>Parent group</span>
+          <select aria-label={`Parent tag group for ${test.name}`} disabled={organizationLocked} value={test.folderId} onChange={(event) => onChangeGroup(event.target.value)}>
+            {groups.map((group) => <option key={group.id} value={group.id} disabled={lockedFolderIds.has(group.id)}>{group.name}</option>)}
+          </select>
+        </label>
+        <div className="test-tag-picker__divider"><span>Subtags</span><small>Choose any within this group</small></div>
+        {subtags.map((folder) => {
           const checked = test.tagIds.includes(folder.id);
           const inherited = !checked && testBelongsToTag(test, folder.id, tagsById);
-          const disabled = organizationLocked || lockedFolderIds.has(folder.id) || (checked && test.tagIds.length === 1);
+          const disabled = organizationLocked || lockedFolderIds.has(folder.id) || (folder.default && checked && test.tagIds.length === 1);
           return (
             <label className={inherited ? "is-inherited" : ""} key={folder.id}>
               <input type="checkbox" checked={checked} disabled={disabled} onChange={() => onToggle(folder.id)} />
@@ -1239,6 +1265,7 @@ function TestSuiteWorkspace({
   onAddTest,
   onDeleteTest,
   onDuplicateTest,
+  onChangeTestGroup,
   onToggleTestTag,
   onOpenTest,
   onRenameFolder,
@@ -1260,6 +1287,7 @@ function TestSuiteWorkspace({
   onAddTest: (folderId?: string) => void;
   onDeleteTest: (testId: string) => void;
   onDuplicateTest: (testId: string) => void;
+  onChangeTestGroup: (testId: string, groupTagId: string) => void;
   onToggleTestTag: (testId: string, tagId: string) => void;
   onOpenTest: (testId: string) => void;
   onRenameFolder: (folderId: string, name: string) => void;
@@ -1369,7 +1397,7 @@ function TestSuiteWorkspace({
             ) : (
               <>
                 <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
-                <button className="suite-tree__rename-button" type="button" disabled={effectiveLocked} aria-label={`Rename ${folder.name}`} title={`Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
+                <button className="suite-tree__rename-button" type="button" disabled={effectiveLocked || folder.default} aria-label={`Rename ${folder.name}`} title={folder.default ? "Default is a reserved subtag" : `Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
               </>
             )}
           </div>
@@ -1382,7 +1410,7 @@ function TestSuiteWorkspace({
   return (
     <section className="suite-workspace" aria-label="Test Suite workspace">
       <aside className="suite-explorer">
-        <div className="suite-explorer__heading"><div><span>Tag browser</span><strong>{folders.length} tags</strong></div><button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "" })}>＋ Root tag</button></div>
+        <div className="suite-explorer__heading"><div><span>Tag browser</span><strong>{folders.filter((folder) => !folder.parentId).length} groups</strong></div><button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "" })}>＋ Tag group</button></div>
         <button className={`suite-tree__all ${selectedFolderId === null ? "is-selected" : ""}`} type="button" onClick={() => setSelectedFolderId(null)}><span>All tests</span><em>{tests.length}</em></button>
         <div className="suite-tree">{renderFolderBranch()}</div>
       </aside>
@@ -1391,12 +1419,12 @@ function TestSuiteWorkspace({
         <header className="suite-browser__header">
           <div className="suite-browser__title">
             <span>{selectedFolder ? folderPaths.get(selectedFolder.id) : "Entire project"}</span>
-            {selectedFolder ? <input aria-label={`Rename ${selectedFolder.name} tag`} disabled={selectedFolderLocked} value={selectedFolder.name} onChange={(event) => onRenameFolder(selectedFolder.id, event.target.value)} /> : <h2>All tests</h2>}
+            {selectedFolder ? <input aria-label={`Rename ${selectedFolder.name} tag`} disabled={selectedFolderLocked || selectedFolder.default} value={selectedFolder.name} onChange={(event) => onRenameFolder(selectedFolder.id, event.target.value)} /> : <h2>All tests</h2>}
             <small>{visibleTests.length} shown · {passed} passing · {failed} failing · {tests.length - completed.length} untested</small>
           </div>
           <div className="suite-browser__actions">
             {selectedFolder && <button className={`tool-button suite-folder-lock ${selectedFolderLocked ? "is-active" : ""}`} type="button" disabled={selectedFolderLocked && !selectedFolder.locked} onClick={() => onToggleFolderLocked(selectedFolder.id)}><LockIcon open={!selectedFolderLocked} />{selectedFolder.locked ? "Unlock tag" : selectedFolderLocked ? "Locked by parent tag" : "Lock tag"}</button>}
-            <button className="tool-button" type="button" disabled={selectedFolderLocked} onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subtag" : "Root tag"}</button>
+            <button className="tool-button" type="button" disabled={selectedFolderLocked} onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.default ? selectedFolder.parentId : selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subtag" : "Tag group"}</button>
             <button className="tool-button tool-button--primary" type="button" disabled={selectedFolderLocked} onClick={() => onAddTest(selectedFolder?.id)}>＋ New test</button>
           </div>
         </header>
@@ -1406,7 +1434,7 @@ function TestSuiteWorkspace({
           <span>{completed.length ? `${passed}/${tests.length} passing` : "Suite has not been run"}</span>
         </div>
 
-        {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag"}` : "New root tag"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create tag</button></form>}
+        {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag group"}` : "New tag group"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create {folderDraft.parentId ? "subtag" : "group"}</button></form>}
 
         <div className="suite-browser__filters">
           <label><span>Search</span><input type="search" value={query} placeholder="Name, description, or tag…" onChange={(event) => setQuery(event.target.value)} /></label>
@@ -1433,7 +1461,7 @@ function TestSuiteWorkspace({
                       <span>Title</span>
                       <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={folderLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
                     </label>
-                    <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={test} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
+                    <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
                   </div>
                   <label>
                     <span>Description</span>
@@ -1464,13 +1492,11 @@ export default function VoxelBench() {
   const [activeWorkspace, setActiveWorkspace] = useState<"tests" | "suite" | "search">("tests");
   const [roles, setRoles] = useState<PhysicsRoleDefinition[]>(DEFAULT_ROLES);
   const [blocks, setBlocks] = useState<BlockDefinition[]>(DEFAULT_BLOCKS);
-  const [folders, setFolders] = useState<TestFolder[]>(DEFAULT_FOLDERS);
-  const [tests, setTests] = useState<TestCase[]>(() => normalizeTests(
-    DEFAULT_TESTS,
-    DEFAULT_FOLDERS,
-    DEFAULT_BLOCKS,
-    DEFAULT_ROLES,
-  ));
+  const [folders, setFolders] = useState<TestFolder[]>(() => normalizeFolders(DEFAULT_FOLDERS));
+  const [tests, setTests] = useState<TestCase[]>(() => {
+    const initialFolders = normalizeFolders(DEFAULT_FOLDERS);
+    return normalizeTests(DEFAULT_TESTS, initialFolders, DEFAULT_BLOCKS, DEFAULT_ROLES);
+  });
   const [savedSearchLevels, setSavedSearchLevels] = useState<SearchLevel[]>([]);
   const [activeId, setActiveId] = useState(DEFAULT_TESTS[0].id);
   const [frameKind, setFrameKind] = useState<FrameKind>("start");
@@ -1702,7 +1728,7 @@ export default function VoxelBench() {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       const project = {
-        schemaVersion: 14,
+        schemaVersion: 15,
         coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
         roles,
         blocks,
@@ -2623,7 +2649,9 @@ export default function VoxelBench() {
   const addFolder = (requestedName: string, parentId?: string) => {
     const name = requestedName.trim();
     if (!name) return;
-    if (parentId && lockedFolderIds.has(parentId)) {
+    const requestedParent = folders.find((folder) => folder.id === parentId);
+    const effectiveParentId = requestedParent?.default ? requestedParent.parentId : parentId;
+    if (effectiveParentId && lockedFolderIds.has(effectiveParentId)) {
       setToast("Unlock the parent tag before adding a subtag");
       return;
     }
@@ -2635,19 +2663,29 @@ export default function VoxelBench() {
       id = `${baseId}-${suffix}`;
       suffix += 1;
     }
-    setFolders((current) => [...current, {
-      collapsed: false,
-      id,
-      locked: false,
-      name,
-      ...(parentId ? { parentId } : {}),
-    }]);
-    if (parentId) {
-      setFolders((current) => current.map((folder) =>
-        folder.id === parentId ? { ...folder, collapsed: false } : folder,
-      ));
-    }
-    setToast(`${name} ${parentId ? "subtag" : "tag"} created`);
+    let defaultId = `${id}-default`;
+    let defaultSuffix = 2;
+    while (existingIds.has(defaultId)) defaultId = `${id}-default-${defaultSuffix++}`;
+    setFolders((current) => [
+      ...current.map((folder) =>
+        folder.id === effectiveParentId ? { ...folder, collapsed: false } : folder),
+      {
+        collapsed: false,
+        id,
+        locked: false,
+        name,
+        ...(effectiveParentId ? { parentId: effectiveParentId } : {}),
+      },
+      ...(!effectiveParentId ? [{
+        collapsed: false,
+        default: true,
+        id: defaultId,
+        locked: false,
+        name: "Default",
+        parentId: id,
+      } satisfies TestFolder] : []),
+    ]);
+    setToast(`${name} ${effectiveParentId ? "subtag" : "tag group"} created`);
   };
 
   const toggleFolderCollapsed = (folderId: string) => {
@@ -2698,13 +2736,14 @@ export default function VoxelBench() {
   };
 
   const addTest = (requestedFolderId?: string) => {
+    const foldersById = new Map(folders.map((folder) => [folder.id, folder]));
     const requestedFolder = folders.find((folder) => folder.id === requestedFolderId);
     const activeFolder = folders.find((folder) => folder.id === activeTest?.folderId);
     const targetFolder = requestedFolder && !lockedFolderIds.has(requestedFolder.id)
       ? requestedFolder
       : activeFolder && !lockedFolderIds.has(activeFolder.id)
         ? activeFolder
-        : folders.find((folder) => !lockedFolderIds.has(folder.id));
+        : folders.find((folder) => !folder.parentId && !lockedFolderIds.has(folder.id));
     if (!targetFolder) {
       setToast("Unlock a tag before adding a test");
       return;
@@ -2718,11 +2757,18 @@ export default function VoxelBench() {
     }
     const testWorld = activeTest ? { ...activeTest.world } : { ...DEFAULT_WORLD };
     const source = activeTest?.start ?? { voxels: floorFrame(testWorld.width, testWorld.height) };
-    const folderId = targetFolder.id;
+    const folderId = rootTagId(targetFolder.id, foldersById) ?? targetFolder.id;
+    const initialTagId = targetFolder.id === folderId
+      ? defaultSubtagId(folderId, folders)
+      : targetFolder.id;
+    if (!initialTagId) {
+      setToast("This tag group needs a Default subtag before adding tests");
+      return;
+    }
     const test: TestCase = {
       description: "",
       folderId,
-      tagIds: [folderId],
+      tagIds: [initialTagId],
       id,
       locked: false,
       name: `Untitled test ${tests.length + 1}`,
@@ -2738,7 +2784,7 @@ export default function VoxelBench() {
     setIntermediateIndex(null);
     setShowResult(false);
     setActiveWorkspace("tests");
-    setToast(`New test tagged ${folders.find((folder) => folder.id === folderId)?.name ?? "General"}`);
+    setToast(`New test added to ${folderPathLabel(folders, initialTagId)}`);
   };
 
   const reorderTest = (testId: string, offset: -1 | 1, tagId?: string) => {
@@ -2839,34 +2885,50 @@ export default function VoxelBench() {
     setToast(`${source.name} deleted`);
   };
 
+  const changeTestTagGroup = (testId: string, folderId: string) => {
+    const test = tests.find((item) => item.id === testId);
+    const targetGroup = folders.find((folder) => folder.id === folderId && !folder.parentId);
+    const defaultId = defaultSubtagId(folderId, folders);
+    if (!test || !targetGroup || !defaultId || test.folderId === folderId) return;
+    if (testTagsAreLocked(test, lockedFolderIds) || lockedFolderIds.has(folderId)) {
+      setToast("Unlock the affected tag groups before moving this test");
+      return;
+    }
+    setTests((current) => current.map((item) => item.id === testId
+      ? { ...item, folderId, tagIds: [defaultId] }
+      : item));
+    setToast(`${test.name} moved to ${targetGroup.name} / Default`);
+  };
+
   const toggleTestTag = (testId: string, folderId: string) => {
     const test = tests.find((item) => item.id === testId);
     const targetFolder = folders.find((folder) => folder.id === folderId);
     if (!test || !targetFolder) return;
+    const foldersById = new Map(folders.map((folder) => [folder.id, folder]));
+    if (targetFolder.id === test.folderId || rootTagId(targetFolder.id, foldersById) !== test.folderId) {
+      setToast("Subtags must stay inside the test's parent tag group");
+      return;
+    }
     if (testTagsAreLocked(test, lockedFolderIds) || lockedFolderIds.has(folderId)) {
       setToast("Unlock the affected tags before changing membership");
       return;
     }
+    const defaultId = defaultSubtagId(test.folderId, folders);
+    if (!defaultId) return;
     const removing = test.tagIds.includes(folderId);
-    if (removing && test.tagIds.length === 1) {
-      setToast("Every test needs at least one direct tag");
-      return;
-    }
     setTests((current) => current.map((item) =>
       item.id === testId
         ? (() => {
-          const tagIds = removing
+          if (targetFolder.default) return { ...item, tagIds: [defaultId] };
+          let tagIds = removing
             ? item.tagIds.filter((tagId) => tagId !== folderId)
-            : [...item.tagIds, folderId];
-          return {
-            ...item,
-            tagIds,
-            folderId: tagIds.includes(item.folderId) ? item.folderId : tagIds[0],
-          };
+            : [...item.tagIds.filter((tagId) => tagId !== defaultId), folderId];
+          if (!tagIds.length) tagIds = [defaultId];
+          return { ...item, tagIds };
         })()
         : item,
     ));
-    setToast(`${test.name} ${removing ? "removed from" : "tagged"} ${folderPathLabel(folders, folderId)}`);
+    setToast(`${test.name} ${targetFolder.default ? "returned to" : removing ? "removed from" : "tagged"} ${folderPathLabel(folders, targetFolder.default ? defaultId : folderId)}`);
   };
 
   const openTestInEditor = (testId: string) => {
@@ -3163,7 +3225,7 @@ export default function VoxelBench() {
   const exportProject = () => {
     const boundedTests = cropTestsToWorld(tests);
     const project = {
-      schemaVersion: 14,
+      schemaVersion: 15,
       coordinateSystem: { horizontalAxes: ["x", "y"], verticalAxis: "z", floorLayer: 0 },
       roles,
       blocks,
@@ -3300,6 +3362,7 @@ export default function VoxelBench() {
           onAddTest={addTest}
           onDeleteTest={deleteTest}
           onDuplicateTest={duplicateTest}
+          onChangeTestGroup={changeTestTagGroup}
           onToggleTestTag={toggleTestTag}
           onOpenTest={openTestInEditor}
           onRenameFolder={(folderId, name) => setFolders((current) => current.map((folder) => folder.id === folderId ? { ...folder, name } : folder))}
@@ -3435,7 +3498,7 @@ export default function VoxelBench() {
             <div className="author-panel__body">
               <label className="field"><span>Name</span><input disabled={activeTestTagsLocked} value={activeTest.name} onChange={(event) => updateTestMetadata(activeTest.id, { name: event.target.value })} /></label>
               <label className="field"><span>Description</span><textarea rows={3} disabled={activeTestTagsLocked} value={activeTest.description} placeholder="Describe the intended transition and invariants for debugging agents." onChange={(event) => updateTestMetadata(activeTest.id, { description: event.target.value })} /></label>
-              <div className="field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={activeTest} onToggle={(tagId) => toggleTestTag(activeTest.id, tagId)} /></div>
+              <div className="field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} lockedFolderIds={lockedFolderIds} test={activeTest} onChangeGroup={(groupTagId) => changeTestTagGroup(activeTest.id, groupTagId)} onToggle={(tagId) => toggleTestTag(activeTest.id, tagId)} /></div>
               <div className="field"><span>Movement input</span><div className="canonical-input"><strong><DirectionIcon direction="up" /> Up</strong><small>Authored once; automatically checked as ↑ → ↓ ← by rotating the entire level.</small></div></div>
               <button className="tool-button tool-button--primary full" onClick={() => runTest(activeTest)}>Run test</button>
             </div>

@@ -51,6 +51,8 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /01<\/span> Start/);
   assert.match(html, /02<\/span> Expected/);
   assert.match(html, />Tags</);
+  assert.match(html, /Parent group/);
+  assert.match(html, /Subtags/);
   assert.match(html, /Movement &amp; walls/);
   assert.match(html, /Push boxes/);
   assert.match(html, />Test Suite<\/button>/);
@@ -108,6 +110,10 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /Description[\s\S]*?disabled=\{folderLocked\}[\s\S]*?onUpdateTest\(test\.id, \{ description:/);
   assert.match(component, /function testBelongsToTag/);
   assert.match(component, /function testTagsAreLocked/);
+  assert.match(component, /normalizeTestTagPlacement/);
+  assert.match(component, /Parent tag group for/);
+  assert.match(component, /Subtags must stay inside the test's parent tag group/);
+  assert.match(component, /tagIds: \[defaultId\]/);
   assert.match(component, /className="test-tag-picker"/);
   assert.match(component, /test\.tagIds\.includes\(folder\.id\)/);
   assert.match(component, /via subtag/);

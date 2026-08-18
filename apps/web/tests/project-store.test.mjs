@@ -15,7 +15,7 @@ function makeTest(id, blockId) {
     name: id,
     description: "",
     folderId: "folder",
-    tagIds: ["folder"],
+    tagIds: ["folder-default"],
     locked: false,
     input: "up",
     world: { width: 16, height: 16, floorLayer: 0 },
@@ -31,7 +31,10 @@ function makeProject(tests) {
     coordinateSystem: { floorLayer: 0 },
     roles: [],
     blocks: [],
-    tags: [{ id: "folder", name: "Folder" }],
+    tags: [
+      { id: "folder", name: "Folder" },
+      { default: true, id: "folder-default", name: "Default", parentId: "folder" },
+    ],
     searches: [],
     tests,
   };
@@ -49,17 +52,17 @@ test("split project store writes one compact file per test and removes stale fil
 
     const manifest = JSON.parse(await readFile(join(directory, "project.json"), "utf8"));
     assert.equal(manifest.storageFormat, "voxelbench-split-project-v1");
-    assert.equal(manifest.schemaVersion, 14);
+    assert.equal(manifest.schemaVersion, 15);
     assert.deepEqual(manifest.tags, original.tags);
     assert.equal(Object.hasOwn(manifest, "folders"), false);
     assert.equal(Object.hasOwn(manifest.tests[0], "folderId"), false);
-    assert.equal(manifest.tests[0].primaryTagId, "folder");
+    assert.equal(manifest.tests[0].groupTagId, "folder");
     assert.equal(manifest.tests.length, 2);
     assert.notEqual(manifest.tests[0].file, manifest.tests[1].file);
     assert.equal((await readdir(join(directory, "tests"))).length, 2);
 
     const restored = await readProjectDirectory(new URL(`file://${directory}/`));
-    assert.equal(restored.schemaVersion, 14);
+    assert.equal(restored.schemaVersion, 15);
     assert.deepEqual(restored.tags, original.tags);
     assert.deepEqual(restored.folders, original.tags);
     assert.deepEqual(restored.tests, original.tests);

@@ -114,14 +114,14 @@ export async function writeProjectDirectory(projectDirectory, payload) {
     index.push({
       id: test.id,
       name: test.name,
-      primaryTagId: test.folderId,
+      groupTagId: test.folderId,
       tagIds: test.tagIds ?? [test.folderId],
       file,
     });
   }
 
   const manifest = {
-    schemaVersion: Math.max(14, Number(project.schemaVersion) || 0),
+    schemaVersion: Math.max(15, Number(project.schemaVersion) || 0),
     storageFormat: SPLIT_PROJECT_FORMAT,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,

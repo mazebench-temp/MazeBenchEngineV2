@@ -66,7 +66,7 @@ const project = {
     name: "Overlap and phases",
     description: "Preserves overlaps, duplicates, negative rows, and optional fields.",
     folderId: "folder-a",
-    tagIds: ["folder-a", "folder-b"],
+    tagIds: ["folder-b"],
     locked: true,
     input: "up",
     world: { width: 16, height: 12, floorLayer: 0 },
@@ -88,9 +88,12 @@ const project = {
 test("compact project format losslessly round-trips frame content", () => {
   const compact = encodeProjectBundle(project);
   assert.equal(compact.storageFormat, COMPACT_BUNDLE_FORMAT);
+  assert.equal(compact.tests[0].groupTagId, "folder-a");
+  assert.equal(Object.hasOwn(compact.tests[0], "folderId"), false);
+  assert.equal(Object.hasOwn(compact.tests[0], "primaryTagId"), false);
   const restored = decodeProjectPayload(JSON.parse(JSON.stringify(compact)));
 
-  assert.equal(restored.schemaVersion, 14);
+  assert.equal(restored.schemaVersion, 15);
   assert.deepEqual(restored.coordinateSystem, project.coordinateSystem);
   assert.deepEqual(restored.roles, project.roles);
   assert.deepEqual(restored.blocks, project.blocks);
