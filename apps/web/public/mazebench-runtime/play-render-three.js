@@ -30,6 +30,8 @@
     let lastCameraFitSignature = "";
     let lastCameraFitHeight = 0;
     let lastCameraFitDistance = 0;
+    let lastCameraFitBaseDistance = 0;
+    let editorCameraFitLock = null;
     let hasRenderedScene = false;
     let debugCameraYaw = 0;
     let debugCameraTilt = 0.22;
@@ -9989,6 +9991,8 @@
         : boardWorldHeight();
       const minWorldX = options.minX ?? 0;
       const maxWorldX = options.maxX ?? defaultMaxWorldX;
+      const minWorldY = options.minY ?? 0;
+      const maxWorldY = options.maxY ?? stableHeight;
       const minWorldZ = options.minZ ?? 0;
       const maxWorldZ = options.maxZ ?? defaultMaxWorldZ;
       // Host pages can glide the camera across the surrounding world (e.g.
@@ -9997,7 +10001,7 @@
       const worldPanOffsetZ = app.isFlyoverMode ? 0 : Number(app.worldPanCameraOffsetZ || 0);
       const center = new THREE.Vector3(
         (options.centerX ?? (minWorldX + maxWorldX) / 2) + worldPanOffsetX,
-        options.centerY ?? stableHeight / 2,
+        options.centerY ?? (minWorldY + maxWorldY) / 2,
         (options.centerZ ?? (minWorldZ + maxWorldZ) / 2) + worldPanOffsetZ
       );
       // With host insets, the fit targets the inset sub-viewport: the fit
@@ -10039,7 +10043,8 @@
       };
       const worldWidth = Math.max(1, maxWorldX - minWorldX);
       const worldHeight = Math.max(1, maxWorldZ - minWorldZ);
-      const maxSpan = Math.max(worldWidth, worldHeight, stableHeight, unit);
+      const worldVerticalSpan = Math.max(1, maxWorldY - minWorldY);
+      const maxSpan = Math.max(worldWidth, worldHeight, worldVerticalSpan, unit);
       const isPalettePreview = isPalettePreviewRenderMode();
       const cameraYaw = isPalettePreview ? 0 : debugCameraYaw;
       const requestedPaletteTilt = app.palettePreviewCameraTilt;
@@ -10069,14 +10074,14 @@
       camera.zoom = 1;
 
       const corners = [
-        new THREE.Vector3(minWorldX, 0, minWorldZ),
-        new THREE.Vector3(minWorldX, 0, maxWorldZ),
-        new THREE.Vector3(maxWorldX, 0, minWorldZ),
-        new THREE.Vector3(maxWorldX, 0, maxWorldZ),
-        new THREE.Vector3(minWorldX, stableHeight, minWorldZ),
-        new THREE.Vector3(minWorldX, stableHeight, maxWorldZ),
-        new THREE.Vector3(maxWorldX, stableHeight, minWorldZ),
-        new THREE.Vector3(maxWorldX, stableHeight, maxWorldZ)
+        new THREE.Vector3(minWorldX, minWorldY, minWorldZ),
+        new THREE.Vector3(minWorldX, minWorldY, maxWorldZ),
+        new THREE.Vector3(maxWorldX, minWorldY, minWorldZ),
+        new THREE.Vector3(maxWorldX, minWorldY, maxWorldZ),
+        new THREE.Vector3(minWorldX, maxWorldY, minWorldZ),
+        new THREE.Vector3(minWorldX, maxWorldY, maxWorldZ),
+        new THREE.Vector3(maxWorldX, maxWorldY, minWorldZ),
+        new THREE.Vector3(maxWorldX, maxWorldY, maxWorldZ)
       ];
 
       if (!camera.isPerspectiveCamera) {
@@ -10118,6 +10123,7 @@
         const distance = Math.max(unit, Number(options.fixedCameraDistance));
 
         camera.position.copy(center).addScaledVector(viewDirection, distance / cameraZoom);
+        lastCameraFitBaseDistance = distance;
         lastCameraFitDistance = distance / cameraZoom;
         camera.lookAt(center);
         camera.updateProjectionMatrix();
@@ -10161,6 +10167,7 @@
       }
 
       camera.position.copy(center).addScaledVector(viewDirection, distance / cameraZoom);
+      lastCameraFitBaseDistance = distance;
       lastCameraFitDistance = distance / cameraZoom;
       camera.lookAt(center);
       camera.updateProjectionMatrix();
@@ -10186,6 +10193,35 @@
 
       const currentWidth = Math.max(1, app.state.width) * unit;
       const currentHeight = Math.max(1, app.state.height) * unit;
+      const sceneKey = [
+        String(app.editorCameraSceneKey || app.currentLevelId || ""),
+        app.state.width,
+        app.state.height
+      ].join(";");
+      const elevationOffset = Number(app.editorCameraElevationOffset || 0) * elevationUnit;
+      const maximumLogicalLayer = Number(app.editorCameraMaximumLogicalLayer);
+      const requestedStableHeight = Number.isFinite(maximumLogicalLayer)
+        ? Math.max(
+            oneLayerCameraWorldHeight(),
+            (maximumLogicalLayer + Number(app.editorCameraElevationOffset || 0) + 1.5) * elevationUnit
+          )
+        : stableCameraWorldHeight();
+
+      if (!editorCameraFitLock || editorCameraFitLock.sceneKey !== sceneKey) {
+        editorCameraFitLock = {
+          baseDistance: 0,
+          elevationOffset,
+          sceneKey,
+          stableHeight: requestedStableHeight
+        };
+      } else if (!editorCameraFitLock.baseDistance && lastCameraFitBaseDistance > 0) {
+        editorCameraFitLock.baseDistance = lastCameraFitBaseDistance;
+      }
+
+      // VoxelBench rebases negative logical rows into MazeBench's non-negative
+      // elevation space. Move the fit prism by exactly the same delta so the
+      // authored room does not jump when that internal origin changes.
+      const elevationShift = elevationOffset - editorCameraFitLock.elevationOffset;
 
       return {
         minX: 0,
@@ -10194,7 +10230,12 @@
         maxZ: currentHeight,
         centerX: currentWidth / 2,
         centerZ: currentHeight / 2,
-        stableHeight: stableCameraWorldHeight()
+        minY: elevationShift,
+        maxY: editorCameraFitLock.stableHeight + elevationShift,
+        stableHeight: editorCameraFitLock.stableHeight,
+        ...(editorCameraFitLock.baseDistance > 0
+          ? { fixedCameraDistance: editorCameraFitLock.baseDistance }
+          : {})
       };
     }
 

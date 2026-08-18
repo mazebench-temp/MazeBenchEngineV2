@@ -997,6 +997,16 @@ function TestWorldEditor({
   );
 }
 
+function cameraLayerRangeForFrames(frames: Frame[]) {
+  let minimum = 0;
+  let maximum = 0;
+  frames.forEach((frame) => frame.voxels.forEach((voxel) => {
+    minimum = Math.min(minimum, voxel.z);
+    maximum = Math.max(maximum, voxel.z);
+  }));
+  return { minimum, maximum };
+}
+
 function TimelineSnapshotStrip({
   blocks,
   cycle,
@@ -1024,6 +1034,7 @@ function TimelineSnapshotStrip({
         : `TICK ${index + 1}`,
     }))]
     : [{ frame: start, label: "START" }, { frame: final, label: "FINAL" }];
+  const cameraLayerRange = cameraLayerRangeForFrames(items.map((item) => item.frame));
   const [snapshots, setSnapshots] = useState<Array<string | undefined>>([]);
   const [captureIndex, setCaptureIndex] = useState(0);
   const capture = items[captureIndex];
@@ -1041,6 +1052,8 @@ function TimelineSnapshotStrip({
       {capture && (
         <div className="timeline-review__capture" aria-hidden="true">
           <MazeBenchCanvas
+            cameraLayerRange={cameraLayerRange}
+            cameraSceneKey="generated-timeline"
             frame={capture.frame}
             blocks={blocks}
             genericBlockIds={genericBlockIds}
@@ -1080,40 +1093,62 @@ function LockIcon({ open = false }: { open?: boolean }) {
   );
 }
 
+function suitePreviewKey(testId: string, frameIndex: number) {
+  return JSON.stringify([testId, frameIndex]);
+}
+
+function suitePreviewFrames(test: TestCase) {
+  return [test.start, ...test.intermediate, test.expected];
+}
+
 function SuiteTestPreview({
   onOpen,
   onRequest,
-  preview,
+  previews,
   test,
 }: {
   onOpen: () => void;
-  onRequest: (testId: string) => void;
-  preview?: string;
+  onRequest: (testId: string, frameIndex: number) => void;
+  previews: Readonly<Record<string, string>>;
   test: TestCase;
 }) {
-  const previewRef = useRef<HTMLButtonElement>(null);
+  const [frameIndex, setFrameIndex] = useState(0);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const frames = suitePreviewFrames(test);
+  const preview = previews[suitePreviewKey(test.id, frameIndex)];
+  const frameLabel = frameIndex === 0
+    ? "Start"
+    : frameIndex === frames.length - 1
+      ? "Expected"
+      : `Tick ${frameIndex}`;
 
   useEffect(() => {
     const element = previewRef.current;
     if (!element || preview !== undefined) return;
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((entry) => entry.isIntersecting)) return;
-      onRequest(test.id);
+      onRequest(test.id, frameIndex);
       observer.disconnect();
     }, { rootMargin: "240px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [onRequest, preview, test.id]);
+  }, [frameIndex, onRequest, preview, test.id]);
 
   return (
-    <button ref={previewRef} className="suite-test-preview" type="button" aria-label={`Open ${test.name} from its 3D start preview`} onClick={onOpen}>
-      {preview ? (
-        // Generated locally from the shared, serialized WebGL renderer.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img alt={`${test.name} start frame`} draggable={false} src={preview} />
-      ) : <span className={preview === "" ? "is-unavailable" : ""}>{preview === "" ? "Preview unavailable" : "Rendering 3D…"}</span>}
-      <small>Start</small>
-    </button>
+    <div ref={previewRef} className="suite-test-preview">
+      <button className="suite-test-preview__scene" type="button" aria-label={`Open ${test.name} from its ${frameLabel.toLowerCase()} 3D preview`} onClick={onOpen}>
+        {preview ? (
+          // Generated locally from the shared, serialized WebGL renderer.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img alt={`${test.name} ${frameLabel.toLowerCase()} frame`} draggable={false} src={preview} />
+        ) : <span className={preview === "" ? "is-unavailable" : ""}>{preview === "" ? "Preview unavailable" : "Rendering 3D…"}</span>}
+      </button>
+      <div className="suite-test-preview__pager" aria-label={`${test.name} preview timeline`}>
+        <button type="button" disabled={frameIndex === 0} aria-label={`Previous preview frame for ${test.name}`} onClick={() => setFrameIndex((current) => Math.max(0, current - 1))}>←</button>
+        <strong>{frameLabel}<span>{frameIndex + 1}/{frames.length}</span></strong>
+        <button type="button" disabled={frameIndex === frames.length - 1} aria-label={`Next preview frame for ${test.name}`} onClick={() => setFrameIndex((current) => Math.min(frames.length - 1, current + 1))}>→</button>
+      </div>
+    </div>
   );
 }
 
@@ -1176,9 +1211,13 @@ function TestSuiteWorkspace({
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "passed" | "untested">("all");
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
-  const [previewQueue, setPreviewQueue] = useState<string[]>([]);
+  const [previewQueue, setPreviewQueue] = useState<Array<{
+    frameIndex: number;
+    key: string;
+    testId: string;
+  }>>([]);
   const [previews, setPreviews] = useState<Record<string, string>>({});
-  const requestedPreviewIdsRef = useRef(new Set<string>());
+  const requestedPreviewKeysRef = useRef(new Set<string>());
   const foldersById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
     [folders],
@@ -1237,19 +1276,27 @@ function TestSuiteWorkspace({
   const completed = Object.values(results);
   const passed = completed.filter((result) => result.pass).length;
   const failed = completed.length - passed;
-  const previewTest = previewQueue
-    .map((testId) => tests.find((test) => test.id === testId))
-    .find((test): test is TestCase => Boolean(test));
-  const requestPreview = useCallback((testId: string) => {
-    if (requestedPreviewIdsRef.current.has(testId)) return;
-    requestedPreviewIdsRef.current.add(testId);
-    setPreviewQueue((current) => [...current, testId]);
+  const previewJob = previewQueue.find((job) => {
+    const test = tests.find((item) => item.id === job.testId);
+    return test && suitePreviewFrames(test)[job.frameIndex];
+  });
+  const previewTest = previewJob
+    ? tests.find((test) => test.id === previewJob.testId)
+    : undefined;
+  const previewFrame = previewTest && previewJob
+    ? suitePreviewFrames(previewTest)[previewJob.frameIndex]
+    : undefined;
+  const requestPreview = useCallback((testId: string, frameIndex: number) => {
+    const key = suitePreviewKey(testId, frameIndex);
+    if (requestedPreviewKeysRef.current.has(key)) return;
+    requestedPreviewKeysRef.current.add(key);
+    setPreviewQueue((current) => [...current, { frameIndex, key, testId }]);
   }, []);
   const acceptPreview = useCallback((dataUrl: string) => {
-    if (!previewTest) return;
-    setPreviews((current) => ({ ...current, [previewTest.id]: dataUrl }));
-    setPreviewQueue((current) => current.filter((testId) => testId !== previewTest.id));
-  }, [previewTest]);
+    if (!previewJob) return;
+    setPreviews((current) => ({ ...current, [previewJob.key]: dataUrl }));
+    setPreviewQueue((current) => current.filter((job) => job.key !== previewJob.key));
+  }, [previewJob]);
 
   const renderFolderBranch = (parentId = "__root__", depth = 0): React.ReactNode => (
     (childrenByParent.get(parentId) ?? []).map((folder) => {
@@ -1283,7 +1330,7 @@ function TestSuiteWorkspace({
             <small>{visibleTests.length} shown · {passed} passing · {failed} failing · {tests.length - completed.length} untested</small>
           </div>
           <div className="suite-browser__actions">
-            {selectedFolder && <button className={`tool-button suite-folder-lock ${selectedFolder.locked ? "is-active" : ""}`} type="button" disabled={selectedFolderLocked && !selectedFolder.locked} onClick={() => onToggleFolderLocked(selectedFolder.id)}><LockIcon open={selectedFolder.locked} />{selectedFolder.locked ? "Unlock folder" : "Lock folder"}</button>}
+            {selectedFolder && <button className={`tool-button suite-folder-lock ${selectedFolderLocked ? "is-active" : ""}`} type="button" disabled={selectedFolderLocked && !selectedFolder.locked} onClick={() => onToggleFolderLocked(selectedFolder.id)}><LockIcon open={!selectedFolderLocked} />{selectedFolder.locked ? "Unlock folder" : selectedFolderLocked ? "Locked by parent" : "Lock folder"}</button>}
             <button className="tool-button" type="button" disabled={selectedFolderLocked} onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subfolder" : "Root folder"}</button>
             <button className="tool-button tool-button--primary" type="button" disabled={selectedFolderLocked} onClick={() => onAddTest(selectedFolder?.id)}>＋ New test</button>
           </div>
@@ -1311,23 +1358,23 @@ function TestSuiteWorkspace({
             return (
               <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
                 <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? folderIndex + 1 : result.pass ? "✓" : "!"}</span>
-                <SuiteTestPreview preview={previews[test.id]} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
+                <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
                 <button className="suite-test-row__copy" type="button" onClick={() => onOpenTest(test.id)}><strong>{test.name}</strong><span>{test.description || "No description yet"}</span><small>{folderPaths.get(test.folderId) ?? "Unknown folder"} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small></button>
                 <select className="suite-test-row__folder" aria-label={`Move ${test.name} to folder`} disabled={effectiveLocked} value={test.folderId} onChange={(event) => onMoveTest(test.id, event.target.value)}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}</option>)}</select>
                 <div className="suite-test-row__actions">
                   <button type="button" onClick={() => onRunTest(test)}>Run</button>
                   <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
-                  <button type="button" disabled={effectiveLocked || folderIndex === 0 || folderTests[folderIndex - 1]?.locked} aria-label={`Move ${test.name} up`} onClick={() => onReorderTest(test.id, -1)}>↑</button>
-                  <button type="button" disabled={effectiveLocked || folderIndex === folderTests.length - 1 || folderTests[folderIndex + 1]?.locked} aria-label={`Move ${test.name} down`} onClick={() => onReorderTest(test.id, 1)}>↓</button>
+                  <button type="button" disabled={effectiveLocked || folderIndex === 0 || folderTests[folderIndex - 1]?.locked} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, -1)}>←</button>
+                  <button type="button" disabled={effectiveLocked || folderIndex === folderTests.length - 1 || folderTests[folderIndex + 1]?.locked} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, 1)}>→</button>
                   <button type="button" disabled={lockedFolderIds.has(test.folderId)} aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
-                  <button type="button" disabled={lockedFolderIds.has(test.folderId)} aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={test.locked} /></button>
+                  <button className={effectiveLocked ? "is-locked" : ""} type="button" disabled={lockedFolderIds.has(test.folderId)} aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={lockedFolderIds.has(test.folderId) ? "Locked by folder" : test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
                   <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
                 </div>
               </article>
             );
           }) : <div className="suite-browser__empty"><strong>No tests found</strong><span>Try another folder, search, or status filter.</span></div>}
         </div>
-        {previewTest && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas frame={previewTest.start} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewTest.id} /></div>}
+        {previewTest && previewFrame && previewJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewJob.key} /></div>}
       </section>
     </section>
   );
@@ -2212,6 +2259,7 @@ export default function VoxelBench() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const target = event.target as HTMLElement;
       if (["INPUT", "SELECT", "TEXTAREA"].includes(target.tagName)) return;
       const key = event.key.toLowerCase();
@@ -2274,7 +2322,7 @@ export default function VoxelBench() {
         undoPaint();
         return;
       }
-      if (!event.metaKey && !event.ctrlKey && !event.altKey && key === "e") {
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey && key === "e") {
         event.preventDefault();
         setGenericPrompt(null);
         setGroupToolPinned(false);
@@ -2617,7 +2665,7 @@ export default function VoxelBench() {
       [next[sourceGlobalIndex], next[targetGlobalIndex]] = [next[targetGlobalIndex], next[sourceGlobalIndex]];
       return next;
     });
-    setToast(`${test.name} moved ${offset < 0 ? "up" : "down"}`);
+    setToast(`${test.name} moved ${offset < 0 ? "left" : "right"}`);
   };
 
   const duplicateTest = (testId: string) => {
@@ -3179,7 +3227,7 @@ export default function VoxelBench() {
               {activeTestLocked && <span className="lock-pill"><LockIcon /> Read only</span>}
               <span className="coordinate-pill">{activeWorld.width} × {activeWorld.height} × ∞</span>
             </div>
-            <MazeBenchCanvas frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} selectedBlockCanShare={selectedBlockCanShare} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
+            <MazeBenchCanvas cameraSceneKey={activeTest.id} frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} selectedBlockCanShare={selectedBlockCanShare} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
             {generatedTimeline?.testId === activeTest.id && (
               <section className="timeline-review" aria-label="Generated C++ timeline review">
                 <div className="timeline-review__heading"><div><span>C++ GENERATED · NOT SAVED</span><strong>{generatedTimeline.cycle ? `${generatedTimeline.cycle.repeatTick} ticks + rollback · loop ${generatedTimeline.cycle.startTick}→${generatedTimeline.cycle.repeatTick}` : `${generatedTimeline.frames.length} tick ${generatedTimeline.frames.length === 1 ? "frame" : "frames"}`}</strong></div><div><button className="tool-button" onClick={() => setGeneratedTimeline(null)}>Discard</button><button className="tool-button tool-button--primary" disabled={activeTestLocked} onClick={acceptGeneratedTimeline}>Accept frames</button></div></div>

@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { cameraYawQuarterTurns } from "./cameraNavigation.mjs";
+import { cameraYawQuarterTurns, stepCameraZoom } from "./cameraNavigation.mjs";
 import {
   marqueeRectangle,
   marqueeSamplePoints,
@@ -128,6 +128,9 @@ type MazeBenchRenderer = {
 
 type MazeBenchApp = {
   applyLevelState: (playData: MazeBenchPlayData, options?: Record<string, unknown>) => void;
+  editorCameraElevationOffset?: number;
+  editorCameraMaximumLogicalLayer?: number;
+  editorCameraSceneKey?: string;
   isEditorRenderApp: boolean;
   playSurroundingRadius: number;
   render: (now?: number) => void;
@@ -229,6 +232,8 @@ type CanvasProps = {
   interactive?: boolean;
   paintable?: boolean;
   compact?: boolean;
+  cameraLayerRange?: { minimum: number; maximum: number };
+  cameraSceneKey?: string;
   onSnapshot?: (dataUrl: string) => void;
   snapshotRequestId?: number | string;
   onPaint?: (
@@ -372,10 +377,15 @@ function frameToPlayData(
   world: WorldSettings,
   compact: boolean,
   selectedVoxelKeys: ReadonlySet<string>,
+  cameraLayerRange?: { minimum: number; maximum: number },
 ) {
-  const minLayer = frame.voxels.length
+  const frameMinLayer = frame.voxels.length
     ? Math.min(0, ...frame.voxels.map((voxel) => voxel.z))
     : 0;
+  const minLayer = Math.min(
+    frameMinLayer,
+    Number.isFinite(cameraLayerRange?.minimum) ? Number(cameraLayerRange?.minimum) : 0,
+  );
   // MazeBench's runtime stores elevations as non-negative integers. Keeping a
   // movable origin below the lowest authored cube preserves negative logical Z.
   // Keep exactly one internal layer below the lowest authored cube. Painting
@@ -514,6 +524,8 @@ export default function MazeBenchCanvas({
   interactive = false,
   paintable = true,
   compact = false,
+  cameraLayerRange,
+  cameraSceneKey,
   onSnapshot,
   snapshotRequestId,
   onPaint,
@@ -535,6 +547,7 @@ export default function MazeBenchCanvas({
     world,
     compact,
     selectedVoxelKeys,
+    cameraLayerRange,
   ));
   const orbitRef = useRef<{ x: number; y: number; yaw: number; tilt: number } | null>(null);
   const cameraRef = useRef({ yaw: 0, tilt: 0.22, zoom: compact ? 0.9 : 1 });
@@ -594,7 +607,10 @@ export default function MazeBenchCanvas({
     onCameraQuarterTurnChange?.(quarterTurns);
   }, [onCameraQuarterTurnChange]);
 
-  const setCamera = useCallback((next?: Partial<typeof cameraRef.current>) => {
+  const setCamera = useCallback((
+    next?: Partial<typeof cameraRef.current>,
+    render = true,
+  ) => {
     if (next) cameraRef.current = { ...cameraRef.current, ...next };
     publishCameraQuarterTurn(cameraRef.current.yaw);
     const renderer = runtimeRef.current?.app.threeRenderer;
@@ -603,8 +619,15 @@ export default function MazeBenchCanvas({
       ...cameraRef.current,
       mode: "perspective",
       preserveSceneCache: true,
+      skipRender: !render,
     });
   }, [publishCameraQuarterTurn]);
+
+  const zoomCamera = useCallback((direction: -1 | 1) => {
+    const renderer = runtimeRef.current?.app.threeRenderer;
+    if (renderer) cameraRef.current.zoom = renderer.getDebugCameraZoom();
+    setCamera({ zoom: stepCameraZoom(cameraRef.current.zoom, direction) });
+  }, [setCamera]);
 
   const runCameraFrame = useCallback((now: number) => {
     const motion = cameraMotionRef.current;
@@ -771,6 +794,9 @@ export default function MazeBenchCanvas({
         });
         modules.registerRenderFunctions(app);
         app.isEditorRenderApp = true;
+        app.editorCameraElevationOffset = layerOffset;
+        app.editorCameraMaximumLogicalLayer = cameraLayerRange?.maximum;
+        app.editorCameraSceneKey = cameraSceneKey;
         app.playSurroundingRadius = 0;
         app.state.effects.fuzzyEnabled = false;
         app.state.effects.noisePhase = 0;
@@ -787,7 +813,7 @@ export default function MazeBenchCanvas({
           if (cancelled || runtimeRef.current?.app !== app) return;
           await app.threeRenderer?.whenLevelStateModelsReady(playData);
           if (cancelled || runtimeRef.current?.app !== app) return;
-          setCamera();
+          setCamera(undefined, false);
           app.threeRenderer?.invalidateSceneCache();
           app.render();
           publishRendererState(app, canvas);
@@ -806,15 +832,26 @@ export default function MazeBenchCanvas({
       runtimeRef.current = null;
       runtime?.app.threeRenderer?.dispose();
     };
-  }, [captureSnapshot, setCamera]);
+  }, [cameraLayerRange?.maximum, cameraSceneKey, captureSnapshot, setCamera]);
 
   useEffect(() => {
-    const next = frameToPlayData(frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys);
+    const next = frameToPlayData(
+      frame,
+      blocks,
+      genericBlockIds,
+      world,
+      compact,
+      selectedVoxelKeys,
+      cameraLayerRange,
+    );
     currentDataRef.current = next;
     if (onSnapshotRef.current) snapshotCapturedRef.current = false;
     const runtime = runtimeRef.current;
     if (!runtime) return;
     runtime.layerOffset = next.layerOffset;
+    runtime.app.editorCameraElevationOffset = next.layerOffset;
+    runtime.app.editorCameraMaximumLogicalLayer = cameraLayerRange?.maximum;
+    runtime.app.editorCameraSceneKey = cameraSceneKey;
     runtime.app.applyLevelState(next.playData, {
       deferRender: true,
       immediateCamera: true,
@@ -824,12 +861,13 @@ export default function MazeBenchCanvas({
     const app = runtime.app;
     void Promise.resolve(app.threeRenderer?.whenLevelStateModelsReady(next.playData)).then(() => {
       if (runtimeRef.current?.app !== app) return;
+      setCamera(undefined, false);
       app.threeRenderer?.invalidateSceneCache();
       app.render();
       if (canvasRef.current) publishRendererState(app, canvasRef.current);
       if (canvasRef.current) captureSnapshot(app, canvasRef.current);
     });
-  }, [blocks, captureSnapshot, compact, frame, genericBlockIds, selectedVoxelKeys, snapshotRequestId, world]);
+  }, [blocks, cameraLayerRange, cameraSceneKey, captureSnapshot, compact, frame, genericBlockIds, selectedVoxelKeys, setCamera, snapshotRequestId, world]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -839,7 +877,7 @@ export default function MazeBenchCanvas({
       if (!app) return;
       app.setupCanvas();
       app.threeRenderer?.invalidateSceneCache();
-      setCamera();
+      setCamera(undefined, false);
       app.render();
       if (canvasRef.current) publishRendererState(app, canvasRef.current);
     });
@@ -871,6 +909,9 @@ export default function MazeBenchCanvas({
       } else if (key === "n" && !event.repeat) {
         event.preventDefault();
         pointCameraNorth();
+      } else if ((key === "-" || key === "_" || key === "=" || key === "+") && !event.repeat) {
+        event.preventDefault();
+        zoomCamera(key === "=" || key === "+" ? 1 : -1);
       }
     };
     const onKeyUp = (event: KeyboardEvent) => {
@@ -903,7 +944,7 @@ export default function MazeBenchCanvas({
       pendingPaintSampleRef.current = null;
       paintStrokeRef.current = null;
     };
-  }, [interactive, pointCameraNorth, recomputeTiltDirection, rotateCamera]);
+  }, [interactive, pointCameraNorth, recomputeTiltDirection, rotateCamera, zoomCamera]);
 
   useEffect(() => {
     if (paintable) return;
@@ -1158,11 +1199,6 @@ export default function MazeBenchCanvas({
           paintStrokeRef.current = null;
           onPaintGestureEnd?.();
         }}
-        onWheel={(event) => {
-          if (!interactive) return;
-          event.preventDefault();
-          setCamera({ zoom: Math.max(0.55, Math.min(10, cameraRef.current.zoom * (event.deltaY < 0 ? 1.1 : 0.9))) });
-        }}
       />
       {marqueeRect && (
         <div
@@ -1182,7 +1218,7 @@ export default function MazeBenchCanvas({
         </div>
       )}
       {interactive && (
-        <div className="control-pad camera-pad" aria-label="Camera controls">
+        <div className="control-pad camera-pad" aria-label="Camera controls" title="− zooms out · + zooms in · E selects the eraser">
           <button className="control-button dpad-button" type="button" data-camera="up" aria-label="Camera up" onPointerDown={() => { cameraMotionRef.current.pointerTiltDirection = -1; recomputeTiltDirection(); }} onPointerUp={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} onPointerLeave={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} />
           <button className="control-button dpad-button" type="button" data-camera="left" aria-label="Rotate camera left" onClick={() => rotateCamera(-1)} />
           <button className="dpad-center compass-reset" type="button" aria-label="Point camera north" title="Point north · N" onClick={pointCameraNorth}>N</button>

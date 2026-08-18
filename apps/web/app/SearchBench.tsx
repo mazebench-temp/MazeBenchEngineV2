@@ -1091,6 +1091,7 @@ export default function SearchBench({
           </div>
           {activeLevel ? (
             <MazeBenchCanvas
+              cameraSceneKey={activeLevel.id}
               frame={displayFrame}
               blocks={blocks}
               genericBlockIds={genericBlockIds}

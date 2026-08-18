@@ -1,4 +1,7 @@
 const DIRECTIONS = ["up", "right", "down", "left"];
+const MIN_CAMERA_ZOOM = 0.55;
+const MAX_CAMERA_ZOOM = 10;
+const CAMERA_ZOOM_STEP = 1.12;
 
 /**
  * Convert a free camera yaw to the nearest normalized quarter turn.
@@ -22,4 +25,18 @@ export function cameraRelativeDirection(screenDirection, cameraQuarterTurns) {
   if (screenIndex < 0) return screenDirection;
   const turns = ((Math.round(cameraQuarterTurns) % 4) + 4) % 4;
   return DIRECTIONS[(screenIndex - turns + 4) % 4];
+}
+
+/**
+ * Apply one keyboard zoom step. Positive direction zooms in, negative zooms
+ * out. Keeping this discrete makes keyboard zoom deterministic across
+ * browsers and avoids trackpad wheel deltas changing the editor camera.
+ *
+ * @param {number} zoom
+ * @param {-1 | 1} direction
+ */
+export function stepCameraZoom(zoom, direction) {
+  const current = Number.isFinite(Number(zoom)) ? Number(zoom) : 1;
+  const next = current * (direction > 0 ? CAMERA_ZOOM_STEP : 1 / CAMERA_ZOOM_STEP);
+  return Math.max(MIN_CAMERA_ZOOM, Math.min(MAX_CAMERA_ZOOM, next));
 }

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
   cameraRelativeDirection,
   cameraYawQuarterTurns,
+  stepCameraZoom,
 } from "../app/cameraNavigation.mjs";
 
 test("camera yaw snaps to the nearest normalized quarter turn", () => {
@@ -19,4 +21,34 @@ test("screen arrows follow the rotated camera", () => {
   assert.equal(cameraRelativeDirection("right", 1), "up");
   assert.equal(cameraRelativeDirection("down", 2), "up");
   assert.equal(cameraRelativeDirection("left", 3), "up");
+});
+
+test("keyboard zoom uses deterministic bounded steps", () => {
+  assert.ok(stepCameraZoom(1, 1) > 1);
+  assert.ok(stepCameraZoom(1, -1) < 1);
+  assert.equal(stepCameraZoom(10, 1), 10);
+  assert.equal(stepCameraZoom(0.55, -1), 0.55);
+  assert.equal(stepCameraZoom(Number.NaN, 1), 1.12);
+});
+
+test("the editor reserves E for erase and only zooms from minus and plus keys", async () => {
+  const canvas = await readFile(
+    new URL("../app/MazeBenchCanvas.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(canvas, /key === "-"[\s\S]*?key === "="[\s\S]*?zoomCamera/);
+  assert.doesNotMatch(canvas, /onWheel=/);
+  assert.doesNotMatch(canvas, /key === "q"/);
+});
+
+test("editor camera fitting stays locked while voxel layers change", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(renderer, /editorCameraFitLock/);
+  assert.match(renderer, /maximumLogicalLayer \+ Number\(app\.editorCameraElevationOffset/);
+  assert.match(renderer, /fixedCameraDistance: editorCameraFitLock\.baseDistance/);
+  assert.match(renderer, /elevationShift = elevationOffset - editorCameraFitLock\.elevationOffset/);
+  assert.match(renderer, /minY: elevationShift/);
 });

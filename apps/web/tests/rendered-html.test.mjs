@@ -97,8 +97,15 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /new IntersectionObserver/);
   assert.match(component, /className="suite-preview-capture"[\s\S]*?<MazeBenchCanvas/);
   assert.match(component, /previewQueue/);
+  assert.match(component, /suitePreviewFrames\(test\)/);
+  assert.match(component, /cameraLayerRangeForFrames\(suitePreviewFrames\(previewTest\)\)/);
+  assert.match(component, /cameraLayerRange=\{cameraLayerRangeForFrames/);
+  assert.match(component, /className="suite-test-preview__pager"/);
+  assert.match(component, /Move \$\{test\.name\} left/);
+  assert.match(component, /Move \$\{test\.name\} right/);
   assert.match(styles, /\.suite-test-table[^}]*grid-template-columns: repeat\(auto-fill, minmax\(300px, 1fr\)\)/);
-  assert.match(styles, /\.suite-test-preview img[^}]*object-fit: contain/);
+  assert.match(styles, /\.suite-test-preview__scene img[^}]*object-fit: contain/);
+  assert.match(styles, /button\.is-locked[^}]*color: var\(--amber\)/);
   assert.doesNotMatch(styles, /\.lock-glyph/);
 });
 
