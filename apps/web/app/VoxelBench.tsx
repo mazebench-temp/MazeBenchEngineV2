@@ -1183,6 +1183,7 @@ function TestSuiteWorkspace({
   onToggleFolderCollapsed,
   onToggleFolderLocked,
   onToggleTestLocked,
+  onUpdateTest,
   results,
   tests,
 }: {
@@ -1203,6 +1204,7 @@ function TestSuiteWorkspace({
   onToggleFolderCollapsed: (folderId: string) => void;
   onToggleFolderLocked: (folderId: string) => void;
   onToggleTestLocked: (testId: string) => void;
+  onUpdateTest: (testId: string, patch: Partial<Pick<TestCase, "name" | "description">>) => void;
   results: Record<string, TestResult>;
   tests: TestCase[];
 }) {
@@ -1359,7 +1361,17 @@ function TestSuiteWorkspace({
               <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
                 <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? folderIndex + 1 : result.pass ? "✓" : "!"}</span>
                 <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
-                <button className="suite-test-row__copy" type="button" onClick={() => onOpenTest(test.id)}><strong>{test.name}</strong><span>{test.description || "No description yet"}</span><small>{folderPaths.get(test.folderId) ?? "Unknown folder"} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small></button>
+                <div className="suite-test-row__details">
+                  <label>
+                    <span>Title</span>
+                    <input aria-label={`Title for ${test.name || "untitled test"}`} disabled={effectiveLocked} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <textarea aria-label={`Description for ${test.name || "untitled test"}`} disabled={effectiveLocked} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
+                  </label>
+                  <small>{folderPaths.get(test.folderId) ?? "Unknown folder"} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+                </div>
                 <select className="suite-test-row__folder" aria-label={`Move ${test.name} to folder`} disabled={effectiveLocked} value={test.folderId} onChange={(event) => onMoveTest(test.id, event.target.value)}>{folders.map((folder) => <option key={folder.id} value={folder.id} disabled={lockedFolderIds.has(folder.id)}>{folderPaths.get(folder.id) ?? folder.name}</option>)}</select>
                 <div className="suite-test-row__actions">
                   <button type="button" onClick={() => onRunTest(test)}>Run</button>
@@ -2604,6 +2616,17 @@ export default function VoxelBench() {
     setToast(`${test.name} ${locked ? "locked" : "unlocked"}`);
   };
 
+  const updateTestMetadata = (
+    testId: string,
+    patch: Partial<Pick<TestCase, "name" | "description">>,
+  ) => {
+    const test = tests.find((item) => item.id === testId);
+    if (!test || test.locked || lockedFolderIds.has(test.folderId)) return;
+    setTests((current) => current.map((item) =>
+      item.id === testId ? { ...item, ...patch } : item,
+    ));
+  };
+
   const addTest = (requestedFolderId?: string) => {
     const requestedFolder = folders.find((folder) => folder.id === requestedFolderId);
     const activeFolder = folders.find((folder) => folder.id === activeTest?.folderId);
@@ -3195,6 +3218,7 @@ export default function VoxelBench() {
           onToggleFolderCollapsed={toggleFolderCollapsed}
           onToggleFolderLocked={toggleFolderLocked}
           onToggleTestLocked={toggleTestLocked}
+          onUpdateTest={updateTestMetadata}
         />
       )}
 
