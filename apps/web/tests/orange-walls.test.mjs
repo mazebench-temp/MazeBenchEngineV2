@@ -3,19 +3,41 @@ import test from "node:test";
 
 import {
   normalizeOrangeWallFrame,
+  orangeWallDepthFromMechanismValue,
   orangeWallDepthForState,
+  orangeWallIsDedicatedFace,
+  orangeWallMechanismValue,
   orangeWallPhysicalState,
   orangeWallVisualFrame,
 } from "../app/orangeWalls.mjs";
 
 const definitions = new Map([
   ["floor", { id: "floor", occupancy: "solid", visual: { kind: "cube" } }],
-  ["orange-wall", { id: "orange-wall", occupancy: "solid", visual: { kind: "orange-wall" } }],
+  ["orange-wall-face", {
+    id: "orange-wall-face",
+    occupancy: "support",
+    visual: { kind: "orange-wall", orangeForm: "face" },
+  }],
+  ["orange-wall", {
+    id: "orange-wall",
+    occupancy: "solid",
+    visual: { kind: "orange-wall", orangeForm: "cube" },
+  }],
 ]);
 
-test("orange wall state is binary while mechanism depth remains additive", () => {
+test("dedicated Orange Face values preserve form separately from remaining rise", () => {
+  const face = {
+    x: 1, y: 1, z: 1, blockId: "orange-wall-face", stateId: 0, mechanismDepth: 7,
+  };
+  assert.equal(orangeWallMechanismValue(face, definitions), -9);
+  assert.equal(orangeWallDepthFromMechanismValue(-9), 7);
+  assert.equal(orangeWallPhysicalState(face, [face], definitions).stateId, 0);
+});
+
+test("Orange Cube and Orange Face definitions stay distinct at every depth", () => {
   const floor = { x: 2, y: 3, z: 0, blockId: "floor" };
   const wall = { x: 2, y: 3, z: 4, blockId: "orange-wall", mechanismDepth: 2, stateId: 1 };
+  assert.equal(orangeWallIsDedicatedFace(wall, definitions), false);
   assert.deepEqual(orangeWallPhysicalState(wall, [floor, wall], definitions), {
     mechanismDepth: 2,
     physicalZ: 2,
@@ -30,6 +52,7 @@ test("orange wall state is binary while mechanism depth remains additive", () =>
     stateId: 0,
     supportZ: 0,
   });
+  assert.equal(orangeWallIsDedicatedFace(flattened, definitions), false);
 });
 
 test("legacy depth-in-state frames migrate without moving their authored anchors", () => {

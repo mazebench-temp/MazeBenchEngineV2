@@ -13,7 +13,8 @@ import {
 } from "../../apps/web/app/visualVariants.mjs";
 import {
   normalizeOrangeWallFrame,
-  orangeWallMechanismDepth,
+  orangeWallDepthFromMechanismValue,
+  orangeWallMechanismValue,
   orangeWallVisualFrame,
 } from "../../apps/web/app/orangeWalls.mjs";
 
@@ -64,7 +65,7 @@ function voxelMechanismId(voxel) {
     );
   }
   if (block?.visual?.kind === "orange-wall") {
-    return orangeWallMechanismDepth(voxel);
+    return orangeWallMechanismValue(voxel, blocksById);
   }
   return genericBlocks.has(voxel.blockId)
     ? Math.max(0, Math.floor(voxel.genericId ?? 0))
@@ -99,7 +100,7 @@ function simulateFrames(voxels, direction, world) {
       ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
         ? { stateId: 0 }
         : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
-          ? { mechanismDepth: Math.max(0, buffer[index * stride + 4]) }
+          ? { mechanismDepth: orangeWallDepthFromMechanismValue(buffer[index * stride + 4]) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)
         ? { genericId: buffer[index * stride + 4] }
@@ -169,7 +170,7 @@ function simulateFinal(voxels, direction, world) {
       ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
         ? { stateId: 0 }
         : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
-          ? { mechanismDepth: Math.max(0, buffer[index * stride + 4]) }
+          ? { mechanismDepth: orangeWallDepthFromMechanismValue(buffer[index * stride + 4]) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)
         ? { genericId: buffer[index * stride + 4] }

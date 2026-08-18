@@ -446,14 +446,14 @@ bool NormalizeInitialOrangeWallAnchors(
       wall.z = wall.z > INT32_MAX - extension
           ? INT32_MAX
           : wall.z + extension;
-      wall.generic_id = pressed;
+      SetOrangeWallDepth(&wall, pressed);
       changed = true;
     } else if (OrangeWallIsFlatForDepth(
                    voxels, count, index, pressed)) {
       // Imported legacy frames may encode a visibly flattened wall with the
       // old zero depth. Canonicalize that already-pressed resting state before
       // accepting input; an ordinary floating wall still animates normally.
-      wall.generic_id = pressed;
+      SetOrangeWallDepth(&wall, pressed);
       changed = true;
     }
   }
@@ -534,6 +534,7 @@ void PreflightOrangeWallComponents(
     int32_t target_depth) {
   for (int32_t index = 0; index < count; ++index) {
     g_orange_component_walls[index] = 0;
+    g_orange_component_shifts[index] = 0;
   }
 
   for (int32_t seed = 0; seed < count; ++seed) {
@@ -618,8 +619,16 @@ void PreflightOrangeWallComponents(
         if (g_orange_component_walls[index] != 2) continue;
         const int32_t old_depth = g_component_indegree[index];
         if (old_depth != target_depth) {
-          voxels[index].generic_id = old_depth +
-              (old_depth < target_depth ? 1 : -1);
+          SetOrangeWallDepth(
+              &voxels[index],
+              old_depth + (old_depth < target_depth ? 1 : -1));
+        } else if (component_delta >= INT8_MIN && component_delta <= INT8_MAX) {
+          // A wall cube that has no rise debt of its own is still part of the
+          // same face-connected polycube. It rides the component motion while
+          // retaining depth zero; disconnected zero-depth walls do not move.
+          g_orange_component_shifts[index] =
+              static_cast<int8_t>(component_delta);
+          voxels[index].z += component_delta;
         }
       }
       BuildSpatialIndex(voxels, count, width, height);
@@ -684,7 +693,8 @@ void PreflightOrangeWallComponents(
 
       for (int32_t index = 0; index < count; ++index) {
         if (g_orange_component_walls[index] == 2) {
-          voxels[index].generic_id = g_component_indegree[index];
+          voxels[index].z -= g_orange_component_shifts[index];
+          SetOrangeWallDepth(&voxels[index], g_component_indegree[index]);
         }
       }
       BuildSpatialIndex(voxels, count, width, height);
@@ -717,15 +727,19 @@ bool AdvanceOrangeMechanismsOneTick(
       continue;
     }
     const int32_t old_depth = OrangeWallDepth(wall);
-    if (old_depth == target_depth) continue;
-    const int32_t new_depth = old_depth + (old_depth < target_depth ? 1 : -1);
+    const int32_t component_shift = g_orange_component_shifts[index];
+    if (old_depth == target_depth && component_shift == 0) continue;
+    const int32_t new_depth = old_depth == target_depth
+        ? old_depth
+        : old_depth + (old_depth < target_depth ? 1 : -1);
     const int32_t old_surface = OrangeWallSurfaceZForDepth(
         voxels, count, index, old_depth);
-    const int32_t new_surface = OrangeWallSurfaceZForDepth(
+    int32_t new_surface = OrangeWallSurfaceZForDepth(
         voxels, count, index, new_depth);
+    if (component_shift != 0) new_surface += component_shift;
     const int32_t wall_delta = new_surface - old_surface;
     if (wall_delta == 0) {
-      wall.generic_id = new_depth;
+      SetOrangeWallDepth(&wall, new_depth);
       changed = true;
       BuildSpatialIndex(voxels, count, width, height);
       continue;
@@ -759,8 +773,9 @@ bool AdvanceOrangeMechanismsOneTick(
     }
 
     bool blocked = false;
-    const int32_t new_top = OrangeWallPhysicalZForDepth(
+    int32_t new_top = OrangeWallPhysicalZForDepth(
         voxels, count, index, new_depth);
+    if (component_shift != 0) new_top += component_shift;
     const int32_t wall_occupant = FindVoxelAt(
         voxels, wall.x, wall.y, new_top, width, height);
     if (wall_occupant >= 0 && wall_occupant != index) {
@@ -794,7 +809,8 @@ bool AdvanceOrangeMechanismsOneTick(
       // Validate riders against the wall's destination geometry. In
       // particular, a lowering rider moves into the wall's old top cell,
       // which is vacated by this same mechanism tick.
-      wall.generic_id = new_depth;
+      SetOrangeWallDepth(&wall, new_depth);
+      wall.z += component_shift;
       BuildSpatialIndex(voxels, count, width, height);
     }
     if (!blocked) {
@@ -813,7 +829,8 @@ bool AdvanceOrangeMechanismsOneTick(
           false);
     }
     if (blocked) {
-      wall.generic_id = old_depth;
+      SetOrangeWallDepth(&wall, old_depth);
+      wall.z -= component_shift;
       g_blocked_orange_walls[index] = 1;
       BuildSpatialIndex(voxels, count, width, height);
       continue;

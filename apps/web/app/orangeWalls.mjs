@@ -11,6 +11,30 @@ function definitionFor(definitions, blockId) {
     : definitions?.find?.((definition) => definition.id === blockId);
 }
 
+const PERMANENT_FACE_OFFSET = 2;
+
+export function orangeWallIsDedicatedFace(wall, definitions) {
+  return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "face";
+}
+
+// Negative mechanism values are private ABI encoding, not user-facing IDs.
+// -1 remains the ordinary "no generic value" sentinel. Values <= -2 identify
+// a dedicated Orange Face while preserving its nonnegative remaining rise.
+export function orangeWallMechanismValue(wall, definitions) {
+  const depth = orangeWallMechanismDepth(wall);
+  return orangeWallIsDedicatedFace(wall, definitions)
+    ? -PERMANENT_FACE_OFFSET - depth
+    : depth;
+}
+
+export function orangeWallDepthFromMechanismValue(value) {
+  const encoded = Number(value);
+  if (!Number.isInteger(encoded)) return 0;
+  return encoded <= -PERMANENT_FACE_OFFSET
+    ? Math.max(0, -encoded - PERMANENT_FACE_OFFSET)
+    : Math.max(0, encoded);
+}
+
 export function orangeWallMechanismDepth(wall) {
   if (wall?.mechanismDepth !== undefined) {
     return nonnegativeInteger(wall.mechanismDepth);
@@ -50,6 +74,14 @@ export function orangeWallSupportZ(wall, voxels, definitions) {
 export function orangeWallPhysicalState(wall, voxels, definitions) {
   const mechanismDepth = orangeWallMechanismDepth(wall);
   const supportZ = orangeWallSupportZ(wall, voxels, definitions);
+  if (orangeWallIsDedicatedFace(wall, definitions)) {
+    return {
+      mechanismDepth,
+      physicalZ: wall.z,
+      stateId: 0,
+      supportZ,
+    };
+  }
   const desiredZ = wall.z - mechanismDepth;
   const flattened = Number.isFinite(supportZ) && desiredZ <= supportZ;
   return {
@@ -78,7 +110,7 @@ export function normalizeOrangeWallFrame(frame, definitions) {
       return {
         ...voxel,
         mechanismDepth: state.mechanismDepth,
-        stateId: state.stateId,
+        stateId: orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
       };
     }),
   };
@@ -90,15 +122,19 @@ export function orangeWallVisualFrame(frame, definitions) {
       const definition = definitionFor(definitions, voxel.blockId);
       if (definition?.visual?.kind !== "orange-wall") return [voxel];
       const state = orangeWallPhysicalState(voxel, normalized.voxels, definitions);
-      const visible = { ...voxel, z: state.physicalZ, stateId: state.stateId };
-      if (state.stateId === 1 && Number.isFinite(state.supportZ)) {
+      const visible = {
+        ...voxel,
+        z: state.physicalZ,
+        stateId: orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
+      };
+      if (visible.stateId === 1 && Number.isFinite(state.supportZ)) {
         const column = [];
         for (let z = state.supportZ + 1; z <= state.physicalZ; z += 1) {
           column.push({ ...visible, z, mechanismDepth: 0 });
         }
         return column;
       }
-      const visibleDepth = state.stateId === 0
+      const visibleDepth = visible.stateId === 0
         ? orangeWallDepthForState(visible, normalized.voxels, definitions, 0) ?? 0
         : 0;
       return [{ ...visible, mechanismDepth: visibleDepth }];

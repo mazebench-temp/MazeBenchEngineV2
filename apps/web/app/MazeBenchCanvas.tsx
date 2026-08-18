@@ -15,7 +15,9 @@ import {
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
 import { resolveEditorPaintTarget } from "./editorPaintTarget.mjs";
 import { liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
-import { orangeWallPhysicalState } from "./orangeWalls.mjs";
+import {
+  orangeWallMechanismDepth,
+} from "./orangeWalls.mjs";
 
 type BlockDefinition = {
   id: string;
@@ -375,13 +377,6 @@ function frameToPlayData(
   // out of MazeBench's normal camera envelope.
   const layerOffset = 1 - minLayer;
   const definitions = new Map(blocks.map((block) => [block.id, block]));
-  const orangeWallRenderState = (wall: Voxel) => {
-    const state = orangeWallPhysicalState(wall, frame.voxels, definitions);
-    return {
-      physicalZ: state.physicalZ,
-      raised: state.stateId === 1,
-    };
-  };
   const actors: RenderActor[] = frame.voxels.flatMap((voxel) => {
     const definition = definitions.get(voxel.blockId);
     if (!definition || (definition.visual.kind !== "gem" && definition.visual.kind !== "button")) return [];
@@ -412,24 +407,30 @@ function frameToPlayData(
           if (!definition || !["cube", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
-          const orangeWall = definition.visual.kind === "orange-wall"
-            ? orangeWallRenderState(voxel)
-            : null;
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
               : isLift
                 ? { direction: normalizeLiftOrientation(voxel.orientation, voxel.variantId, voxel.genericId) }
               : {}),
-            elevation: (orangeWall?.physicalZ ?? voxel.z) + layerOffset,
-            genericLabel: genericBlockIds.has(definition.id) && !isLift
-              ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
-              : undefined,
+            // Test-suite frames author the visible row directly. Remaining
+            // rise is metadata, not an editor-space offset: two Orange Cubes
+            // at consecutive rows must stay stacked even when their numbers
+            // differ or are nonzero.
+            elevation: voxel.z + layerOffset,
+            genericLabel: definition.visual.kind === "orange-wall"
+              ? String(orangeWallMechanismDepth(voxel))
+              : genericBlockIds.has(definition.id) && !isLift
+                ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
+                : undefined,
             label: definition.name,
             raised: isLift
               ? liftIsRaised(voxel.genericId)
               : definition.visual.kind === "orange-wall"
-                ? orangeWall?.raised === true
+                // Orange Face and Orange Cube are permanent editor forms.
+                // Remaining-rise depth may move the mechanism, but it must
+                // never swap item 10 and item 11's rendered geometry.
+                ? definition.visual.orangeForm !== "face"
                 : true,
             selectionKey: cellObjectSelectionKey(voxel),
             type: definition.visual.kind === "slope"

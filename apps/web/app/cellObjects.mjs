@@ -30,15 +30,17 @@ export function blockCanShareCell(block) {
 }
 
 /**
- * Stateful fixtures may override their block's ordinary placement volume. An
- * orange wall is solid in binary state 1, then becomes a support-height
- * surface in binary state 0.
+ * Orange-wall form belongs to its block definition. Remaining-rise/state data
+ * must never turn the dedicated Orange Cube into a shareable face (or the
+ * dedicated Orange Face into a cube).
  *
  * @param {{ occupancy?: string, roleId?: string } | undefined} block
  * @param {{ stateId?: number } | undefined} object
  */
 export function objectCanShareCell(block, object) {
-  if (block?.roleId === "orange-wall") return Number(object?.stateId) === 0;
+  if (block?.roleId === "orange-wall") {
+    return block?.visual?.orangeForm === "face";
+  }
   return blockCanShareCell(block);
 }
 
@@ -62,6 +64,9 @@ export function cellObjectSemanticKey(object) {
       : -1;
   const variantId = Number.isInteger(object.variantId) ? object.variantId : 0;
   const stateId = Number.isInteger(object.stateId) ? object.stateId : 0;
+  const mechanismDepth = Number.isInteger(object.mechanismDepth)
+    ? object.mechanismDepth
+    : -1;
   const orientation = String(object.orientation ?? "none");
   return [
     cellCoordinateKey(object),
@@ -69,6 +74,7 @@ export function cellObjectSemanticKey(object) {
     groupId,
     variantId,
     stateId,
+    mechanismDepth,
     orientation,
   ].join(":");
 }
@@ -141,7 +147,11 @@ export function placeObjectInCell(objects, placement, definitions) {
   const placementShareable = objectCanShareCell(
     definitions.get(placement.blockId), placement);
   const kept = placementShareable
-    ? objects
+    ? definitions.get(placement.blockId)?.roleId === "orange-wall"
+      ? objects.filter((object) =>
+          cellCoordinateKey(object) !== coordinate ||
+          object.blockId !== placement.blockId)
+      : objects
     : objects.filter((object) =>
       cellCoordinateKey(object) !== coordinate ||
       objectCanShareCell(definitions.get(object.blockId), object));

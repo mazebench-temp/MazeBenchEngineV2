@@ -21,6 +21,22 @@ constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
+
+int32_t SearchOrangeWallDepth(int32_t value) {
+  if (value <= -2) {
+    return value == INT32_MIN ? INT32_MAX - 1 : -value - 2;
+  }
+  return value > 0 ? value : 0;
+}
+
+int32_t SearchOrangeWallValueForDepth(int32_t current, int32_t depth) {
+  if (depth < 0) depth = 0;
+  if (current <= -2) {
+    const int32_t capped = depth > INT32_MAX - 2 ? INT32_MAX - 2 : depth;
+    return -2 - capped;
+  }
+  return depth;
+}
 constexpr int32_t kHashCapacity = 262144;
 constexpr int32_t kHashMask = kHashCapacity - 1;
 constexpr int16_t kInactiveCoordinate = INT16_MIN;
@@ -315,7 +331,8 @@ void LoadNode(SearchData* data, const SearchNode& node) {
     const int32_t entity = data->voxel_entities[dynamic];
     if (entity < 0) {
       if (data->scene[dynamic].role == kOrangeWallRole) {
-        data->scene[dynamic].generic_id = node.orange_depth;
+        data->scene[dynamic].generic_id = SearchOrangeWallValueForDepth(
+            data->scene[dynamic].generic_id, node.orange_depth);
       }
       continue;
     }
@@ -377,11 +394,9 @@ bool CaptureCandidate(SearchData* data) {
   for (int32_t index = 0; index < data->dynamic_voxel_count; ++index) {
     if (data->scene[index].role == kOrangeWallRole) {
       data->candidate_orange_depth = static_cast<uint16_t>(
-          data->scene[index].generic_id < 0
-              ? 0
-              : data->scene[index].generic_id > UINT16_MAX
+          SearchOrangeWallDepth(data->scene[index].generic_id) > UINT16_MAX
                 ? UINT16_MAX
-                : data->scene[index].generic_id);
+                : SearchOrangeWallDepth(data->scene[index].generic_id));
       break;
     }
   }

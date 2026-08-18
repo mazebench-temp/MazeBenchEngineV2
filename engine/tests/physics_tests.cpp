@@ -1272,6 +1272,25 @@ void TestFloatingOrangeWallLowersAsACube() {
         "a wall over empty space should descend as a full cube and carry its rider");
 }
 
+void TestDedicatedOrangeFaceRetainsItsFormAndDepth() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("orange-wall"), -2},
+      {2, 2, 1, Role("orange-button"), 0},
+      {2, 2, 1, Role("pushable"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 0) == 0 &&
+            voxels[0].y == 1 && voxels[1].generic_id == -3,
+        "a dedicated Orange Face should remain pass-through while recording one pressed step");
+  voxels[3].x = -1;
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 2) == 0 &&
+            voxels[1].generic_id == -2,
+        "a dedicated Orange Face should release to numbered zero without becoming a cube");
+}
+
 void TestSearchTracksOrangeWallDepth() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
@@ -1349,11 +1368,12 @@ int main() {
   TestOrangeWallsCountEveryPressedButton();
   TestFlattenedOrangeWallIsPassThroughOnFloor();
   TestFloatingOrangeWallLowersAsACube();
+  TestDedicatedOrangeFaceRetainsItsFormAndDepth();
   TestSearchTracksOrangeWallDepth();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 52 C++ physics/search tests passed\n";
+  std::cout << "all 53 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

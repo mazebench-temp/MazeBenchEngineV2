@@ -73,7 +73,7 @@
     {
       "id": "orange-wall",
       "name": "Orange Wall",
-      "description": "A globally linked wall whose lowering depth equals the number of currently pressed Orange Buttons.",
+      "description": "The shared mechanism for Orange Face and Orange Cube objects. Each stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.",
       "generic": false
     }
   ],
@@ -171,13 +171,25 @@
       }
     },
     {
+      "id": "orange-wall-face",
+      "name": "Orange face",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "support",
+      "visual": {
+        "kind": "orange-wall",
+        "orangeForm": "face"
+      }
+    },
+    {
       "id": "orange-wall",
-      "name": "Orange wall",
+      "name": "Orange cube",
       "color": "#B85F16",
       "roleId": "orange-wall",
       "occupancy": "solid",
       "visual": {
-        "kind": "orange-wall"
+        "kind": "orange-wall",
+        "orangeForm": "cube"
       }
     },
     {
@@ -20529,10 +20541,10 @@
       "file": "test-323-copy.json"
     },
     {
-      "id": "test-323-copy-copy",
+      "id": "test-323-copy-copy-2",
       "name": "Untitled test 323 copy copy",
       "folderId": "orange-walls",
-      "file": "test-323-copy-copy.json"
+      "file": "test-323-copy-copy-2.json"
     },
     {
       "id": "test-323",
@@ -20553,46 +20565,46 @@
       "file": "test-325-copy.json"
     },
     {
-      "id": "test-325-copy-copy",
-      "name": "Untitled test 325 copy copy",
+      "id": "test-325-copy-copy-copy",
+      "name": "Untitled test 325 copy copy copy",
       "folderId": "orange-walls",
-      "file": "test-325-copy-copy.json"
+      "file": "test-325-copy-copy-copy.json"
     },
     {
-      "id": "test-325-copy-copy-copy-copy",
-      "name": "Untitled test 325 copy copy copy copy",
-      "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy.json"
-    },
-    {
-      "id": "test-325-copy-copy-copy-copy-copy",
+      "id": "test-325-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 325 copy copy copy copy copy",
       "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy-copy.json"
+      "file": "test-325-copy-copy-copy-copy-copy-2.json"
     },
     {
-      "id": "test-325-copy-copy-copy-copy-copy-copy",
+      "id": "test-325-copy-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 325 copy copy copy copy copy copy",
       "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy-copy-copy.json"
+      "file": "test-325-copy-copy-copy-copy-copy-copy-2.json"
     },
     {
-      "id": "test-325-copy-copy-copy-copy-copy-copy-copy",
+      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-3",
       "name": "Untitled test 325 copy copy copy copy copy copy copy",
       "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy-copy-copy-copy.json"
+      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-3.json"
     },
     {
-      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 325 copy copy copy copy copy copy copy",
-      "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2.json"
-    },
-    {
-      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy",
+      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-copy",
       "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
       "folderId": "orange-walls",
-      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy.json"
+      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-2",
+      "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
+      "folderId": "orange-walls",
+      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-2.json"
+    },
+    {
+      "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-copy",
+      "name": "Untitled test 325 copy copy copy copy copy copy copy copy copy",
+      "folderId": "orange-walls",
+      "file": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-331",
@@ -20611,6 +20623,30 @@
       "name": "Untitled test 332 copy",
       "folderId": "orange-walls",
       "file": "test-332-copy.json"
+    },
+    {
+      "id": "test-338-copy",
+      "name": "Untitled test 338 copy",
+      "folderId": "orange-walls",
+      "file": "test-338-copy.json"
+    },
+    {
+      "id": "test-339",
+      "name": "Untitled test 339",
+      "folderId": "orange-walls",
+      "file": "test-339.json"
+    },
+    {
+      "id": "test-340",
+      "name": "Untitled test 340",
+      "folderId": "orange-walls",
+      "file": "test-340.json"
+    },
+    {
+      "id": "test-342",
+      "name": "Untitled test 342",
+      "folderId": "orange-walls",
+      "file": "test-342.json"
     }
   ]
 }

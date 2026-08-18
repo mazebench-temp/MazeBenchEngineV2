@@ -47,6 +47,7 @@ import {
 import {
   normalizeOrangeWallFrame,
   orangeWallDepthForState,
+  orangeWallMechanismDepth,
   orangeWallVisualFrame,
 } from "./orangeWalls.mjs";
 import {
@@ -109,6 +110,7 @@ type OccupancyProfile = "solid" | "sensor" | "support" | "decoration" | "inactiv
 type BlockVisualDefinition = {
   kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
   modelUrl?: string;
+  orangeForm?: "cube" | "face";
 };
 
 type StoredBlockDefinition = Omit<BlockDefinition, "roleId" | "occupancy" | "visual"> & {
@@ -228,7 +230,7 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "decor", name: "Decoration", description: "A visible object with no special movement behavior.", generic: false },
   { id: "player-lift", name: "Player Lift", description: "A numbered purple lift family: 0/1 Up, 2/3 Front, 4/5 Right, 6/7 Back, and 8/9 Left. Even IDs are lowered and odd IDs are raised.", generic: true },
   { id: "orange-button", name: "Orange Button", description: "A six-face pressure sensor. Every independently pressed button lowers every Orange Wall by one additional unit.", generic: false },
-  { id: "orange-wall", name: "Orange Wall", description: "A globally linked wall whose lowering depth equals the number of currently pressed Orange Buttons.", generic: false },
+  { id: "orange-wall", name: "Orange Wall", description: "The shared mechanism for Orange Face and Orange Cube objects. Each stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.", generic: false },
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
@@ -240,7 +242,8 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "ice-slope", name: "Ice slope", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "slope" } },
   { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
   { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: LIFT_GENERIC_MAX, visual: { kind: "lift" } },
-  { id: "orange-wall", name: "Orange wall", color: "#B85F16", roleId: "orange-wall", occupancy: "solid", visual: { kind: "orange-wall" } },
+  { id: "orange-wall-face", name: "Orange face", color: "#B85F16", roleId: "orange-wall", occupancy: "support", visual: { kind: "orange-wall", orangeForm: "face" } },
+  { id: "orange-wall", name: "Orange cube", color: "#B85F16", roleId: "orange-wall", occupancy: "solid", visual: { kind: "orange-wall", orangeForm: "cube" } },
   { id: "orange-button", name: "Orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "sensor", variantMax: 5, visual: { kind: "button" } },
 ];
 
@@ -256,7 +259,7 @@ function visualDefinitionForKind(kind: string): BlockVisualDefinition {
   if (kind === "lift") return { kind: "lift" };
   if (kind === "slope") return { kind: "slope" };
   if (kind === "button") return { kind: "button" };
-  if (kind === "orange-wall") return { kind: "orange-wall" };
+  if (kind === "orange-wall") return { kind: "orange-wall", orangeForm: "cube" };
   return { kind: "cube" };
 }
 
@@ -293,7 +296,10 @@ function normalizeBlocks(
 ): BlockDefinition[] {
   const roleIds = new Set(roles.map((role) => role.id));
   const fallbackRoleId = roleIds.has("solid") ? "solid" : roles[0].id;
-  const normalized = blocks.map((block) => {
+  const normalized = blocks
+    .filter((block, index) =>
+      blocks.findIndex((candidate) => candidate.id === block.id) === index)
+    .map((block) => {
     const requestedRoleId = block.roleId ?? block.behavior ?? fallbackRoleId;
     const roleId = roleIds.has(requestedRoleId) ? requestedRoleId : fallbackRoleId;
     const visualKind = block.visual?.kind === "lift"
@@ -330,10 +336,13 @@ function normalizeBlocks(
           : visualKind === "button"
             ? { kind: "button" }
           : visualKind === "orange-wall"
-            ? { kind: "orange-wall" }
+            ? {
+                kind: "orange-wall",
+                orangeForm: block.visual?.orangeForm === "face" ? "face" : "cube",
+              }
           : { kind: "cube" },
-    };
-  });
+      };
+    });
   if (roleIds.has("ice") && !normalized.some((block) => block.visual.kind === "slope")) {
     normalized.push({
       id: "ice-slope",
@@ -358,11 +367,24 @@ function normalizeBlocks(
   if (roleIds.has("orange-wall") && !normalized.some((block) => block.roleId === "orange-wall")) {
     normalized.push({
       id: "orange-wall",
-      name: "Orange wall",
+      name: "Orange cube",
       color: "#B85F16",
       roleId: "orange-wall",
       occupancy: "solid",
-      visual: { kind: "orange-wall" },
+      visual: { kind: "orange-wall", orangeForm: "cube" },
+    });
+  }
+  if (roleIds.has("orange-wall") && !normalized.some((block) =>
+    block.roleId === "orange-wall" && block.visual.orangeForm === "face")) {
+    normalized.push({
+      id: normalized.some((block) => block.id === "orange-wall-face")
+        ? "orange-wall-face-2"
+        : "orange-wall-face",
+      name: "Orange face",
+      color: "#B85F16",
+      roleId: "orange-wall",
+      occupancy: "support",
+      visual: { kind: "orange-wall", orangeForm: "face" },
     });
   }
   if (roleIds.has("orange-button") && !normalized.some((block) => block.roleId === "orange-button")) {
@@ -1027,7 +1049,7 @@ export default function VoxelBench() {
   const [groupSelection, setGroupSelection] = useState<GroupSelection | null>(null);
   const [inspectedCell, setInspectedCell] = useState<{ x: number; y: number; z: number } | null>(null);
   const [selectedGenericIds, setSelectedGenericIds] = useState<Record<string, number>>({});
-  const [selectedOrangeWallStates, setSelectedOrangeWallStates] = useState<Record<string, number>>({});
+  const [selectedOrangeWallDepths, setSelectedOrangeWallDepths] = useState<Record<string, number>>({});
   const [selectedSlopeDirections, setSelectedSlopeDirections] = useState<Record<string, string>>({});
   const [genericPrompt, setGenericPrompt] = useState<{ blockId: string; value: string } | null>(null);
   const [genericPromptError, setGenericPromptError] = useState("");
@@ -1128,7 +1150,10 @@ export default function VoxelBench() {
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
     : null;
   const selectedOrangeWallState = selectedDefinition?.visual.kind === "orange-wall"
-    ? selectedOrangeWallStates[selectedDefinition.id] ?? 1
+    ? selectedDefinition.visual.orangeForm === "face" ? 0 : 1
+    : null;
+  const selectedOrangeWallDepth = selectedDefinition?.visual.kind === "orange-wall"
+    ? selectedOrangeWallDepths[selectedDefinition.id] ?? 0
     : null;
   const selectedBlockCanShare = selectedDefinition
     ? objectCanShareCell(selectedDefinition, {
@@ -1141,7 +1166,7 @@ export default function VoxelBench() {
       ? `${activeGroupSelection.keys.length} cubes selected`
       : selectedBlock === DELETE_TOOL_ID
         ? "Erase"
-        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedOrangeWallState === null ? "" : ` · ${selectedOrangeWallState} ${selectedOrangeWallState ? "brick" : "surface"}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}${selectedDefinition?.visual.kind === "lift" ? " · face chooses direction" : ""}`;
+        : `${selectedDefinition?.name ?? "Block"}${selectedGenericId === null ? "" : ` · ${selectedGenericId}`}${selectedOrangeWallState === null ? "" : ` · ${selectedOrangeWallState ? "cube" : "face"} · rise ${selectedOrangeWallDepth}`}${selectedSlopeOption ? ` · ${selectedSlopeOption.glyph} ${selectedSlopeOption.label}` : ""}${selectedDefinition?.visual.kind === "lift" ? " · face chooses direction" : ""}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -1399,12 +1424,14 @@ export default function VoxelBench() {
     if (!block) return;
     setGroupToolPinned(false);
     setGroupSelection(null);
-    if (genericRoleIds.has(block.roleId)) {
+    if (genericRoleIds.has(block.roleId) || block.visual.kind === "orange-wall") {
       setGenericPrompt({
         blockId,
-        value: String(block.visual.kind === "lift"
-          ? liftIsRaised(selectedGenericIds[blockId] ?? 0) ? 1 : 0
-          : selectedGenericIds[blockId] ?? 0),
+        value: String(block.visual.kind === "orange-wall"
+          ? selectedOrangeWallDepths[blockId] ?? 0
+          : block.visual.kind === "lift"
+            ? liftIsRaised(selectedGenericIds[blockId] ?? 0) ? 1 : 0
+            : selectedGenericIds[blockId] ?? 0),
       });
       setGenericPromptError("");
       return;
@@ -1418,10 +1445,13 @@ export default function VoxelBench() {
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
     const wallState = block.visual.kind === "orange-wall"
-      ? selectedOrangeWallStates[block.id] ?? 1
+      ? block.visual.orangeForm === "face" ? 0 : 1
       : null;
-    setToast(`${block.name}${wallState === null ? "" : ` ${wallState} · ${wallState ? "brick" : "surface"}`}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" || block.visual.kind === "button" ? " · click a face to choose its mounting" : ""} selected`);
-  }, [blocks, genericRoleIds, selectedGenericIds, selectedOrangeWallStates, selectedSlopeDirections]);
+    const wallDepth = block.visual.kind === "orange-wall"
+      ? selectedOrangeWallDepths[block.id] ?? 0
+      : null;
+    setToast(`${block.name}${wallState === null ? "" : ` ${wallState ? "cube" : "face"} · rise ${wallDepth}`}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" || block.visual.kind === "button" ? " · click a face to choose its mounting" : ""} selected`);
+  }, [blocks, genericRoleIds, selectedGenericIds, selectedOrangeWallDepths, selectedSlopeDirections]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
     const slots = [DELETE_TOOL_ID, GROUP_TOOL_ID, ...blocks.map((block) => block.id)];
@@ -1480,14 +1510,14 @@ export default function VoxelBench() {
       }
     }
     if (!groupToolPinned && selectedDefinition?.visual.kind === "orange-wall") {
-      const currentState = selectedOrangeWallStates[selectedDefinition.id] ?? 1;
-      const nextState = offsetGenericObjectId(currentState, direction, 1);
-      if (nextState !== null) {
-        setSelectedOrangeWallStates((current) => ({
+      const currentDepth = selectedOrangeWallDepths[selectedDefinition.id] ?? 0;
+      const nextDepth = offsetGenericObjectId(currentDepth, direction);
+      if (nextDepth !== null) {
+        setSelectedOrangeWallDepths((current) => ({
           ...current,
-          [selectedDefinition.id]: nextState,
+          [selectedDefinition.id]: nextDepth,
         }));
-        setToast(`${selectedDefinition.name} ${nextState} · ${nextState ? "brick" : "surface"} selected`);
+        setToast(`${selectedDefinition.name} · rise ${nextDepth} selected`);
         return;
       }
     }
@@ -1500,7 +1530,7 @@ export default function VoxelBench() {
       return;
     }
     selectToolbarRelative(direction);
-  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds, selectedOrangeWallStates, selectedSlopeDirections]);
+  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds, selectedOrangeWallDepths, selectedSlopeDirections]);
 
   const confirmGenericSelection = () => {
     if (!genericPrompt) return;
@@ -1512,12 +1542,18 @@ export default function VoxelBench() {
     }
     const maximum = block.visual.kind === "lift"
       ? 1
-      : block.genericMax ?? 2147483647;
+      : block.visual.kind === "orange-wall"
+        ? 2147483647
+        : block.genericMax ?? 2147483647;
     if (!Number.isInteger(id) || id < 0 || id > maximum) {
       setGenericPromptError(`Enter a whole number from 0 to ${maximum.toLocaleString()}.`);
       return;
     }
-    setSelectedGenericIds((current) => ({ ...current, [block.id]: id }));
+    if (block.visual.kind === "orange-wall") {
+      setSelectedOrangeWallDepths((current) => ({ ...current, [block.id]: id }));
+    } else {
+      setSelectedGenericIds((current) => ({ ...current, [block.id]: id }));
+    }
     setGroupToolPinned(false);
     setGroupSelection(null);
     setSelectedBlock(block.id);
@@ -1966,7 +2002,7 @@ export default function VoxelBench() {
       ? buttonOrientationFromPaintFace(surface)
       : null;
     const orangeWallState = blockDefinition?.visual.kind === "orange-wall"
-      ? selectedOrangeWallStates[blockDefinition.id] ?? 1
+      ? blockDefinition.visual.orangeForm === "face" ? 0 : 1
       : null;
     if (blockDefinition?.visual.kind === "lift" && liftOrientation === null) {
       setToast("Downward-facing lifts are not part of the 0–9 lift family yet");
@@ -1977,15 +2013,25 @@ export default function VoxelBench() {
     }
     let orangeWallDepth: number | undefined;
     if (blockDefinition?.visual.kind === "orange-wall") {
-      orangeWallDepth = orangeWallDepthForState(
-        { x, y, z, blockId },
-        currentFrame.voxels,
-        blockDefinitionsById,
-        orangeWallState,
-      ) ?? undefined;
-      if (orangeWallState === 0 && orangeWallDepth === undefined) {
-        setToast("Orange Wall state 0 needs a non-orange support below it");
-        return;
+      orangeWallDepth = selectedOrangeWallDepths[blockDefinition.id] ?? 0;
+      if (orangeWallState === 0) {
+        const minimumSurfaceDepth = orangeWallDepthForState(
+          { x, y, z, blockId },
+          currentFrame.voxels,
+          blockDefinitionsById,
+          orangeWallState,
+        );
+        if (minimumSurfaceDepth === null) {
+          setToast("Orange Wall faces need a non-orange support below them");
+          return;
+        }
+        // A face with no remaining rise is an authored resting surface. A
+        // pressed face retains its explicit debt, but its hidden anchor must
+        // remain high enough for the renderer and C++ engine to keep it flat.
+        if (orangeWallDepth > 0 && orangeWallDepth < minimumSurfaceDepth) {
+          setToast(`This face needs a remaining rise of at least ${minimumSurfaceDepth}`);
+          return;
+        }
       }
     }
     const placement: Voxel | null = blockId ? {
@@ -2777,7 +2823,7 @@ export default function VoxelBench() {
                     : null;
                   const liftRaised = liftId === null ? null : liftIsRaised(liftId);
                   const orangeWallState = block.visual.kind === "orange-wall"
-                    ? selectedOrangeWallStates[block.id] ?? 1
+                    ? block.visual.orangeForm === "face" ? 0 : 1
                     : null;
                   const slopeDirection = block.visual.kind === "slope"
                     ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
@@ -2792,9 +2838,11 @@ export default function VoxelBench() {
                       liftId ?? selectedGenericIds[block.id] ?? 0,
                       groupToolPinned || Boolean(genericPrompt),
                       )
-                    : orangeWallState === null ? undefined : String(orangeWallState);
+                    : orangeWallState === null
+                      ? undefined
+                      : String(selectedOrangeWallDepths[block.id] ?? 0);
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallState === null ? liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state` : `State ${orangeWallState} · ${orangeWallState ? "brick" : "surface"} · ←/→ toggles state`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallState === null ? liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state` : `${orangeWallState ? "Cube" : "face"} · ${selectedOrangeWallDepths[block.id] ?? 0} remaining rise · ←/→ changes remaining rise`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
                       <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? "pressure-button" : ""} ${block.visual.kind === "orange-wall" ? `orange-wall orange-wall--${orangeWallState ? "brick" : "surface"}` : ""} ${liftId === null ? "" : `lift lift--${liftRaised ? "raised" : "lowered"} lift--top`} ${generic ? "generic" : orangeWallState === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
                     </button>
@@ -2807,10 +2855,10 @@ export default function VoxelBench() {
             {genericPrompt && (
               <div className="generic-id-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setGenericPrompt(null); }}>
                 <section className="generic-id-modal" role="dialog" aria-modal="true" aria-labelledby="generic-id-title" aria-describedby="generic-id-message">
-                  <span className="generic-id-modal__eyebrow">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Lift state" : "Generic numbered family"}</span>
-                  <h2 id="generic-id-title">Choose {blocks.find((block) => block.id === genericPrompt.blockId)?.name ?? "object"} {blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "state" : "ID"}</h2>
-                  <p id="generic-id-message">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Use 0 for lowered or 1 for raised. The face you paint chooses Up, Front, Right, Back, or Left and stores the matching full ID from 0–9." : "Cubes painted with the same number belong to the same generic object."}</p>
-                  <label className="field"><span>{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "State (0 lowered · 1 raised)" : "ID (0 or more)"}</span><input ref={genericIdInputRef} inputMode="numeric" value={genericPrompt.value} aria-invalid={Boolean(genericPromptError)} onChange={(event) => { setGenericPrompt((current) => current ? { ...current, value: event.target.value } : current); setGenericPromptError(""); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); confirmGenericSelection(); } else if (event.key === "Escape") { event.preventDefault(); setGenericPrompt(null); } }} /></label>
+                  <span className="generic-id-modal__eyebrow">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Lift state" : blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "orange-wall" ? "Orange mechanism state" : "Generic numbered family"}</span>
+                  <h2 id="generic-id-title">Choose {blocks.find((block) => block.id === genericPrompt.blockId)?.name ?? "object"} {blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "state" : blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "orange-wall" ? "remaining rise" : "ID"}</h2>
+                  <p id="generic-id-message">{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "Use 0 for lowered or 1 for raised. The face you paint chooses Up, Front, Right, Back, or Left and stores the matching full ID from 0–9." : blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "orange-wall" ? "Use 0 when it will not rise. N means this face or cube still needs to rise N mechanism steps." : "Cubes painted with the same number belong to the same generic object."}</p>
+                  <label className="field"><span>{blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "lift" ? "State (0 lowered · 1 raised)" : blocks.find((block) => block.id === genericPrompt.blockId)?.visual.kind === "orange-wall" ? "Remaining rise (0 or more)" : "ID (0 or more)"}</span><input ref={genericIdInputRef} inputMode="numeric" value={genericPrompt.value} aria-invalid={Boolean(genericPromptError)} onChange={(event) => { setGenericPrompt((current) => current ? { ...current, value: event.target.value } : current); setGenericPromptError(""); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); confirmGenericSelection(); } else if (event.key === "Escape") { event.preventDefault(); setGenericPrompt(null); } }} /></label>
                   {genericPromptError && <small className="generic-id-modal__error" role="alert">{genericPromptError}</small>}
                   <div className="generic-id-modal__actions"><button className="tool-button" type="button" onClick={() => setGenericPrompt(null)}>Cancel</button><button className="tool-button tool-button--primary" type="button" onClick={confirmGenericSelection}>Select</button></div>
                 </section>
@@ -2912,7 +2960,7 @@ export default function VoxelBench() {
                         const definition = blockDefinitionsById.get(voxel.blockId);
                         const selectionKey = cellObjectSelectionKey(voxel);
                         const selected = selectedVoxelKeys.has(selectionKey);
-                        return <div className={`cell-contents__item ${selected ? "is-selected" : ""}`} key={selectionKey}><span className="cell-contents__swatch" style={{ "--block-color": definition?.color ?? "#777" } as React.CSSProperties} /><div><strong>{definition?.name ?? voxel.blockId}</strong><small>{definition?.occupancy ?? "solid"}{voxel.groupId === undefined ? "" : ` · group ${voxel.groupId}`}{voxel.stateId === undefined ? "" : ` · state ${voxel.stateId}`}</small></div><button className="cell-contents__select" type="button" aria-label={`${selected ? "Deselect" : "Select"} ${definition?.name ?? voxel.blockId}`} onClick={() => selectCellOccupant(selectionKey)}>{selected ? "✓" : "Select"}</button><button type="button" disabled={activeTestLocked} aria-label={`Remove ${definition?.name ?? voxel.blockId} from cell`} onClick={() => removeCellOccupant(selectionKey)}>×</button></div>;
+                        return <div className={`cell-contents__item ${selected ? "is-selected" : ""}`} key={selectionKey}><span className="cell-contents__swatch" style={{ "--block-color": definition?.color ?? "#777" } as React.CSSProperties} /><div><strong>{definition?.name ?? voxel.blockId}</strong><small>{definition?.occupancy ?? "solid"}{voxel.groupId === undefined ? "" : ` · group ${voxel.groupId}`}{definition?.visual.kind === "orange-wall" ? ` · rise ${orangeWallMechanismDepth(voxel)}` : voxel.stateId === undefined ? "" : ` · state ${voxel.stateId}`}</small></div><button className="cell-contents__select" type="button" aria-label={`${selected ? "Deselect" : "Select"} ${definition?.name ?? voxel.blockId}`} onClick={() => selectCellOccupant(selectionKey)}>{selected ? "✓" : "Select"}</button><button type="button" disabled={activeTestLocked} aria-label={`Remove ${definition?.name ?? voxel.blockId} from cell`} onClick={() => removeCellOccupant(selectionKey)}>×</button></div>;
                       })}</div>
                     ) : <p className="cell-contents__empty">This cell is empty.</p> : <p className="cell-contents__empty">Click a cell to inspect every overlapping object.</p>}
                     {inspectedCell && <div className="cell-contents__actions"><button className="tool-button" type="button" disabled={activeTestLocked || !inspectedCellOccupants.length} onClick={clearInspectedCell}>Clear cell</button><button className="tool-button tool-button--primary" type="button" disabled={activeTestLocked || !selectedDefinition || selectedBlock === DELETE_TOOL_ID} onClick={() => selectedDefinition && paint(inspectedCell.x, inspectedCell.y, inspectedCell.z, selectedDefinition.id)}>Place selected here</button></div>}
@@ -2922,14 +2970,14 @@ export default function VoxelBench() {
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? "pressure-button" : ""} ${selectedDefinition.visual.kind === "orange-wall" ? `orange-wall orange-wall--${selectedOrangeWallState ? "brick" : "surface"}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : selectedOrangeWallState === null ? "" : "stateful"}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallState ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? "pressure-button" : ""} ${selectedDefinition.visual.kind === "orange-wall" ? `orange-wall orange-wall--${selectedOrangeWallState ? "brick" : "surface"}` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : selectedOrangeWallState === null ? "" : "stateful"}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallDepth ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                   <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
                   {selectedDefinition.visual.kind === "slope" && <div className="slope-direction-picker" role="group" aria-label="Slope paint direction">{SLOPE_DIRECTION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedSlopeDirection === option.id ? "is-active" : ""} aria-pressed={selectedSlopeDirection === option.id} title={`Paint ${option.label.toLowerCase()} slope`} onClick={() => { setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
                   {selectedDefinition.visual.kind === "lift" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click a cube’s top or one of its four side faces. The toolbar state stays 0 (lowered) or 1 (raised), while the saved lift receives the matching directional ID from 0–9.</p>}
                   {selectedDefinition.visual.kind === "button" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click any top, bottom, or side face. A rigid occupant sharing the button’s cell activates it internally, but the authored and rendered button always remains the same full-height cylinder.</p>}
-                  {selectedDefinition.visual.kind === "orange-wall" && <p className="engine-role-note"><b>State 0 is a surface; state 1 is a brick.</b> Use ←/→ to toggle the paint state. The hidden additive depth still records how many Orange Buttons lowered the wall, so unsupported walls can descend many rows as full bricks.</p>}
+                  {selectedDefinition.visual.kind === "orange-wall" && <><label className="field"><span>Remaining rise</span><input type="number" min={0} step={1} value={selectedOrangeWallDepth ?? 0} onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 0) setSelectedOrangeWallDepths((current) => ({ ...current, [selectedDefinition.id]: value })); }} /></label><p className="engine-role-note"><b>This is a dedicated {selectedDefinition.visual.orangeForm === "face" ? "flat face" : "solid cube"} tool.</b> Its visible form is not a toggle. Zero will not rise; N means it still needs to rise N mechanism steps. Click the other Orange tool when you need the other form.</p></>}
                   <p className="engine-role-note"><b>Occupancy is editor metadata.</b> Sensors and decorations may share a cell with solid bodies. Physics behavior still comes from the C++ role until the generalized state ABI phase.</p>
                 </div>
               ) : null}

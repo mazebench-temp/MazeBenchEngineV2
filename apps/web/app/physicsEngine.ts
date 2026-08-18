@@ -1,7 +1,8 @@
 import { buttonMechanismId, normalizeButtonOrientation } from "./visualVariants.mjs";
 import {
   normalizeOrangeWallFrame,
-  orangeWallMechanismDepth,
+  orangeWallDepthFromMechanismValue,
+  orangeWallMechanismValue,
 } from "./orangeWalls.mjs";
 
 type Direction = "up" | "down" | "left" | "right";
@@ -155,7 +156,7 @@ export async function simulateCommandWithCpp(
       );
     }
     if (visualKind === "orange-wall") {
-      return orangeWallMechanismDepth(voxel);
+      return orangeWallMechanismValue(voxel, blocksById);
     }
     return genericBlockIds.has(voxel.blockId)
       ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
@@ -189,7 +190,7 @@ export async function simulateCommandWithCpp(
         ...(visualKind === "button"
           ? { stateId: 0 }
           : visualKind === "orange-wall"
-            ? { mechanismDepth: Math.max(0, mechanismId) }
+            ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
             : {}),
         ...(genericBlockIds.has(voxel.blockId)
           ? {

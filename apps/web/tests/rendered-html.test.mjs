@@ -131,6 +131,44 @@ test("lowered orange walls are zero-thickness, paintable support faces", async (
   assert.match(renderer, /rightSurface - leftSurface/);
 });
 
+test("lowered Orange Face numbers are drawn inside their top surfaces", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(renderer, /function addFlatOrangeSurfaceLabels/);
+  assert.match(
+    renderer,
+    /descriptor\.isLoweredOrangeSurface[\s\S]*?addFlatOrangeSurfaceLabels\([\s\S]*?descriptor\.layer\.genericLabel/,
+  );
+  assert.match(renderer, /topY \+ normalOffset/);
+});
+
+test("Orange Face and Orange Cube rendering ignores remaining-rise depth", async () => {
+  const canvas = await readFile(
+    new URL("../app/MazeBenchCanvas.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    canvas,
+    /definition\.visual\.kind === "orange-wall"[\s\S]*?definition\.visual\.orangeForm !== "face"/,
+  );
+  assert.match(canvas, /elevation: voxel\.z \+ layerOffset/);
+  assert.doesNotMatch(canvas, /elevation: \(orangeWall\?\.physicalZ \?\? voxel\.z\)/);
+});
+
+test("the cell inspector imports its Orange Wall number formatter", async () => {
+  const editor = await readFile(
+    new URL("../app/VoxelBench.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    editor,
+    /import \{[\s\S]*?orangeWallMechanismDepth[\s\S]*?\} from "\.\/orangeWalls\.mjs"/,
+  );
+  assert.match(editor, /rise \$\{orangeWallMechanismDepth\(voxel\)\}/);
+});
+
 test("the MazeBench GLTF loader has every local module dependency", async () => {
   const [loader, threeModule, threeCore, geometryUtils, skeletonUtils] = await Promise.all([
     readFile(new URL("../public/vendor/GLTFLoader.js", import.meta.url), "utf8"),

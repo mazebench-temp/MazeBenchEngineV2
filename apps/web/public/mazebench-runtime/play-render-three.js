@@ -3409,6 +3409,38 @@
       });
     }
 
+    function addFlatOrangeSurfaceLabels(cells, groupId, topY, opacity) {
+      if (!isEditorRenderMode() && !isPalettePreviewRenderMode()) {
+        return;
+      }
+
+      const label = weightlessGroupLabel(groupId);
+      const labelMaterial = groupLabelMaterial(label, opacity);
+
+      if (!labelMaterial) {
+        return;
+      }
+
+      // A lowered Orange Face has no cube volume, so the generic polycube
+      // label pass has no exposed face on which to draw its remaining-rise
+      // number. Place the number inside each face, just above its real top
+      // plane, so it remains readable without looking detached from the slab.
+      const normalOffset = Math.max(0.9, unit * 0.014);
+
+      cells.forEach((cell) => {
+        const labelMesh = new THREE.Mesh(groupLabelPlaneGeometry("top"), labelMaterial);
+        labelMesh.position.set(
+          (cell.left + cell.right) / 2 + renderOffsetX(),
+          topY + normalOffset,
+          (cell.top + cell.bottom) / 2 + renderOffsetZ()
+        );
+        labelMesh.castShadow = false;
+        labelMesh.receiveShadow = false;
+        labelMesh.renderOrder = 21;
+        scene.add(labelMesh);
+      });
+    }
+
     function iceSlopeGroupLabelGeometry(direction) {
       const normalized = normalizeCardinalDirection(direction);
       const key = `ice-slope-group-label:${normalized}:${Math.round(unit * 100)}:${Math.round(elevationUnit * 100)}`;
@@ -7628,6 +7660,17 @@
             }
           }
         );
+        if (
+          descriptor.isLoweredOrangeSurface &&
+          descriptor.layer?.genericLabel !== undefined
+        ) {
+          addFlatOrangeSurfaceLabels(
+            cells,
+            descriptor.layer.genericLabel,
+            descriptor.topY,
+            visibility
+          );
+        }
         if (descriptor.isLoweredPlayerLift) {
           cells.forEach((cell) => addNonCubeEditorPickVolume(
             (cell.left + cell.right) / 2 + renderOffsetX(),

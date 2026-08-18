@@ -56,9 +56,28 @@ bool IsPassThroughVoxel(const Voxel& voxel) {
 }
 
 int32_t OrangeWallDepth(const Voxel& voxel) {
-  return voxel.role == kOrangeWallRole && voxel.generic_id > 0
-      ? voxel.generic_id
-      : 0;
+  if (voxel.role != kOrangeWallRole) return 0;
+  if (voxel.generic_id <= -2) {
+    return voxel.generic_id == INT32_MIN
+        ? INT32_MAX - 1
+        : -voxel.generic_id - 2;
+  }
+  return voxel.generic_id > 0 ? voxel.generic_id : 0;
+}
+
+bool OrangeWallIsDedicatedFace(const Voxel& voxel) {
+  return voxel.role == kOrangeWallRole && voxel.generic_id <= -2;
+}
+
+void SetOrangeWallDepth(Voxel* voxel, int32_t depth) {
+  if (voxel == nullptr || voxel->role != kOrangeWallRole) return;
+  if (depth < 0) depth = 0;
+  if (OrangeWallIsDedicatedFace(*voxel)) {
+    const int32_t capped = depth > INT32_MAX - 2 ? INT32_MAX - 2 : depth;
+    voxel->generic_id = -2 - capped;
+  } else {
+    voxel->generic_id = depth;
+  }
 }
 
 // Orange walls retain their authored anchor coordinate. Their deterministic
@@ -94,6 +113,7 @@ int32_t OrangeWallPhysicalZForDepth(
     int32_t wall_index,
     int32_t depth) {
   const Voxel& wall = voxels[wall_index];
+  if (OrangeWallIsDedicatedFace(wall)) return wall.z;
   if (depth <= 0) return wall.z;
   const int64_t desired = static_cast<int64_t>(wall.z) - depth;
   const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
@@ -109,6 +129,7 @@ bool OrangeWallIsFlatForDepth(
     int32_t count,
     int32_t wall_index,
     int32_t depth) {
+  if (OrangeWallIsDedicatedFace(voxels[wall_index])) return true;
   if (depth <= 0) return false;
   const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
   return support_z != INT32_MIN &&
@@ -215,6 +236,7 @@ struct WorkspaceData {
   uint8_t pending_fall[kVoxelCapacity];
   uint8_t blocked_orange_walls[kVoxelCapacity];
   uint8_t orange_component_walls[kVoxelCapacity];
+  int8_t orange_component_shifts[kVoxelCapacity];
   int32_t carrier_parent[kVoxelCapacity];
   uint8_t object_gravity_armed[kVoxelCapacity];
   uint8_t component_objects[kVoxelCapacity];
@@ -298,6 +320,7 @@ WorkspaceData& ActiveWorkspace() {
 #define g_pending_fall ActiveWorkspace().pending_fall
 #define g_blocked_orange_walls ActiveWorkspace().blocked_orange_walls
 #define g_orange_component_walls ActiveWorkspace().orange_component_walls
+#define g_orange_component_shifts ActiveWorkspace().orange_component_shifts
 #define g_carrier_parent ActiveWorkspace().carrier_parent
 #define g_object_gravity_armed ActiveWorkspace().object_gravity_armed
 #define g_component_objects ActiveWorkspace().component_objects
