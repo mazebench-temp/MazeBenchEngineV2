@@ -11,8 +11,6 @@ function definitionFor(definitions, blockId) {
     : definitions?.find?.((definition) => definition.id === blockId);
 }
 
-const PERMANENT_FACE_OFFSET = 2;
-
 export function orangeWallIsDedicatedFace(wall, definitions) {
   return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "face";
 }
@@ -21,22 +19,16 @@ export function orangeWallIsHiddenVolume(wall, definitions) {
   return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "hidden";
 }
 
-// Negative mechanism values are private ABI encoding, not user-facing IDs.
-// -1 remains the ordinary "no generic value" sentinel. Values <= -2 identify
-// a dedicated Orange Face while preserving its nonnegative remaining rise.
 export function orangeWallMechanismValue(wall, definitions) {
-  const depth = orangeWallMechanismDepth(wall);
-  return orangeWallIsDedicatedFace(wall, definitions)
-    ? -PERMANENT_FACE_OFFSET - depth
-    : depth;
+  return orangeWallMechanismDepth(wall);
 }
 
 export function orangeWallDepthFromMechanismValue(value) {
   const encoded = Number(value);
   if (!Number.isInteger(encoded)) return 0;
-  return encoded <= -PERMANENT_FACE_OFFSET
-    ? Math.max(0, -encoded - PERMANENT_FACE_OFFSET)
-    : Math.max(0, encoded);
+  // Read the old private Orange Face encoding for project/WASM compatibility,
+  // but every newly written engine value is the ordinary nonnegative depth.
+  return encoded <= -2 ? Math.max(0, -encoded - 2) : Math.max(0, encoded);
 }
 
 export function orangeWallMechanismDepth(wall) {
@@ -50,11 +42,19 @@ export function orangeWallMechanismDepth(wall) {
 }
 
 export function orangeWallSupportZ(wall, voxels, definitions) {
+  const lowestAnchorZ = voxels.reduce((lowest, candidate) => {
+    const definition = definitionFor(definitions, candidate.blockId);
+    if (definition?.roleId !== "orange-wall" ||
+        candidate.x !== wall.x || candidate.y !== wall.y) {
+      return lowest;
+    }
+    return Math.min(lowest, orangeWallEngineAnchorZ(candidate, definitions));
+  }, orangeWallEngineAnchorZ(wall, definitions));
   let supportZ = Number.NEGATIVE_INFINITY;
   for (const candidate of voxels) {
     if (
       candidate === wall || candidate.x !== wall.x || candidate.y !== wall.y ||
-      candidate.z >= wall.z
+      candidate.z >= lowestAnchorZ
     ) {
       continue;
     }
@@ -66,6 +66,37 @@ export function orangeWallSupportZ(wall, voxels, definitions) {
         definition.roleId === "pushable" ||
         definition.roleId === "weightless-pushable" ||
         (definition.visual?.kind === "lift" && !liftIsRaised(candidate.genericId))) {
+      continue;
+    }
+    if (definition.occupancy === "solid" || definition.visual?.kind === "lift") {
+      supportZ = Math.max(supportZ, candidate.z);
+    }
+  }
+  return supportZ;
+}
+
+function orangeWallSupportZFromEngineAnchors(wall, voxels, definitions) {
+  const lowestAnchorZ = voxels.reduce((lowest, candidate) => {
+    const definition = definitionFor(definitions, candidate.blockId);
+    return definition?.roleId === "orange-wall" &&
+      candidate.x === wall.x && candidate.y === wall.y
+      ? Math.min(lowest, candidate.z)
+      : lowest;
+  }, wall.z);
+  let supportZ = Number.NEGATIVE_INFINITY;
+  for (const candidate of voxels) {
+    if (candidate === wall || candidate.x !== wall.x || candidate.y !== wall.y ||
+        candidate.z >= lowestAnchorZ) {
+      continue;
+    }
+    const definition = definitionFor(definitions, candidate.blockId);
+    if (!definition || definition.visual?.kind === "gem" ||
+        definition.visual?.kind === "button" ||
+        definition.visual?.kind === "orange-wall" ||
+        definition.roleId === "player" || definition.roleId === "pushable" ||
+        definition.roleId === "weightless-pushable" ||
+        (definition.visual?.kind === "lift" &&
+         !liftIsRaised(candidate.genericId))) {
       continue;
     }
     if (definition.occupancy === "solid" || definition.visual?.kind === "lift") {
@@ -130,35 +161,65 @@ export function normalizeOrangeWallFrame(frame, definitions) {
   };
 }
 
+function orangeWallForm(wall, definitions) {
+  const form = definitionFor(definitions, wall?.blockId)?.visual?.orangeForm;
+  return form === "face" || form === "hidden" ? form : "cube";
+}
+
+function orangeWallBlockIdForForm(wall, definitions, form) {
+  const all = definitions instanceof Map
+    ? [...definitions.values()]
+    : definitions ?? [];
+  return all.find((definition) =>
+    definition?.roleId === "orange-wall" &&
+    (definition.visual?.orangeForm ?? "cube") === form)?.id ?? wall.blockId;
+}
+
+// C++ stores a stable fully-raised anchor for each Orange Wall voxel. Authored
+// frames instead store exactly what the editor displays. Converting at the ABI
+// boundary keeps C++ state fixed-size while allowing cube/face/hidden records
+// to change form at every mechanism tick.
+export function orangeWallEngineAnchorZ(wall, definitions) {
+  const depth = orangeWallMechanismDepth(wall);
+  const form = orangeWallForm(wall, definitions);
+  if (form === "face") return wall.z + Math.max(0, depth - 1);
+  return wall.z + depth;
+}
+
+export function orangeWallFrameFromEngine(frame, definitions) {
+  const engineVoxels = frame.voxels.map((voxel) => ({ ...voxel }));
+  return {
+    ...frame,
+    voxels: engineVoxels.map((voxel) => {
+      const definition = definitionFor(definitions, voxel.blockId);
+      if (definition?.roleId !== "orange-wall") return voxel;
+      const depth = orangeWallMechanismDepth(voxel);
+      const supportZ = orangeWallSupportZFromEngineAnchors(
+        voxel, engineVoxels, definitions);
+      const desiredZ = voxel.z - depth;
+      const form = Number.isFinite(supportZ) && desiredZ === supportZ
+        ? "face"
+        : Number.isFinite(supportZ) && desiredZ < supportZ
+          ? "hidden"
+          : "cube";
+      return {
+        ...voxel,
+        blockId: orangeWallBlockIdForForm(voxel, definitions, form),
+        mechanismDepth: depth,
+        stateId: form === "hidden" ? 2 : form === "face" ? 0 : 1,
+        z: form === "face" ? supportZ + 1 : desiredZ,
+      };
+    }),
+  };
+}
+
 export function orangeWallVisualFrame(frame, definitions) {
   const normalized = normalizeOrangeWallFrame(frame, definitions);
-  const visibleVoxels = normalized.voxels.flatMap((voxel) => {
-      const definition = definitionFor(definitions, voxel.blockId);
-      if (definition?.visual?.kind !== "orange-wall") return [voxel];
-      const state = orangeWallPhysicalState(voxel, normalized.voxels, definitions);
-      if (orangeWallIsHiddenVolume(voxel, definitions)) {
-        return [{ ...voxel, z: state.physicalZ, stateId: 2 }];
-      }
-      const visible = {
-        ...voxel,
-        z: state.physicalZ,
-        stateId: orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
-      };
-      if (visible.stateId === 1 && Number.isFinite(state.supportZ)) {
-        const column = [];
-        for (let z = state.supportZ + 1; z <= state.physicalZ; z += 1) {
-          column.push({ ...visible, z, mechanismDepth: 0 });
-        }
-        return column;
-      }
-      const visibleDepth = visible.stateId === 0
-        ? orangeWallDepthForState(visible, normalized.voxels, definitions, 0) ?? 0
-        : 0;
-      return [{ ...visible, mechanismDepth: visibleDepth }];
-    });
+  const visibleVoxels = normalized.voxels.map((voxel) => ({ ...voxel }));
   const brickCells = new Set(visibleVoxels.flatMap((voxel) => {
     const definition = definitionFor(definitions, voxel.blockId);
-    return definition?.visual?.kind === "orange-wall" && Number(voxel.stateId) === 1
+    return definition?.visual?.kind === "orange-wall" &&
+      (definition.visual.orangeForm ?? "cube") === "cube"
       ? [`${voxel.x},${voxel.y},${voxel.z}`]
       : [];
   }));
@@ -173,7 +234,7 @@ export function orangeWallVisualFrame(frame, definitions) {
       }
       if (orangeWallIsHiddenVolume(voxel, definitions)) return true;
       const cell = `${voxel.x},${voxel.y},${voxel.z}`;
-      if (Number(voxel.stateId) === 1) {
+      if ((definition.visual.orangeForm ?? "cube") === "cube") {
         if (retainedBrickCells.has(cell)) return false;
         retainedBrickCells.add(cell);
         return true;

@@ -65,7 +65,11 @@ int32_t PlayerLiftSideAttachmentVoxel(
     int32_t height) {
   if (object < 0 || g_object_kind[object] != kMechanismObject) return -1;
   const int32_t member = g_object_head[object];
-  if (member < 0 || voxels[member].role != kPlayerLiftRole) return -1;
+  if (member < 0 ||
+      (voxels[member].role != kPlayerLiftRole &&
+       voxels[member].role != kOrangeButtonRole)) {
+    return -1;
+  }
   const Voxel& lift = voxels[member];
   const int32_t orientation = lift.generic_id >= 0
       ? lift.generic_id / 2

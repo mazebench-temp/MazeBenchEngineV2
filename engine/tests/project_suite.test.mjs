@@ -14,6 +14,8 @@ import {
 import {
   normalizeOrangeWallFrame,
   orangeWallDepthFromMechanismValue,
+  orangeWallEngineAnchorZ,
+  orangeWallFrameFromEngine,
   orangeWallMechanismValue,
   orangeWallVisualFrame,
 } from "../../apps/web/app/orangeWalls.mjs";
@@ -86,12 +88,14 @@ function simulateFrames(voxels, direction, world) {
     buffer.set([
       voxel.x,
       voxel.y,
-      voxel.z,
+      blocksById.get(voxel.blockId)?.roleId === "orange-wall"
+        ? orangeWallEngineAnchorZ(voxel, blocksById)
+        : voxel.z,
       voxelRole(voxel),
       voxelMechanismId(voxel),
     ], index * stride);
   });
-  const readFrame = () => normalizeOrangeWallFrame({
+  const readFrame = () => orangeWallFrameFromEngine({
     voxels: voxels.map((voxel, index) => ({
       ...voxel,
       x: buffer[index * stride],
@@ -152,7 +156,9 @@ function simulateFinal(voxels, direction, world) {
     buffer.set([
       voxel.x,
       voxel.y,
-      voxel.z,
+      blocksById.get(voxel.blockId)?.roleId === "orange-wall"
+        ? orangeWallEngineAnchorZ(voxel, blocksById)
+        : voxel.z,
       voxelRole(voxel),
       voxelMechanismId(voxel),
     ], index * stride);
@@ -161,7 +167,7 @@ function simulateFinal(voxels, direction, world) {
     engine.simulate_turn(voxels.length, world.width, world.height, direction),
     0,
   );
-  return normalizeOrangeWallFrame({
+  return orangeWallFrameFromEngine({
     voxels: voxels.map((voxel, index) => ({
       ...voxel,
       x: buffer[index * stride],

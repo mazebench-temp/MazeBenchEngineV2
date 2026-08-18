@@ -441,18 +441,12 @@ bool NormalizeInitialOrangeWallAnchors(
     if (wall.role != kOrangeWallRole) continue;
     const int32_t depth = OrangeWallDepth(wall);
     if (depth >= pressed) continue;
-    if (OrangeWallIsFlatForDepth(voxels, count, index, depth)) {
-      const int32_t extension = pressed - depth;
-      wall.z = wall.z > INT32_MAX - extension
-          ? INT32_MAX
-          : wall.z + extension;
-      SetOrangeWallDepth(&wall, pressed);
-      changed = true;
-    } else if (OrangeWallIsFlatForDepth(
-                   voxels, count, index, pressed)) {
-      // Imported legacy frames may encode a visibly flattened wall with the
-      // old zero depth. Canonicalize that already-pressed resting state before
-      // accepting input; an ordinary floating wall still animates normally.
+    // A frame imported while its buttons are already held may still carry the
+    // old zero-depth cube value. Canonicalize only states whose pressed
+    // projection is non-solid, so input collision agrees with the visible
+    // face/hidden starting frame. Ordinary cubes still animate normally.
+    if (OrangeWallIsFlatForDepth(voxels, count, index, pressed) ||
+        OrangeWallIsHiddenForDepth(voxels, count, index, pressed)) {
       SetOrangeWallDepth(&wall, pressed);
       changed = true;
     }
@@ -578,7 +572,10 @@ void PreflightOrangeWallComponents(
           voxels, count, index, old_depth);
       const int32_t new_surface = OrangeWallSurfaceZForDepth(
           voxels, count, index, new_depth);
-      const int32_t wall_delta = new_surface - old_surface;
+      const int32_t wall_delta = old_surface == INT32_MIN ||
+              new_surface == INT32_MIN
+          ? 0
+          : new_surface - old_surface;
       if (wall_delta != 0) {
         if (component_delta != 0 && component_delta != wall_delta) {
           conflicting_deltas = true;
@@ -639,6 +636,13 @@ void PreflightOrangeWallComponents(
           continue;
         }
         const Voxel& wall = voxels[index];
+        if (OrangeWallIsHiddenForDepth(
+                voxels,
+                count,
+                index,
+                OrangeWallDepth(wall))) {
+          continue;
+        }
         const int32_t new_top = OrangeWallPhysicalZ(voxels, count, index);
         const int32_t occupant = FindVoxelAt(
             voxels, wall.x, wall.y, new_top, width, height);
@@ -684,7 +688,7 @@ void PreflightOrangeWallComponents(
             component_delta,
             width,
             height,
-            true,
+            player_rides_component,
             true,
             true,
             false,
@@ -736,8 +740,13 @@ bool AdvanceOrangeMechanismsOneTick(
         voxels, count, index, old_depth);
     int32_t new_surface = OrangeWallSurfaceZForDepth(
         voxels, count, index, new_depth);
-    if (component_shift != 0) new_surface += component_shift;
-    const int32_t wall_delta = new_surface - old_surface;
+    if (component_shift != 0 && new_surface != INT32_MIN) {
+      new_surface += component_shift;
+    }
+    const int32_t wall_delta = old_surface == INT32_MIN ||
+            new_surface == INT32_MIN
+        ? 0
+        : new_surface - old_surface;
     if (wall_delta == 0) {
       SetOrangeWallDepth(&wall, new_depth);
       changed = true;
@@ -773,15 +782,38 @@ bool AdvanceOrangeMechanismsOneTick(
     }
 
     bool blocked = false;
-    int32_t new_top = OrangeWallPhysicalZForDepth(
-        voxels, count, index, new_depth);
-    if (component_shift != 0) new_top += component_shift;
-    const int32_t wall_occupant = FindVoxelAt(
-        voxels, wall.x, wall.y, new_top, width, height);
-    if (wall_occupant >= 0 && wall_occupant != index) {
-      const int32_t occupant_object = g_voxel_object[wall_occupant];
-      blocked = wall_occupant != player_index &&
-          (occupant_object < 0 || g_mandatory_objects[occupant_object] == 0);
+    if (!OrangeWallIsHiddenForDepth(voxels, count, index, new_depth) &&
+        !OrangeWallIsFlatForDepth(voxels, count, index, new_depth)) {
+      int32_t new_top = OrangeWallPhysicalZForDepth(
+          voxels, count, index, new_depth);
+      if (component_shift != 0) new_top += component_shift;
+      const int32_t wall_occupant = FindVoxelAt(
+          voxels, wall.x, wall.y, new_top, width, height);
+      if (wall_occupant >= 0 && wall_occupant != index) {
+        bool occupant_vacates = false;
+        if (voxels[wall_occupant].role == kOrangeWallRole) {
+          const int32_t occupant_depth = OrangeWallDepth(
+              voxels[wall_occupant]);
+          if (occupant_depth != target_depth) {
+            const int32_t occupant_new_depth = occupant_depth +
+                (occupant_depth < target_depth ? 1 : -1);
+            occupant_vacates =
+                OrangeWallIsFlatForDepth(
+                    voxels, count, wall_occupant, occupant_new_depth) ||
+                OrangeWallIsHiddenForDepth(
+                    voxels, count, wall_occupant, occupant_new_depth) ||
+                OrangeWallPhysicalZForDepth(
+                    voxels, count, wall_occupant, occupant_new_depth) !=
+                    new_top;
+          }
+        }
+        if (!occupant_vacates) {
+          const int32_t occupant_object = g_voxel_object[wall_occupant];
+          blocked = wall_occupant != player_index &&
+              (occupant_object < 0 ||
+               g_mandatory_objects[occupant_object] == 0);
+        }
+      }
     }
     if (!blocked && player_rides_wall) {
       const int32_t player_target = FindVoxelAt(
@@ -823,7 +855,7 @@ bool AdvanceOrangeMechanismsOneTick(
           wall_delta,
           width,
           height,
-          true,
+          player_rides_wall,
           true,
           true,
           false);

@@ -19,6 +19,56 @@ void ClearMovingObjects() {
   }
 }
 
+// A compressed Orange Wall voxel is non-colliding, but its raised anchor can
+// be embedded in a movable polycube (or immediately beneath that polycube's
+// bottom voxel). In that authored arrangement it is a fixture of the rigid
+// body and translates with the body's deliberate proposal. The wall keeps its
+// depth; only its stable raised anchor moves in X/Y/Z.
+void TranslateHiddenOrangeWallsWithProposals(
+    Voxel* voxels,
+    int32_t count,
+    bool uniform,
+    int32_t uniform_dx,
+    int32_t uniform_dy,
+    int32_t uniform_dz,
+    bool include_carried) {
+  if (!ActiveWorkspace().scene_has_orange_mechanisms ||
+      (uniform && uniform_dx == 0 && uniform_dy == 0)) {
+    return;
+  }
+  for (int32_t wall_index = 0; wall_index < count; ++wall_index) {
+    Voxel& wall = voxels[wall_index];
+    if (wall.role != kOrangeWallRole ||
+        !OrangeWallIsHiddenForDepth(
+            voxels, count, wall_index, OrangeWallDepth(wall))) {
+      continue;
+    }
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if ((g_mandatory_objects[object] == 0 &&
+           (!include_carried || g_carried_objects[object] == 0 ||
+            g_carrier_parent[object] != -2)) ||
+          g_rejected_carriers[object] != 0 ||
+          g_object_kind[object] == kMechanismObject) {
+        continue;
+      }
+      bool attached = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        attached = voxels[member].x == wall.x &&
+            voxels[member].y == wall.y &&
+            (voxels[member].z == wall.z ||
+             (wall.z != INT32_MAX && voxels[member].z == wall.z + 1));
+        if (attached) break;
+      }
+      if (!attached) continue;
+      wall.x += uniform ? uniform_dx : g_object_dx[object];
+      wall.y += uniform ? uniform_dy : g_object_dy[object];
+      wall.z += uniform ? uniform_dz : g_object_dz[object];
+      break;
+    }
+  }
+}
+
 bool OrangeButtonSharesCellWith(
     Voxel* voxels,
     const Voxel& voxel) {
@@ -208,8 +258,15 @@ bool ResolveCarriedCollisions(
 bool ObjectHasCarrierBelow(
     Voxel* voxels,
     int32_t object,
-    int32_t carrier) {
+    int32_t carrier,
+    int32_t width,
+    int32_t height) {
   if (carrier < 0) return false;
+  const int32_t attachment = MechanismAttachmentVoxel(
+      voxels, object, width, height);
+  if (attachment >= 0 && g_voxel_object[attachment] == carrier) {
+    return true;
+  }
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
     const Voxel& voxel = voxels[member];
@@ -264,6 +321,8 @@ void TranslateObjectsCarriedByPlayerOneStep(
       break;
     }
   }
+  TranslateHiddenOrangeWallsWithProposals(
+      voxels, g_spatial_voxel_count, true, dx, dy, 0, true);
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_carried_objects[object] == 0 ||
         g_rejected_carriers[object] != 0) {
@@ -790,6 +849,8 @@ bool TranslateMovingObjects(
         player_moves_horizontally);
   }
 
+  TranslateHiddenOrangeWallsWithProposals(
+      voxels, count, true, dx, dy, dz, carry_from_player);
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_moving_objects[object] == 0) continue;
     for (int32_t member = g_object_head[object]; member >= 0;
@@ -819,7 +880,8 @@ bool TranslateMovingObjects(
         continue;
       }
       if (carrier == -2) continue;
-      if (!ObjectHasCarrierBelow(voxels, object, carrier)) {
+      if (!ObjectHasCarrierBelow(
+              voxels, object, carrier, width, height)) {
         g_rejected_carriers[object] = 1;
         for (int32_t member = g_object_head[object]; member >= 0;
              member = g_next_object_voxel[member]) {
@@ -2219,6 +2281,8 @@ bool TranslateSlopeMomentumObjects(
   }
 
   bool moved = false;
+  TranslateHiddenOrangeWallsWithProposals(
+      voxels, count, false, 0, 0, 0, false);
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_mandatory_objects[object] == 0) continue;
     moved = true;

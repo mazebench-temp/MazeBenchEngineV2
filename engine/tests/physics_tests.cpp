@@ -1217,6 +1217,65 @@ void TestOrangeWallCarriesItsMountedButtonInTheSameTick() {
         "the mounted button should rise with the wall after pressure is released");
 }
 
+void TestMovingPolycubeCarriesButtonsMountedOnEveryFace() {
+  voxelbench::Voxel voxels[] = {
+      {1, 5, 1, Role("player"), -1},
+      {1, 4, 1, Role("weightless-pushable"), 0},
+      {0, 4, 1, Role("orange-button"), 8},
+      {1, 3, 1, Role("orange-button"), 2},
+      {1, 5, 1, Role("orange-button"), 6},
+      {2, 4, 1, Role("orange-button"), 4},
+      {1, 4, 2, Role("orange-button"), 0},
+      {1, 5, 0, Role("floor"), -1},
+      {1, 4, 0, Role("floor"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {2, 4, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 12, 6, 6, 0) == 0,
+        "pushing a button-covered polycube should run");
+  Check(voxels[1].y == 3 && voxels[2].y == 3 && voxels[3].y == 2 &&
+            voxels[4].y == 4 && voxels[5].y == 3 && voxels[6].y == 3,
+        "buttons mounted on every face should translate with their host");
+}
+
+void TestReleasedOrangeColumnRaisesEveryVoxelAfterJoining() {
+  voxelbench::Voxel voxels[46]{};
+  int32_t count = 0;
+  int32_t upper_wall = -1;
+  int32_t lower_wall = -1;
+  for (int32_t x = 0; x < 6; ++x) {
+    for (int32_t y = 0; y < 6; ++y) {
+      if (x == 1 && y == 3) {
+        lower_wall = count;
+        voxels[count++] = {x, y, 1, Role("orange-wall"), 2};
+      }
+      voxels[count++] = {x, y, 0, Role("floor"), -1};
+      if (x == 1 && y == 2) {
+        upper_wall = count;
+        voxels[count++] = {x, y, 2, Role("orange-wall"), 2};
+      }
+      if (y != 3 || x < 1 || x > 3) continue;
+      if (x == 1) {
+        voxels[count++] = {x, y, 1, Role("player"), -1};
+        voxels[count++] = {x, y, 2, Role("weightless-pushable"), 0};
+      } else {
+        voxels[count++] = {x, y, 1, Role("orange-button"), 0};
+        voxels[count++] = {x, y, 1, Role("weightless-pushable"), 0};
+        voxels[count++] = {x, y, 2, Role("weightless-pushable"), 0};
+      }
+    }
+  }
+  static voxelbench::PhysicsWorkspace workspace;
+  voxelbench::reset_workspace(&workspace);
+  Check(voxelbench::simulate_turn(&workspace, voxels, count, 6, 6, 0) == 0,
+        "releasing a carried orange-wall assembly should run");
+  Check(voxels[upper_wall].generic_id == 0 &&
+            voxels[lower_wall].generic_id == 0 &&
+            voxels[upper_wall].y == 2 && voxels[lower_wall].y == 2,
+        "every voxel in the newly joined orange column should fully raise");
+}
+
 void TestOrangeWallsCountEveryPressedButton() {
   voxelbench::Voxel voxels[] = {
       {0, 2, 1, Role("player"), -1},
@@ -1272,10 +1331,12 @@ void TestFloatingOrangeWallLowersAsACube() {
         "a wall over empty space should descend as a full cube and carry its rider");
 }
 
-void TestDedicatedOrangeFaceRetainsItsFormAndDepth() {
+void TestProjectedOrangeFaceTransitionsWithDepth() {
   voxelbench::Voxel voxels[] = {
       {1, 2, 1, Role("player"), -1},
-      {1, 1, 1, Role("orange-wall"), -2},
+      // Canonical C++ input stores the raised anchor (z=1) plus depth 1. The
+      // floor at z=0 projects this record into a pass-through face at row 1.
+      {1, 1, 1, Role("orange-wall"), 1},
       {2, 2, 1, Role("orange-button"), 0},
       {2, 2, 1, Role("pushable"), -1},
       {1, 2, 0, Role("floor"), -1},
@@ -1283,12 +1344,12 @@ void TestDedicatedOrangeFaceRetainsItsFormAndDepth() {
       {2, 2, 0, Role("floor"), -1},
   };
   Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 0) == 0 &&
-            voxels[0].y == 1 && voxels[1].generic_id == -3,
-        "a dedicated Orange Face should remain pass-through while recording one pressed step");
+            voxels[0].y == 1 && voxels[1].generic_id == 1,
+        "a projected Orange Face should remain pass-through while its button stays pressed");
   voxels[3].x = -1;
   Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 2) == 0 &&
-            voxels[1].generic_id == -2,
-        "a dedicated Orange Face should release to numbered zero without becoming a cube");
+            voxels[1].generic_id == 0,
+        "a released Orange Face should return to a solid cube at depth zero");
 }
 
 void TestSearchTracksOrangeWallDepth() {
@@ -1365,15 +1426,17 @@ int main() {
   TestSearchTracksPlayerLiftState();
   TestOrangeButtonUsesASeparateWallTick();
   TestOrangeWallCarriesItsMountedButtonInTheSameTick();
+  TestMovingPolycubeCarriesButtonsMountedOnEveryFace();
+  TestReleasedOrangeColumnRaisesEveryVoxelAfterJoining();
   TestOrangeWallsCountEveryPressedButton();
   TestFlattenedOrangeWallIsPassThroughOnFloor();
   TestFloatingOrangeWallLowersAsACube();
-  TestDedicatedOrangeFaceRetainsItsFormAndDepth();
+  TestProjectedOrangeFaceTransitionsWithDepth();
   TestSearchTracksOrangeWallDepth();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 53 C++ physics/search tests passed\n";
+  std::cout << "all 56 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

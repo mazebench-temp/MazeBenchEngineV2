@@ -57,6 +57,9 @@ bool IsPassThroughVoxel(const Voxel& voxel) {
 
 int32_t OrangeWallDepth(const Voxel& voxel) {
   if (voxel.role != kOrangeWallRole) return 0;
+  // Negative values are accepted only for compatibility with the former
+  // dedicated-face ABI. New callers encode every Orange Wall form with the
+  // same nonnegative depth; form is derived from anchor, depth, and support.
   if (voxel.generic_id <= -2) {
     return voxel.generic_id == INT32_MIN
         ? INT32_MAX - 1
@@ -65,30 +68,34 @@ int32_t OrangeWallDepth(const Voxel& voxel) {
   return voxel.generic_id > 0 ? voxel.generic_id : 0;
 }
 
-bool OrangeWallIsDedicatedFace(const Voxel& voxel) {
-  return voxel.role == kOrangeWallRole && voxel.generic_id <= -2;
-}
-
 void SetOrangeWallDepth(Voxel* voxel, int32_t depth) {
   if (voxel == nullptr || voxel->role != kOrangeWallRole) return;
   if (depth < 0) depth = 0;
-  if (OrangeWallIsDedicatedFace(*voxel)) {
-    const int32_t capped = depth > INT32_MAX - 2 ? INT32_MAX - 2 : depth;
-    voxel->generic_id = -2 - capped;
-  } else {
-    voxel->generic_id = depth;
-  }
+  voxel->generic_id = depth;
 }
 
-// Orange walls retain their authored anchor coordinate. Their deterministic
-// state is the number of active buttons, and collision/rendering derives the
-// physical cube from that pair. A non-orange support clamps the descent; once
-// the cube would enter that support it becomes a pass-through surface instead.
+// Orange walls retain their fully-raised anchor coordinate. Their deterministic
+// state is the number of active buttons. At anchor-depth they are a cube above
+// support, a zero-thickness face exactly on the support plane, or a hidden,
+// pass-through volume below it.
 int32_t OrangeWallSupportZ(
     Voxel* voxels,
     int32_t count,
     int32_t wall_index) {
   const Voxel& wall = voxels[wall_index];
+  // Every record in one vertical Orange Wall column is a voxel of the same
+  // fully-raised polycube. Collapse is measured from the terrain beneath the
+  // column's lowest raised anchor. Static geometry among/above those anchors
+  // is an obstruction to later raising, not a new floor that changes the
+  // meaning of already-authored face and hidden states.
+  int32_t lowest_anchor_z = wall.z;
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kOrangeWallRole &&
+        voxels[index].x == wall.x && voxels[index].y == wall.y &&
+        voxels[index].z < lowest_anchor_z) {
+      lowest_anchor_z = voxels[index].z;
+    }
+  }
   int32_t support_z = INT32_MIN;
   for (int32_t index = 0; index < count; ++index) {
     if (index == wall_index || voxels[index].x != wall.x ||
@@ -98,7 +105,8 @@ int32_t OrangeWallSupportZ(
         voxels[index].role == kWeightlessPushableRole ||
         voxels[index].role == kPlayerLiftRole ||
         voxels[index].role == kOrangeButtonRole ||
-        IsPassThroughVoxel(voxels[index]) || voxels[index].z >= wall.z ||
+        IsPassThroughVoxel(voxels[index]) ||
+        voxels[index].z >= lowest_anchor_z ||
         voxels[index].z == INT32_MIN) {
       continue;
     }
@@ -113,11 +121,9 @@ int32_t OrangeWallPhysicalZForDepth(
     int32_t wall_index,
     int32_t depth) {
   const Voxel& wall = voxels[wall_index];
-  if (OrangeWallIsDedicatedFace(wall)) return wall.z;
-  if (depth <= 0) return wall.z;
   const int64_t desired = static_cast<int64_t>(wall.z) - depth;
   const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
-  if (support_z != INT32_MIN && desired <= support_z) {
+  if (support_z != INT32_MIN && desired == support_z) {
     return support_z == INT32_MAX ? INT32_MAX : support_z + 1;
   }
   if (desired < INT32_MIN) return INT32_MIN;
@@ -129,11 +135,19 @@ bool OrangeWallIsFlatForDepth(
     int32_t count,
     int32_t wall_index,
     int32_t depth) {
-  if (OrangeWallIsDedicatedFace(voxels[wall_index])) return true;
-  if (depth <= 0) return false;
   const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
   return support_z != INT32_MIN &&
-      static_cast<int64_t>(voxels[wall_index].z) - depth <= support_z;
+      static_cast<int64_t>(voxels[wall_index].z) - depth == support_z;
+}
+
+bool OrangeWallIsHiddenForDepth(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index,
+    int32_t depth) {
+  const int32_t support_z = OrangeWallSupportZ(voxels, count, wall_index);
+  return support_z != INT32_MIN &&
+      static_cast<int64_t>(voxels[wall_index].z) - depth < support_z;
 }
 
 int32_t OrangeWallPhysicalZ(
@@ -144,10 +158,9 @@ int32_t OrangeWallPhysicalZ(
       voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
 }
 
-// A supported orange wall is an extensible column: its logical voxel stores
-// the resting top and its button depth lowers that top one row at a time. The
-// cells between the fixed support and the current top remain solid. A wall
-// without support is still a single floating cube, as before.
+// Every Orange Wall record represents exactly one voxel of the raised
+// polycube. Compression may turn it into a face or hidden volume, but never
+// creates inferred collision cells between authored voxels.
 bool OrangeWallOccupiesZ(
     Voxel* voxels,
     int32_t count,
@@ -155,14 +168,13 @@ bool OrangeWallOccupiesZ(
     int32_t z) {
   if (voxels[wall_index].role != kOrangeWallRole ||
       OrangeWallIsFlatForDepth(
+          voxels, count, wall_index, OrangeWallDepth(voxels[wall_index])) ||
+      OrangeWallIsHiddenForDepth(
           voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]))) {
     return false;
   }
   const int32_t top = OrangeWallPhysicalZ(voxels, count, wall_index);
-  const int32_t support = OrangeWallSupportZ(voxels, count, wall_index);
-  return support == INT32_MIN
-      ? z == top
-      : z > support && z <= top;
+  return z == top;
 }
 
 int32_t OrangeWallSurfaceZForDepth(
@@ -172,6 +184,9 @@ int32_t OrangeWallSurfaceZForDepth(
     int32_t depth) {
   const int32_t physical = OrangeWallPhysicalZForDepth(
       voxels, count, wall_index, depth);
+  if (OrangeWallIsHiddenForDepth(voxels, count, wall_index, depth)) {
+    return INT32_MIN;
+  }
   return OrangeWallIsFlatForDepth(voxels, count, wall_index, depth)
       ? physical
       : physical == INT32_MAX ? INT32_MAX : physical + 1;
@@ -186,8 +201,10 @@ int32_t VoxelPhysicalZ(Voxel* voxels, int32_t count, int32_t index) {
 bool VoxelBlocksSpace(Voxel* voxels, int32_t count, int32_t index) {
   if (IsPassThroughVoxel(voxels[index])) return false;
   return voxels[index].role != kOrangeWallRole ||
-      !OrangeWallIsFlatForDepth(
-          voxels, count, index, OrangeWallDepth(voxels[index]));
+      (!OrangeWallIsFlatForDepth(
+           voxels, count, index, OrangeWallDepth(voxels[index])) &&
+       !OrangeWallIsHiddenForDepth(
+           voxels, count, index, OrangeWallDepth(voxels[index])));
 }
 
 int32_t IceSlopeDirection(uint32_t role) {

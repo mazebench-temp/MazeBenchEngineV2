@@ -1,7 +1,8 @@
 import { buttonMechanismId, normalizeButtonOrientation } from "./visualVariants.mjs";
 import {
-  normalizeOrangeWallFrame,
   orangeWallDepthFromMechanismValue,
+  orangeWallEngineAnchorZ,
+  orangeWallFrameFromEngine,
   orangeWallMechanismValue,
 } from "./orangeWalls.mjs";
 
@@ -172,12 +173,14 @@ export async function simulateCommandWithCpp(
     const offset = index * stride;
     voxelBuffer[offset] = voxel.x;
     voxelBuffer[offset + 1] = voxel.y;
-    voxelBuffer[offset + 2] = voxel.z;
+    voxelBuffer[offset + 2] = blocksById.get(voxel.blockId)?.roleId === "orange-wall"
+      ? orangeWallEngineAnchorZ(voxel, blocksById)
+      : voxel.z;
     voxelBuffer[offset + 3] = blockRole(voxel);
     voxelBuffer[offset + 4] = mechanismValue(voxel);
   });
 
-  const readFrame = (): Frame => normalizeOrangeWallFrame({
+  const readFrame = (): Frame => orangeWallFrameFromEngine({
     voxels: frame.voxels.map((voxel, index) => {
       const offset = index * stride;
       const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;

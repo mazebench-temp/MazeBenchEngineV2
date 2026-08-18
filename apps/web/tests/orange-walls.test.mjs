@@ -5,6 +5,7 @@ import {
   normalizeOrangeWallFrame,
   orangeWallDepthFromMechanismValue,
   orangeWallDepthForState,
+  orangeWallFrameFromEngine,
   orangeWallIsDedicatedFace,
   orangeWallIsHiddenVolume,
   orangeWallMechanismValue,
@@ -17,25 +18,29 @@ const definitions = new Map([
   ["orange-wall-face", {
     id: "orange-wall-face",
     occupancy: "support",
+    roleId: "orange-wall",
     visual: { kind: "orange-wall", orangeForm: "face" },
   }],
   ["orange-wall", {
     id: "orange-wall",
     occupancy: "solid",
+    roleId: "orange-wall",
     visual: { kind: "orange-wall", orangeForm: "cube" },
   }],
   ["orange-wall-hidden", {
     id: "orange-wall-hidden",
     occupancy: "inactive",
+    roleId: "orange-wall",
     visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
 ]);
 
-test("dedicated Orange Face values preserve form separately from remaining rise", () => {
+test("Orange Face ABI values use the same nonnegative depth as every form", () => {
   const face = {
     x: 1, y: 1, z: 1, blockId: "orange-wall-face", stateId: 0, mechanismDepth: 7,
   };
-  assert.equal(orangeWallMechanismValue(face, definitions), -9);
+  assert.equal(orangeWallMechanismValue(face, definitions), 7);
+  // Old project/WASM snapshots remain readable during migration.
   assert.equal(orangeWallDepthFromMechanismValue(-9), 7);
   assert.equal(orangeWallPhysicalState(face, [face], definitions).stateId, 0);
 });
@@ -103,42 +108,44 @@ test("painting binary surface state computes the required hidden depth", () => {
   assert.equal(orangeWallDepthForState(wall, [], definitions, 0), null);
 });
 
-test("visual comparison collapses hidden anchors to the rendered binary frame", () => {
+test("engine anchors project to authored cells without erasing rise debt", () => {
   const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
   const engineBrick = {
     x: 1, y: 1, z: 3, blockId: "orange-wall", stateId: 1, mechanismDepth: 2,
   };
   const authoredBrick = {
-    x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 1, mechanismDepth: 0,
+    x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 1, mechanismDepth: 2,
   };
   assert.deepEqual(
-    orangeWallVisualFrame({ voxels: [floor, engineBrick] }, definitions).voxels[1],
+    orangeWallFrameFromEngine(
+      { voxels: [floor, engineBrick] }, definitions,
+    ).voxels[1],
     authoredBrick,
   );
 });
 
-test("visual comparison hides flattened wall faces covered by a brick", () => {
+test("visual comparison hides an explicit Orange Face covered by a brick", () => {
   const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
   const lowerWall = {
-    x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 0, mechanismDepth: 1,
+    x: 1, y: 1, z: 1, blockId: "orange-wall-face", stateId: 0, mechanismDepth: 1,
   };
   const upperWall = {
-    x: 1, y: 1, z: 2, blockId: "orange-wall", stateId: 1, mechanismDepth: 1,
+    x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 1, mechanismDepth: 1,
   };
 
   assert.deepEqual(
     orangeWallVisualFrame({ voxels: [floor, lowerWall, upperWall] }, definitions).voxels,
-    [floor, { ...upperWall, z: 1, mechanismDepth: 0 }],
+    [floor, upperWall],
   );
 });
 
-test("visual comparison collapses coincident flattened wall faces", () => {
+test("visual comparison collapses coincident explicit Orange Faces", () => {
   const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
   const first = {
-    x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 0, mechanismDepth: 2,
+    x: 1, y: 1, z: 1, blockId: "orange-wall-face", stateId: 0, mechanismDepth: 2,
   };
   const second = {
-    x: 1, y: 1, z: 2, blockId: "orange-wall", stateId: 0, mechanismDepth: 2,
+    x: 1, y: 1, z: 1, blockId: "orange-wall-face", stateId: 0, mechanismDepth: 2,
   };
 
   assert.equal(
@@ -147,7 +154,7 @@ test("visual comparison collapses coincident flattened wall faces", () => {
   );
 });
 
-test("a supported raised orange wall renders as a solid column", () => {
+test("one raised Orange Wall record renders exactly one cube", () => {
   const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
   const wall = {
     x: 1, y: 1, z: 3, blockId: "orange-wall", stateId: 1, mechanismDepth: 0,
@@ -157,6 +164,6 @@ test("a supported raised orange wall renders as a solid column", () => {
     orangeWallVisualFrame({ voxels: [floor, wall] }, definitions).voxels
       .filter((voxel) => voxel.blockId === "orange-wall")
       .map((voxel) => voxel.z),
-    [1, 2, 3],
+    [3],
   );
 });
