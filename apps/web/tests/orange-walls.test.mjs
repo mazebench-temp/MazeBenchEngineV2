@@ -94,3 +94,17 @@ test("visual comparison collapses coincident flattened wall faces", () => {
     2,
   );
 });
+
+test("a supported raised orange wall renders as a solid column", () => {
+  const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
+  const wall = {
+    x: 1, y: 1, z: 3, blockId: "orange-wall", stateId: 1, mechanismDepth: 0,
+  };
+
+  assert.deepEqual(
+    orangeWallVisualFrame({ voxels: [floor, wall] }, definitions).voxels
+      .filter((voxel) => voxel.blockId === "orange-wall")
+      .map((voxel) => voxel.z),
+    [1, 2, 3],
+  );
+});

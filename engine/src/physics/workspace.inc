@@ -74,6 +74,11 @@ int32_t OrangeWallSupportZ(
   for (int32_t index = 0; index < count; ++index) {
     if (index == wall_index || voxels[index].x != wall.x ||
         voxels[index].y != wall.y || voxels[index].role == kOrangeWallRole ||
+        voxels[index].role == kPlayerRole ||
+        voxels[index].role == kPushableRole ||
+        voxels[index].role == kWeightlessPushableRole ||
+        voxels[index].role == kPlayerLiftRole ||
+        voxels[index].role == kOrangeButtonRole ||
         IsPassThroughVoxel(voxels[index]) || voxels[index].z >= wall.z ||
         voxels[index].z == INT32_MIN) {
       continue;
@@ -116,6 +121,27 @@ int32_t OrangeWallPhysicalZ(
     int32_t wall_index) {
   return OrangeWallPhysicalZForDepth(
       voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
+}
+
+// A supported orange wall is an extensible column: its logical voxel stores
+// the resting top and its button depth lowers that top one row at a time. The
+// cells between the fixed support and the current top remain solid. A wall
+// without support is still a single floating cube, as before.
+bool OrangeWallOccupiesZ(
+    Voxel* voxels,
+    int32_t count,
+    int32_t wall_index,
+    int32_t z) {
+  if (voxels[wall_index].role != kOrangeWallRole ||
+      OrangeWallIsFlatForDepth(
+          voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]))) {
+    return false;
+  }
+  const int32_t top = OrangeWallPhysicalZ(voxels, count, wall_index);
+  const int32_t support = OrangeWallSupportZ(voxels, count, wall_index);
+  return support == INT32_MIN
+      ? z == top
+      : z > support && z <= top;
 }
 
 int32_t OrangeWallSurfaceZForDepth(
@@ -187,6 +213,7 @@ struct WorkspaceData {
   uint8_t fell_objects[kVoxelCapacity];
   uint8_t object_falling[kVoxelCapacity];
   uint8_t pending_fall[kVoxelCapacity];
+  uint8_t blocked_orange_walls[kVoxelCapacity];
   int32_t carrier_parent[kVoxelCapacity];
   uint8_t object_gravity_armed[kVoxelCapacity];
   uint8_t component_objects[kVoxelCapacity];
@@ -268,6 +295,7 @@ WorkspaceData& ActiveWorkspace() {
 #define g_fell_objects ActiveWorkspace().fell_objects
 #define g_object_falling ActiveWorkspace().object_falling
 #define g_pending_fall ActiveWorkspace().pending_fall
+#define g_blocked_orange_walls ActiveWorkspace().blocked_orange_walls
 #define g_carrier_parent ActiveWorkspace().carrier_parent
 #define g_object_gravity_armed ActiveWorkspace().object_gravity_armed
 #define g_component_objects ActiveWorkspace().component_objects
@@ -518,7 +546,10 @@ int32_t FindVoxelAt(
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
       if (VoxelBlocksSpace(voxels, g_spatial_voxel_count, index) &&
           voxels[index].x == x && voxels[index].y == y &&
-          VoxelPhysicalZ(voxels, g_spatial_voxel_count, index) == z) {
+          (voxels[index].role == kOrangeWallRole
+              ? OrangeWallOccupiesZ(
+                    voxels, g_spatial_voxel_count, index, z)
+              : voxels[index].z == z)) {
         return index;
       }
     }
@@ -527,7 +558,21 @@ int32_t FindVoxelAt(
   const uint64_t key = SpatialKey(x, y, z, width);
   const int32_t dynamic = HashFind(key);
   if (dynamic >= 0) return dynamic;
-  return ActiveWorkspace().prepared_index_active
+  const int32_t immutable = ActiveWorkspace().prepared_index_active
       ? StaticHashFind(key)
       : -1;
+  if (immutable >= 0) return immutable;
+  if (ActiveWorkspace().scene_has_orange_mechanisms) {
+    // Hash the column top for the common lookup, then resolve lower cells of
+    // an extended supported wall only on a miss. Orange-wall counts are tiny
+    // in authored rooms and this keeps the general spatial table compact.
+    for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
+      if (voxels[index].role == kOrangeWallRole && voxels[index].x == x &&
+          voxels[index].y == y && OrangeWallOccupiesZ(
+              voxels, g_spatial_voxel_count, index, z)) {
+        return index;
+      }
+    }
+  }
+  return -1;
 }

@@ -300,6 +300,9 @@ void InitializeMotion(
   state->reserved[1] = 0;
   // reserved[1] stores the phase resumed after an orange mechanism tick.
   state->reserved[1] = static_cast<uint8_t>(kMotionReady);
+  for (int32_t index = 0; index < count; ++index) {
+    g_blocked_orange_walls[index] = 0;
+  }
   // StoreObjectMotion below replaces the falling/gravity arrays completely;
   // only horizontal momentum needs an independent reset here.
   ClearHorizontalMomentum(state, count);
@@ -353,6 +356,9 @@ void InitializeQuiescentMotion(
   state->reserved[0] = kResumeNothing;
   state->reserved[1] = 0;
   state->reserved[1] = static_cast<uint8_t>(kMotionReady);
+  for (int32_t index = 0; index < count; ++index) {
+    g_blocked_orange_walls[index] = 0;
+  }
   // StoreObjectMotion below replaces the falling/gravity arrays completely.
   ClearHorizontalMomentum(state, count);
   for (int32_t object = 0; object < g_object_count; ++object) {
@@ -421,6 +427,39 @@ int32_t PressedOrangeButtonCount(
   return pressed;
 }
 
+bool NormalizeInitialOrangeWallAnchors(
+    Voxel* voxels,
+    int32_t count,
+    int32_t width,
+    int32_t height) {
+  if (!ActiveWorkspace().scene_has_orange_mechanisms) return false;
+  const int32_t pressed = PressedOrangeButtonCount(
+      voxels, count, width, height);
+  bool changed = false;
+  for (int32_t index = 0; index < count; ++index) {
+    Voxel& wall = voxels[index];
+    if (wall.role != kOrangeWallRole) continue;
+    const int32_t depth = OrangeWallDepth(wall);
+    if (depth >= pressed) continue;
+    if (OrangeWallIsFlatForDepth(voxels, count, index, depth)) {
+      const int32_t extension = pressed - depth;
+      wall.z = wall.z > INT32_MAX - extension
+          ? INT32_MAX
+          : wall.z + extension;
+      wall.generic_id = pressed;
+      changed = true;
+    } else if (OrangeWallIsFlatForDepth(
+                   voxels, count, index, pressed)) {
+      // Imported legacy frames may encode a visibly flattened wall with the
+      // old zero depth. Canonicalize that already-pressed resting state before
+      // accepting input; an ordinary floating wall still animates normally.
+      wall.generic_id = pressed;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 bool OrangeMechanismsNeedTick(
     Voxel* voxels,
     int32_t count,
@@ -431,6 +470,7 @@ bool OrangeMechanismsNeedTick(
       voxels, count, width, height);
   for (int32_t index = 0; index < count; ++index) {
     if (voxels[index].role == kOrangeWallRole &&
+        g_blocked_orange_walls[index] == 0 &&
         OrangeWallDepth(voxels[index]) != pressed) {
       return true;
     }
@@ -477,17 +517,13 @@ bool AdvanceOrangeMechanismsOneTick(
     int32_t height) {
   const int32_t target_depth = PressedOrangeButtonCount(
       voxels, count, width, height);
-  const RiderSnapshot player_rider = CapturePlayerRider(
-      voxels, player_index, width, height);
   bool changed = false;
-  bool player_rides_wall = false;
-  int32_t vertical_delta = 0;
-  bool conflicting_deltas = false;
-  ClearMovingObjects();
 
   for (int32_t index = 0; index < count; ++index) {
     Voxel& wall = voxels[index];
-    if (wall.role != kOrangeWallRole) continue;
+    if (wall.role != kOrangeWallRole || g_blocked_orange_walls[index] != 0) {
+      continue;
+    }
     const int32_t old_depth = OrangeWallDepth(wall);
     if (old_depth == target_depth) continue;
     const int32_t new_depth = old_depth + (old_depth < target_depth ? 1 : -1);
@@ -496,74 +532,111 @@ bool AdvanceOrangeMechanismsOneTick(
     const int32_t new_surface = OrangeWallSurfaceZForDepth(
         voxels, count, index, new_depth);
     const int32_t wall_delta = new_surface - old_surface;
-    if (wall_delta != 0) {
-      if (vertical_delta != 0 && vertical_delta != wall_delta) {
-        conflicting_deltas = true;
-      } else {
-        vertical_delta = wall_delta;
-      }
-      const Voxel& player = voxels[player_index];
-      player_rides_wall |= player.x == wall.x && player.y == wall.y &&
-          player.z == old_surface;
-      for (int32_t object = 0; object < g_object_count; ++object) {
-        if (g_object_kind[object] == kMechanismObject) {
-          const int32_t member = g_object_head[object];
-          if (member >= 0 && OrangeButtonRidesWallSurface(
-                  voxels[member], wall, old_surface)) {
-            g_mandatory_objects[object] = 1;
-            g_moving_objects[object] = 1;
-          }
-          continue;
+    if (wall_delta == 0) {
+      wall.generic_id = new_depth;
+      changed = true;
+      BuildSpatialIndex(voxels, count, width, height);
+      continue;
+    }
+
+    ClearMovingObjects();
+    const RiderSnapshot player_rider = CapturePlayerRider(
+        voxels, player_index, width, height);
+    const Voxel& player = voxels[player_index];
+    const bool player_rides_wall =
+        player.x == wall.x && player.y == wall.y && player.z == old_surface;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_object_kind[object] == kMechanismObject) {
+        const int32_t member = g_object_head[object];
+        if (member >= 0 && OrangeButtonRidesWallSurface(
+                voxels[member], wall, old_surface)) {
+          g_mandatory_objects[object] = 1;
+          g_moving_objects[object] = 1;
         }
-        for (int32_t member = g_object_head[object]; member >= 0;
-             member = g_next_object_voxel[member]) {
-          if (voxels[member].x == wall.x && voxels[member].y == wall.y &&
-              voxels[member].z == old_surface) {
-            g_mandatory_objects[object] = 1;
-            g_moving_objects[object] = 1;
-            break;
-          }
+        continue;
+      }
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        if (voxels[member].x == wall.x && voxels[member].y == wall.y &&
+            voxels[member].z == old_surface) {
+          g_mandatory_objects[object] = 1;
+          g_moving_objects[object] = 1;
+          break;
         }
       }
     }
-    wall.generic_id = new_depth;
+
+    bool blocked = false;
+    const int32_t new_top = OrangeWallPhysicalZForDepth(
+        voxels, count, index, new_depth);
+    const int32_t wall_occupant = FindVoxelAt(
+        voxels, wall.x, wall.y, new_top, width, height);
+    if (wall_occupant >= 0 && wall_occupant != index) {
+      const int32_t occupant_object = g_voxel_object[wall_occupant];
+      blocked = wall_occupant != player_index &&
+          (occupant_object < 0 || g_mandatory_objects[occupant_object] == 0);
+    }
+    if (!blocked && player_rides_wall) {
+      const int32_t player_target = FindVoxelAt(
+          voxels,
+          player.x,
+          player.y,
+          player.z + wall_delta,
+          width,
+          height);
+      if (player_target >= 0 && player_target != index) {
+        const int32_t target_object = g_voxel_object[player_target];
+        if (target_object < 0) {
+          blocked = true;
+        } else {
+          // A body directly above the player is part of the same lift
+          // proposal. Seed it before collision validation so the ordinary
+          // carrier closure can bring its complete rigid group along. Static
+          // terrain in this destination still blocks the wall transaction.
+          g_mandatory_objects[target_object] = 1;
+          g_moving_objects[target_object] = 1;
+        }
+      }
+    }
+    if (!blocked) {
+      // Validate riders against the wall's destination geometry. In
+      // particular, a lowering rider moves into the wall's old top cell,
+      // which is vacated by this same mechanism tick.
+      wall.generic_id = new_depth;
+      BuildSpatialIndex(voxels, count, width, height);
+    }
+    if (!blocked) {
+      blocked = !TranslateMovingObjects(
+          voxels,
+          count,
+          player_index,
+          0,
+          0,
+          wall_delta,
+          width,
+          height,
+          true,
+          true,
+          true,
+          false);
+    }
+    if (blocked) {
+      wall.generic_id = old_depth;
+      g_blocked_orange_walls[index] = 1;
+      BuildSpatialIndex(voxels, count, width, height);
+      continue;
+    }
+
+    const bool player_rode_object = MovePlayerWithRider(
+        voxels, player_index, player_rider, width, height);
+    if (player_rides_wall && !player_rode_object) {
+      voxels[player_index].z += wall_delta;
+    }
     changed = true;
+    BuildSpatialIndex(voxels, count, width, height);
   }
 
   if (!changed) return false;
-  BuildSpatialIndex(voxels, count, width, height);
-
-  bool has_wall_rider = false;
-  for (int32_t object = 0; object < g_object_count; ++object) {
-    has_wall_rider |= g_mandatory_objects[object] != 0;
-  }
-  if (!conflicting_deltas && vertical_delta != 0 && has_wall_rider) {
-    (void)TranslateMovingObjects(
-        voxels,
-        count,
-        player_index,
-        0,
-        0,
-        vertical_delta,
-        width,
-        height,
-        true,
-        true,
-        true);
-  }
-
-  const bool player_rides_object = player_rider.object >= 0 &&
-      g_moving_objects[player_rider.object] != 0;
-  if (!conflicting_deltas && vertical_delta != 0 &&
-      (player_rides_wall || player_rides_object)) {
-    Voxel& player = voxels[player_index];
-    const int32_t target_z = player.z + vertical_delta;
-    const int32_t occupant = FindVoxelAt(
-        voxels, player.x, player.y, target_z, width, height);
-    if (occupant < 0 || g_voxel_object[occupant] == player_rider.object) {
-      player.z = target_z;
-    }
-  }
   BuildSpatialIndex(voxels, count, width, height);
   MarkObjectsForDeferredGravity(voxels, width, height, false);
   state->player_gravity_armed = 1;

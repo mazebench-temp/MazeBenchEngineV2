@@ -19,6 +19,20 @@ void ClearMovingObjects() {
   }
 }
 
+bool OrangeButtonSharesCellWith(
+    Voxel* voxels,
+    const Voxel& voxel) {
+  if (!ActiveWorkspace().scene_has_orange_mechanisms) return false;
+  for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
+    if (voxels[index].role == kOrangeButtonRole &&
+        voxels[index].x == voxel.x && voxels[index].y == voxel.y &&
+        voxels[index].z == voxel.z) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int32_t MovingSupportBelowObject(
     Voxel* voxels,
     int32_t object,
@@ -87,7 +101,15 @@ int32_t MovingSupportBelowObject(
     // Ordinary terrain provides an immovable foothold, so one moving contact
     // cannot carry the body. Ice has no such anchoring friction, and contact
     // with a different movable object is resolved by the support graph.
-    if (support_object < 0 && !IsIceRole(voxels[support].role)) return -1;
+    if (support_object < 0 && !IsIceRole(voxels[support].role)) {
+      // A pressed surface button is a yielding contact, not an anchoring
+      // foothold. If another part of this body rests on the moving player,
+      // the player carries the complete rigid group off those buttons.
+      if (carry_from_player && OrangeButtonSharesCellWith(voxels, voxel)) {
+        continue;
+      }
+      return -1;
+    }
   }
   return moving_support;
 }
@@ -570,7 +592,8 @@ bool TranslateMovingObjects(
     int32_t height,
     bool carry_from_player,
     bool allow_push,
-    bool player_moves_horizontally) {
+    bool player_moves_horizontally,
+    bool advance_unmoved_gravity = true) {
   g_moving_objects_fell = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_fell_objects[object] = 0;
@@ -734,6 +757,25 @@ bool TranslateMovingObjects(
     found_moving |= g_moving_objects[object] != 0;
   }
   if (!found_moving) {
+    if (advance_unmoved_gravity) {
+      AdvanceUnmovedGravityOneStep(
+          voxels,
+          count,
+          width,
+          height,
+          player_index,
+          dx,
+          dy,
+          player_moves_horizontally);
+    }
+    return true;
+  }
+
+  // Commit already-armed vertical proposals before horizontal translation.
+  // Collision validation above treats those source cells as vacating, while
+  // the gravity resolver cancels any destination contested by a horizontal
+  // proposal. Both axes therefore advance once in the same animation tick.
+  if (advance_unmoved_gravity) {
     AdvanceUnmovedGravityOneStep(
         voxels,
         count,
@@ -743,22 +785,7 @@ bool TranslateMovingObjects(
         dx,
         dy,
         player_moves_horizontally);
-    return true;
   }
-
-  // Commit already-armed vertical proposals before horizontal translation.
-  // Collision validation above treats those source cells as vacating, while
-  // the gravity resolver cancels any destination contested by a horizontal
-  // proposal. Both axes therefore advance once in the same animation tick.
-  AdvanceUnmovedGravityOneStep(
-      voxels,
-      count,
-      width,
-      height,
-      player_index,
-      dx,
-      dy,
-      player_moves_horizontally);
 
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (g_moving_objects[object] == 0) continue;

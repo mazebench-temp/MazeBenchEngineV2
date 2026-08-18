@@ -40,6 +40,10 @@ TickResult step_tick(
       BuildObjects(voxels, count);
     }
     BuildSpatialIndex(voxels, count, width, height);
+    if (NormalizeInitialOrangeWallAnchors(
+            voxels, count, width, height)) {
+      BuildSpatialIndex(voxels, count, width, height);
+    }
     if (prepared && ActiveWorkspace().assume_quiescent_start) {
       ActiveWorkspace().assume_quiescent_start = false;
       InitializeQuiescentMotion(state, count, player_index, direction);
@@ -180,12 +184,6 @@ TickResult step_tick(
     state->player_falling = 1;
     return true;
   };
-
-  if (state->phase != kMotionOrangeMechanisms &&
-      OrangeMechanismsNeedTick(voxels, count, width, height)) {
-    state->reserved[1] = static_cast<uint8_t>(state->phase);
-    state->phase = kMotionOrangeMechanisms;
-  }
 
   if (state->phase == kMotionOrangeMechanisms) {
     const int32_t resume_phase = state->reserved[1];

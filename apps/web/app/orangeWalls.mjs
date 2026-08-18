@@ -34,6 +34,9 @@ export function orangeWallSupportZ(wall, voxels, definitions) {
     if (!definition || definition.visual?.kind === "gem" ||
         definition.visual?.kind === "button" ||
         definition.visual?.kind === "orange-wall" ||
+        definition.roleId === "player" ||
+        definition.roleId === "pushable" ||
+        definition.roleId === "weightless-pushable" ||
         (definition.visual?.kind === "lift" && !liftIsRaised(candidate.genericId))) {
       continue;
     }
@@ -83,15 +86,22 @@ export function normalizeOrangeWallFrame(frame, definitions) {
 
 export function orangeWallVisualFrame(frame, definitions) {
   const normalized = normalizeOrangeWallFrame(frame, definitions);
-  const visibleVoxels = normalized.voxels.map((voxel) => {
+  const visibleVoxels = normalized.voxels.flatMap((voxel) => {
       const definition = definitionFor(definitions, voxel.blockId);
-      if (definition?.visual?.kind !== "orange-wall") return voxel;
+      if (definition?.visual?.kind !== "orange-wall") return [voxel];
       const state = orangeWallPhysicalState(voxel, normalized.voxels, definitions);
       const visible = { ...voxel, z: state.physicalZ, stateId: state.stateId };
+      if (state.stateId === 1 && Number.isFinite(state.supportZ)) {
+        const column = [];
+        for (let z = state.supportZ + 1; z <= state.physicalZ; z += 1) {
+          column.push({ ...visible, z, mechanismDepth: 0 });
+        }
+        return column;
+      }
       const visibleDepth = state.stateId === 0
         ? orangeWallDepthForState(visible, normalized.voxels, definitions, 0) ?? 0
         : 0;
-      return { ...visible, mechanismDepth: visibleDepth };
+      return [{ ...visible, mechanismDepth: visibleDepth }];
     });
   const brickCells = new Set(visibleVoxels.flatMap((voxel) => {
     const definition = definitionFor(definitions, voxel.blockId);
@@ -99,15 +109,21 @@ export function orangeWallVisualFrame(frame, definitions) {
       ? [`${voxel.x},${voxel.y},${voxel.z}`]
       : [];
   }));
+  const retainedBrickCells = new Set();
   const retainedSurfaceCells = new Set();
   return {
     ...normalized,
     voxels: visibleVoxels.filter((voxel) => {
       const definition = definitionFor(definitions, voxel.blockId);
-      if (definition?.visual?.kind !== "orange-wall" || Number(voxel.stateId) !== 0) {
+      if (definition?.visual?.kind !== "orange-wall") {
         return true;
       }
       const cell = `${voxel.x},${voxel.y},${voxel.z}`;
+      if (Number(voxel.stateId) === 1) {
+        if (retainedBrickCells.has(cell)) return false;
+        retainedBrickCells.add(cell);
+        return true;
+      }
       if (brickCells.has(cell) || retainedSurfaceCells.has(cell)) return false;
       retainedSurfaceCells.add(cell);
       return true;

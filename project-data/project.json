@@ -101,7 +101,7 @@
     {
       "id": "crate",
       "name": "Amber crate",
-      "color": "#E9963A",
+      "color": "#553d00",
       "roleId": "pushable",
       "occupancy": "solid",
       "visual": {
@@ -20569,6 +20569,24 @@
       "name": "Untitled test 325 copy copy copy copy copy",
       "folderId": "orange-walls",
       "file": "test-325-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-331",
+      "name": "Untitled test 331",
+      "folderId": "orange-walls",
+      "file": "test-331.json"
+    },
+    {
+      "id": "test-332",
+      "name": "Untitled test 332",
+      "folderId": "orange-walls",
+      "file": "test-332.json"
+    },
+    {
+      "id": "test-332-copy",
+      "name": "Untitled test 332 copy",
+      "folderId": "orange-walls",
+      "file": "test-332-copy.json"
     }
   ]
 }
