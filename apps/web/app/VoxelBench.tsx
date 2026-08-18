@@ -1238,31 +1238,17 @@ function TestSuiteWorkspace({
     () => new Map(folders.map((folder) => [folder.id, folderPathLabel(folders, folder.id)])),
     [folders],
   );
-  const subtreeTestCounts = useMemo(() => {
+  const folderTestCounts = useMemo(() => {
     const counts = new Map(folders.map((folder) => [folder.id, 0]));
     for (const test of tests) {
-      const visited = new Set<string>();
-      let cursor = foldersById.get(test.folderId);
-      while (cursor && !visited.has(cursor.id)) {
-        counts.set(cursor.id, (counts.get(cursor.id) ?? 0) + 1);
-        visited.add(cursor.id);
-        cursor = cursor.parentId ? foldersById.get(cursor.parentId) : undefined;
-      }
+      counts.set(test.folderId, (counts.get(test.folderId) ?? 0) + 1);
     }
     return counts;
-  }, [folders, foldersById, tests]);
+  }, [folders, tests]);
 
   const folderIsInScope = useCallback((folderId: string) => {
-    if (!selectedFolderId) return true;
-    const visited = new Set<string>();
-    let cursor = foldersById.get(folderId);
-    while (cursor && !visited.has(cursor.id)) {
-      if (cursor.id === selectedFolderId) return true;
-      visited.add(cursor.id);
-      cursor = cursor.parentId ? foldersById.get(cursor.parentId) : undefined;
-    }
-    return false;
-  }, [foldersById, selectedFolderId]);
+    return selectedFolderId === null || folderId === selectedFolderId;
+  }, [selectedFolderId]);
 
   const visibleTests = tests.filter((test) => {
     if (!folderIsInScope(test.folderId)) return false;
@@ -1308,7 +1294,7 @@ function TestSuiteWorkspace({
         <div className="suite-tree__branch" key={folder.id}>
           <div className={`suite-tree__row ${selectedFolderId === folder.id ? "is-selected" : ""} ${effectiveLocked ? "is-locked" : ""}`} style={{ "--tree-depth": depth } as React.CSSProperties}>
             <button className="suite-tree__collapse" type="button" disabled={!children.length} aria-label={`${folder.collapsed ? "Expand" : "Collapse"} ${folder.name}`} aria-expanded={!folder.collapsed} onClick={() => onToggleFolderCollapsed(folder.id)}><span aria-hidden="true">▾</span></button>
-            <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{subtreeTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
+            <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em>{effectiveLocked && <LockIcon />}</button>
           </div>
           {!folder.collapsed && children.length > 0 && <div className="suite-tree__children">{renderFolderBranch(folder.id, depth + 1)}</div>}
         </div>

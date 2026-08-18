@@ -111,6 +111,9 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /disabled=\{lockedFolderIds\.has\(test\.folderId\) \|\| folderIndex === 0\}/);
   assert.doesNotMatch(component, /Locked tests cannot be reordered/);
   assert.match(component, /Unlock both folders before moving this test/);
+  assert.match(component, /selectedFolderId === null \|\| folderId === selectedFolderId/);
+  assert.match(component, /folderTestCounts\.get\(folder\.id\)/);
+  assert.doesNotMatch(component, /subtreeTestCounts/);
   assert.match(component, /Move \$\{test\.name\} left/);
   assert.match(component, /Move \$\{test\.name\} right/);
   assert.match(styles, /\.suite-test-table[^}]*grid-template-columns: repeat\(auto-fill, minmax\(320px, 1fr\)\)/);
