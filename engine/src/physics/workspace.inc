@@ -214,6 +214,7 @@ struct WorkspaceData {
   uint8_t object_falling[kVoxelCapacity];
   uint8_t pending_fall[kVoxelCapacity];
   uint8_t blocked_orange_walls[kVoxelCapacity];
+  uint8_t orange_component_walls[kVoxelCapacity];
   int32_t carrier_parent[kVoxelCapacity];
   uint8_t object_gravity_armed[kVoxelCapacity];
   uint8_t component_objects[kVoxelCapacity];
@@ -296,6 +297,7 @@ WorkspaceData& ActiveWorkspace() {
 #define g_object_falling ActiveWorkspace().object_falling
 #define g_pending_fall ActiveWorkspace().pending_fall
 #define g_blocked_orange_walls ActiveWorkspace().blocked_orange_walls
+#define g_orange_component_walls ActiveWorkspace().orange_component_walls
 #define g_carrier_parent ActiveWorkspace().carrier_parent
 #define g_object_gravity_armed ActiveWorkspace().object_gravity_armed
 #define g_component_objects ActiveWorkspace().component_objects

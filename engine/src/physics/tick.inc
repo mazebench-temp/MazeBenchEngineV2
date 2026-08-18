@@ -16,6 +16,7 @@ TickResult step_tick(
   }
   if (state->phase == kMotionComplete) return TickResult::kComplete;
 
+  const bool initialized_this_call = state->direction < 0;
   bool workspace_has_continuation =
       ActiveWorkspace().continuation_state == state &&
       ActiveWorkspace().continuation_voxels == voxels &&
@@ -71,9 +72,11 @@ TickResult step_tick(
     LoadObjectMotion(state);
   }
 
+  bool orange_advanced_this_tick = false;
   auto store_and_finish = [&](int32_t phase,
                               bool advanced,
                               bool gravity_already_checked = false) {
+    advanced |= orange_advanced_this_tick;
     if (phase == kMotionComplete && !gravity_already_checked &&
         ObjectsNeedGravityTick(voxels, count, width, height)) {
       // A blocked/boundary-ending Ice proposal can happen immediately after a
@@ -82,7 +85,8 @@ TickResult step_tick(
       phase = kMotionGravity;
       state->reserved[0] = kResumeNothing;
     }
-    if (OrangeMechanismsNeedTick(voxels, count, width, height)) {
+    if (phase == kMotionComplete &&
+        OrangeMechanismsNeedTick(voxels, count, width, height)) {
       if (state->phase != kMotionOrangeMechanisms) {
         state->reserved[1] = static_cast<uint8_t>(phase);
       }
@@ -185,11 +189,23 @@ TickResult step_tick(
     return true;
   };
 
-  if (state->phase == kMotionOrangeMechanisms) {
-    const int32_t resume_phase = state->reserved[1];
-    const bool advanced = AdvanceOrangeMechanismsOneTick(
+  // Orange walls react one tick after the pressure change. While another
+  // motion phase is still active (Ice, gravity, or a lift), their one-row
+  // update shares that next animation tick instead of inserting a pause in
+  // the moving body. A quiescent command still drains any remaining wall
+  // rows as ordinary standalone ticks.
+  if (!initialized_this_call &&
+      (state->phase == kMotionOrangeMechanisms ||
+       OrangeMechanismsNeedTick(voxels, count, width, height))) {
+    const int32_t resume_phase = state->phase == kMotionOrangeMechanisms
+        ? state->reserved[1]
+        : state->phase;
+    orange_advanced_this_tick = AdvanceOrangeMechanismsOneTick(
         state, voxels, count, player_index, width, height);
-    return store_and_finish(resume_phase, advanced);
+    state->phase = resume_phase;
+    if (resume_phase == kMotionComplete) {
+      return store_and_finish(kMotionComplete, false);
+    }
   }
 
   if (state->phase == kMotionPlayerLift) {

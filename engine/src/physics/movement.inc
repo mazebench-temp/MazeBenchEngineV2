@@ -593,13 +593,15 @@ bool TranslateMovingObjects(
     bool carry_from_player,
     bool allow_push,
     bool player_moves_horizontally,
-    bool advance_unmoved_gravity = true) {
+    bool advance_unmoved_gravity = true,
+    bool commit_translation = true) {
   g_moving_objects_fell = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_fell_objects[object] = 0;
   }
 
-  if (g_object_count == 1 && g_mandatory_objects[0] != 0 &&
+  if (commit_translation && g_object_count == 1 &&
+      g_mandatory_objects[0] != 0 &&
       ObjectIsActive(voxels, 0, width, height)) {
     // The overwhelmingly common Sokoban push has no carrier graph, object
     // closure, or inter-body race to resolve. Preserve the exact general-path
@@ -756,6 +758,7 @@ bool TranslateMovingObjects(
   for (int32_t object = 0; object < g_object_count; ++object) {
     found_moving |= g_moving_objects[object] != 0;
   }
+  if (!commit_translation) return true;
   if (!found_moving) {
     if (advance_unmoved_gravity) {
       AdvanceUnmovedGravityOneStep(
