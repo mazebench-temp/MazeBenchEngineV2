@@ -247,7 +247,7 @@
     {
       "collapsed": true,
       "id": "weightless-box",
-      "locked": true,
+      "locked": false,
       "name": "Box"
     },
     {
@@ -261,8 +261,8 @@
     {
       "collapsed": true,
       "id": "3d-boxes",
-      "locked": true,
-      "name": "3D Boxes"
+      "locked": false,
+      "name": "3D Box"
     },
     {
       "collapsed": false,
@@ -453,6 +453,20 @@
       "locked": false,
       "name": "Boxes",
       "parentId": "weightless-box"
+    },
+    {
+      "collapsed": false,
+      "id": "stacked",
+      "locked": false,
+      "name": "Stacked",
+      "parentId": "3d-boxes"
+    },
+    {
+      "collapsed": false,
+      "id": "wrapped",
+      "locked": false,
+      "name": "Wrapped",
+      "parentId": "3d-boxes"
     }
   ],
   "searches": [
@@ -19035,7 +19049,7 @@
       "name": "Push past overhang",
       "groupTagId": "weightless-box",
       "tagIds": [
-        "void"
+        "weightless-box-default"
       ],
       "file": "test-27.json"
     },
@@ -19099,7 +19113,7 @@
       "name": "Push under box",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34.json"
     },
@@ -19108,7 +19122,7 @@
       "name": "Push under box copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy.json"
     },
@@ -19117,7 +19131,7 @@
       "name": "Push under box copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy.json"
     },
@@ -19126,7 +19140,7 @@
       "name": "Push under box copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-34-copy-copy-2.json"
     },
@@ -19135,7 +19149,7 @@
       "name": "Push under box copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-34-copy-copy-2-copy.json"
     },
@@ -19144,7 +19158,7 @@
       "name": "Push under box copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-34-copy-copy-2-copy-copy.json"
     },
@@ -19153,7 +19167,7 @@
       "name": "Push under box copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy.json"
     },
@@ -19162,7 +19176,8 @@
       "name": "Push under box copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked",
+        "wrapped"
       ],
       "file": "test-34-copy-copy-copy-copy-3.json"
     },
@@ -19171,7 +19186,7 @@
       "name": "Push under box copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy.json"
     },
@@ -19180,7 +19195,7 @@
       "name": "Push under box copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-copy.json"
     },
@@ -19189,7 +19204,7 @@
       "name": "Push under box copy copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-copy-copy.json"
     },
@@ -19198,7 +19213,7 @@
       "name": "Push under box copy copy copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -19225,7 +19240,7 @@
       "name": "Player walks from under box (2) copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-36-copy.json"
     },
@@ -19234,7 +19249,7 @@
       "name": "Player walks from under box (2) copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-36-copy-copy.json"
     },
@@ -19252,7 +19267,7 @@
       "name": "Push under box copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-2.json"
     },
@@ -19261,7 +19276,7 @@
       "name": "Push under box copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy.json"
     },
@@ -19270,7 +19285,7 @@
       "name": "Push under box copy copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy.json"
     },
@@ -19279,7 +19294,7 @@
       "name": "Push under box copy copy copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy-copy.json"
     },
@@ -19288,7 +19303,7 @@
       "name": "Push under box copy copy copy copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-34-copy-copy-copy-copy-2-copy-copy-copy-copy.json"
     },
@@ -19297,7 +19312,7 @@
       "name": "Player walks from under box (2) copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-36-copy-copy-copy-2.json"
     },
@@ -19315,7 +19330,7 @@
       "name": "Player walks from under box (2) copy copy copy copy copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-36-copy-copy-copy-2-copy-copy.json"
     },
@@ -19342,7 +19357,7 @@
       "name": "holy box",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-37.json"
     },
@@ -19351,7 +19366,7 @@
       "name": "holy box (2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-38.json"
     },
@@ -19360,7 +19375,7 @@
       "name": "holy box (2) copy",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-38-copy.json"
     },
@@ -19828,7 +19843,7 @@
       "name": "Untitled test 76",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "wrapped"
       ],
       "file": "test-76.json"
     },
@@ -19936,7 +19951,7 @@
       "name": "Untitled test 129",
       "groupTagId": "3d-boxes",
       "tagIds": [
-        "3d-boxes-default"
+        "stacked"
       ],
       "file": "test-129.json"
     },
