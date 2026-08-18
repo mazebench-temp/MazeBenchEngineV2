@@ -402,7 +402,7 @@
       "collapsed": false,
       "id": "orange-walls",
       "locked": false,
-      "name": "orange walls"
+      "name": "Orange Walls"
     },
     {
       "collapsed": false,
@@ -437,7 +437,7 @@
       "collapsed": false,
       "id": "stuck-orange-walls",
       "locked": false,
-      "name": "stuck orange walls",
+      "name": "stuck orange",
       "parentId": "orange-walls"
     },
     {

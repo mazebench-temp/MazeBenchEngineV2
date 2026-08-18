@@ -41,6 +41,64 @@ export function rootTagId(tagId, tagsById) {
 }
 
 /**
+ * Keep the authored taxonomy strictly two levels deep. Legacy descendants are
+ * promoted to direct children of their root group without changing their ids.
+ *
+ * @template {{ id: string, parentId?: string }} T
+ * @param {readonly T[]} tags
+ * @returns {T[]}
+ */
+export function flattenSubtags(tags) {
+  const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
+  return tags.map((tag) => {
+    if (!tag.parentId) return { ...tag };
+    const rootId = rootTagId(tag.id, tagsById);
+    return rootId && rootId !== tag.id && tag.parentId !== rootId
+      ? { ...tag, parentId: rootId }
+      : { ...tag };
+  });
+}
+
+/**
+ * Canonicalize a case's direct subtag membership using the saved tag order.
+ *
+ * @param {readonly string[]} tagIds
+ * @param {ReadonlyMap<string, number>} tagOrder
+ */
+export function canonicalTagCombination(tagIds, tagOrder) {
+  return [...new Set(tagIds)].sort((left, right) =>
+    (tagOrder.get(left) ?? Number.MAX_SAFE_INTEGER) -
+      (tagOrder.get(right) ?? Number.MAX_SAFE_INTEGER) || left.localeCompare(right));
+}
+
+/** @param {readonly string[]} tagIds @param {ReadonlyMap<string, number>} tagOrder */
+export function tagCombinationKey(tagIds, tagOrder) {
+  return canonicalTagCombination(tagIds, tagOrder).join("\u001f");
+}
+
+/**
+ * A multi-subtag case is intentionally absent from each individual subtag.
+ * It is shown by its derived combination alias instead.
+ *
+ * @param {readonly string[]} testTagIds
+ * @param {string} tagId
+ */
+export function directSubtagViewIncludesTest(testTagIds, tagId) {
+  const uniqueTagIds = [...new Set(testTagIds)];
+  return uniqueTagIds.length === 1 && uniqueTagIds[0] === tagId;
+}
+
+/**
+ * @param {readonly string[]} testTagIds
+ * @param {readonly string[]} combinationTagIds
+ * @param {ReadonlyMap<string, number>} tagOrder
+ */
+export function combinationViewIncludesTest(testTagIds, combinationTagIds, tagOrder) {
+  return tagCombinationKey(testTagIds, tagOrder) ===
+    tagCombinationKey(combinationTagIds, tagOrder);
+}
+
+/**
  * @param {string} groupTagId
  * @param {readonly { default?: boolean, id: string, name: string, parentId?: string }[]} tags
  */

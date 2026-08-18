@@ -1,5 +1,6 @@
 import {
   ensureDefaultSubtags,
+  flattenSubtags,
   normalizeTestTagPlacement,
 } from "../apps/web/app/testTags.mjs";
 import {
@@ -9,7 +10,7 @@ import {
 
 const projectDirectory = new URL("../project-data/", import.meta.url);
 const project = await readProjectDirectory(projectDirectory);
-const tags = ensureDefaultSubtags(project.tags ?? project.folders ?? []);
+const tags = ensureDefaultSubtags(flattenSubtags(project.tags ?? project.folders ?? []));
 const tests = project.tests.map((test) => {
   const placement = normalizeTestTagPlacement({
     directTagIds: test.tagIds ?? [test.folderId],
