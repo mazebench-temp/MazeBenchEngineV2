@@ -295,9 +295,9 @@
       "name": "Lift"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "orange-walls",
-      "locked": false,
+      "locked": true,
       "name": "orange walls"
     }
   ],
