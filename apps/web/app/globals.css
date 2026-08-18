@@ -495,7 +495,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .suite-browser__filters { display: grid; gap: 9px; grid-template-columns: minmax(200px, 1fr) 160px; padding-bottom: 12px; }
 .suite-browser__filters label { display: grid; gap: 4px; }
 .suite-browser__filters label > span { color: var(--muted); font: 700 7px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
-.suite-browser__filters input, .suite-browser__filters select, .suite-test-row__folder { background: rgba(7,9,22,.85); border: 1px solid rgba(124,143,255,.3); border-radius: 7px; color: var(--ink); min-height: 34px; min-width: 0; padding: 0 9px; }
+.suite-browser__filters input, .suite-browser__filters select { background: rgba(7,9,22,.85); border: 1px solid rgba(124,143,255,.3); border-radius: 7px; color: var(--ink); min-height: 34px; min-width: 0; padding: 0 9px; }
 .suite-test-table { align-content: start; display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); min-height: 0; overflow-y: auto; padding: 0 6px 24px 0; scrollbar-color: rgba(var(--cyan-rgb), .3) transparent; }
 .suite-test-row { align-content: start; background: rgba(10,13,29,.78); border: 1px solid rgba(124,143,255,.2); border-radius: 12px; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); grid-template-rows: 190px auto 32px; min-width: 0; padding: 10px; position: relative; }
 .suite-test-row:hover { border-color: rgba(var(--cyan-rgb),.42); }
@@ -520,6 +520,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .suite-preview-capture { height: 148px; left: -10000px; opacity: 0; pointer-events: none; position: fixed; top: 0; width: 256px; z-index: -1; }
 .suite-test-row__details { align-content: start; display: grid; gap: 8px; min-width: 0; }
 .suite-test-row__identity { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(105px, .42fr); min-width: 0; }
+.suite-test-row__folder-field { display: grid; gap: 3px; min-width: 0; }
+.suite-test-row__folder-field > span { color: var(--muted); font: 700 6.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .suite-test-row__details label { display: grid; gap: 3px; min-width: 0; }
 .suite-test-row__details label > span { color: var(--muted); font: 700 6.5px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .suite-test-row__details input, .suite-test-row__details textarea { background: rgba(5,8,18,.72); border: 1px solid rgba(124,143,255,.16); border-radius: 6px; color: var(--ink); min-width: 0; outline: 0; padding: 6px 8px; transition: border-color .15s ease, background .15s ease; width: 100%; }
@@ -529,7 +531,23 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .suite-test-row__details input:focus, .suite-test-row__details textarea:focus { background: rgba(8,12,26,.98); border-color: rgba(var(--cyan-rgb),.75); box-shadow: 0 0 0 2px rgba(var(--cyan-rgb),.08); }
 .suite-test-row__details input:disabled, .suite-test-row__details textarea:disabled { cursor: not-allowed; opacity: .72; }
 .suite-test-row__details small { color: var(--muted); font: 600 7.5px/1.4 var(--font-mono); overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-.suite-test-row__folder { font: 600 8px var(--font-sans); max-width: 100%; width: 100%; }
+.test-tag-picker { min-width: 0; position: relative; }
+.test-tag-picker > summary { align-items: center; background: rgba(7,9,22,.85); border: 1px solid rgba(124,143,255,.3); border-radius: 7px; color: var(--ink); cursor: pointer; display: grid; gap: 7px; grid-template-columns: minmax(0, 1fr) auto; min-height: 34px; padding: 0 9px; }
+.test-tag-picker > summary::-webkit-details-marker { display: none; }
+.test-tag-picker > summary::marker { content: ""; }
+.test-tag-picker > summary span { font: 600 8px var(--font-sans); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.test-tag-picker > summary i { color: var(--cyan); font: 800 9px var(--font-mono); transform: rotate(-90deg); transition: transform .15s ease; }
+.test-tag-picker[open] > summary { border-color: rgba(var(--cyan-rgb),.65); }
+.test-tag-picker[open] > summary i { transform: rotate(0); }
+.test-tag-picker__menu { background: rgba(6,8,19,.98); border: 1px solid rgba(var(--cyan-rgb),.48); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.55); display: grid; gap: 3px; max-height: 260px; min-width: 260px; overflow-y: auto; padding: 6px; position: absolute; right: 0; top: calc(100% + 5px); z-index: 20; }
+.test-tag-picker__menu label { align-items: center; border: 1px solid transparent; border-radius: 5px; cursor: pointer; display: grid; gap: 7px; grid-template-columns: 14px minmax(0, 1fr) auto 14px; min-height: 30px; padding: 4px 6px; }
+.test-tag-picker__menu label:hover { background: rgba(var(--cyan-rgb),.07); border-color: rgba(var(--cyan-rgb),.22); }
+.test-tag-picker__menu label.is-inherited { color: var(--cyan); }
+.test-tag-picker__menu input[type="checkbox"] { accent-color: var(--cyan); appearance: auto; background: initial; border: initial; box-shadow: none; height: 13px; min-height: 0; padding: 0; width: 13px; }
+.test-tag-picker__menu label > span { color: inherit; font: 600 8px/1.3 var(--font-sans); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; text-transform: none; white-space: nowrap; }
+.test-tag-picker__menu small { color: var(--violet); font: 700 6.5px var(--font-mono); text-transform: uppercase; white-space: nowrap; }
+.test-tag-picker__menu .lock-icon { color: var(--amber); height: 12px; width: 12px; }
+.test-tag-picker__menu input:disabled { cursor: not-allowed; opacity: .5; }
 .suite-test-row__actions { align-self: end; display: grid; gap: 5px; grid-template-columns: repeat(7, minmax(30px, 1fr)); min-width: 0; }
 .suite-test-row__actions button { align-items: center; background: rgba(7,9,22,.78); border: 1px solid rgba(124,143,255,.24); border-radius: 5px; color: var(--muted); cursor: pointer; display: flex; font: 700 8px var(--font-mono); justify-content: center; min-height: 28px; padding: 0 5px; }
 .suite-test-row__actions button:first-child, .suite-test-row__actions button:nth-child(2) { color: var(--cyan); }

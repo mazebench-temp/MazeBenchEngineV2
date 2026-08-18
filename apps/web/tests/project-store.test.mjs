@@ -15,6 +15,7 @@ function makeTest(id, blockId) {
     name: id,
     description: "",
     folderId: "folder",
+    tagIds: ["folder"],
     locked: false,
     input: "up",
     world: { width: 16, height: 16, floorLayer: 0 },
@@ -30,7 +31,7 @@ function makeProject(tests) {
     coordinateSystem: { floorLayer: 0 },
     roles: [],
     blocks: [],
-    folders: [{ id: "folder", name: "Folder" }],
+    tags: [{ id: "folder", name: "Folder" }],
     searches: [],
     tests,
   };
@@ -48,18 +49,28 @@ test("split project store writes one compact file per test and removes stale fil
 
     const manifest = JSON.parse(await readFile(join(directory, "project.json"), "utf8"));
     assert.equal(manifest.storageFormat, "voxelbench-split-project-v1");
+    assert.equal(manifest.schemaVersion, 14);
+    assert.deepEqual(manifest.tags, original.tags);
+    assert.equal(Object.hasOwn(manifest, "folders"), false);
+    assert.equal(Object.hasOwn(manifest.tests[0], "folderId"), false);
+    assert.equal(manifest.tests[0].primaryTagId, "folder");
     assert.equal(manifest.tests.length, 2);
     assert.notEqual(manifest.tests[0].file, manifest.tests[1].file);
     assert.equal((await readdir(join(directory, "tests"))).length, 2);
 
     const restored = await readProjectDirectory(new URL(`file://${directory}/`));
-    assert.deepEqual(restored, original);
+    assert.equal(restored.schemaVersion, 14);
+    assert.deepEqual(restored.tags, original.tags);
+    assert.deepEqual(restored.folders, original.tags);
+    assert.deepEqual(restored.tests, original.tests);
 
     const reduced = makeProject([original.tests[1]]);
     const second = await writeProjectDirectory(directory, reduced);
     assert.equal(second.staleTestsRemoved, 1);
     assert.equal((await readdir(join(directory, "tests"))).length, 1);
-    assert.deepEqual(await readProjectDirectory(directory), reduced);
+    const restoredReduced = await readProjectDirectory(directory);
+    assert.deepEqual(restoredReduced.tags, reduced.tags);
+    assert.deepEqual(restoredReduced.tests, reduced.tests);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

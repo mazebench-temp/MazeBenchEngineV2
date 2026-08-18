@@ -44,10 +44,11 @@ async function writeIfChanged(path, contents) {
 }
 
 function assertProject(project) {
+  const tags = project?.tags ?? project?.folders;
   if (!project || typeof project !== "object" ||
       !Number.isInteger(project.schemaVersion) ||
       !Array.isArray(project.roles) || !Array.isArray(project.blocks) ||
-      !Array.isArray(project.folders) || !Array.isArray(project.tests)) {
+      !Array.isArray(tags) || !Array.isArray(project.tests)) {
     throw new Error("Invalid VoxelBench project data");
   }
 }
@@ -110,16 +111,22 @@ export async function writeProjectDirectory(projectDirectory, payload) {
     const changed = await writeIfChanged(
       join(testDirectory, file), `${JSON.stringify(compact)}\n`);
     if (changed) ++changedTests;
-    index.push({ id: test.id, name: test.name, folderId: test.folderId, file });
+    index.push({
+      id: test.id,
+      name: test.name,
+      primaryTagId: test.folderId,
+      tagIds: test.tagIds ?? [test.folderId],
+      file,
+    });
   }
 
   const manifest = {
-    schemaVersion: Math.max(12, Number(project.schemaVersion) || 0),
+    schemaVersion: Math.max(14, Number(project.schemaVersion) || 0),
     storageFormat: SPLIT_PROJECT_FORMAT,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,
     blocks: project.blocks,
-    folders: project.folders,
+    tags: project.tags ?? project.folders,
     searches: project.searches ?? [],
     tests: index,
   };

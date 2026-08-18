@@ -159,7 +159,10 @@ export function encodeCompactTest(test) {
     id: test.id,
     name: test.name,
     description: test.description ?? "",
-    folderId: test.folderId,
+    primaryTagId: test.folderId,
+    tagIds: Array.isArray(test.tagIds) && test.tagIds.length
+      ? [...test.tagIds]
+      : [test.folderId],
     locked: Boolean(test.locked),
     input: test.input,
     world: [test.world.width, test.world.height],
@@ -196,7 +199,8 @@ export function decodeCompactTest(compact) {
   }));
   const test = {
     description: compact.description ?? "",
-    folderId: compact.folderId,
+    folderId: compact.primaryTagId ?? compact.folderId,
+    tagIds: Array.isArray(compact.tagIds) ? [...compact.tagIds] : undefined,
     id: compact.id,
     locked: Boolean(compact.locked),
     name: compact.name,
@@ -215,13 +219,14 @@ export function decodeCompactTest(compact) {
 }
 
 export function encodeProjectBundle(project) {
+  const tags = project.tags ?? project.folders ?? [];
   return {
-    schemaVersion: Math.max(13, Number(project.schemaVersion) || 0),
+    schemaVersion: Math.max(14, Number(project.schemaVersion) || 0),
     storageFormat: COMPACT_BUNDLE_FORMAT,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,
     blocks: project.blocks,
-    folders: project.folders,
+    tags,
     searches: project.searches ?? [],
     tests: project.tests.map(encodeCompactTest),
   };
@@ -229,12 +234,15 @@ export function encodeProjectBundle(project) {
 
 export function decodeProjectPayload(project) {
   if (!project || project.storageFormat !== COMPACT_BUNDLE_FORMAT) return project;
+  const tags = project.tags ?? project.folders ?? [];
   return {
     schemaVersion: project.schemaVersion,
     coordinateSystem: project.coordinateSystem,
     roles: project.roles,
     blocks: project.blocks,
-    folders: project.folders,
+    tags,
+    // Compatibility alias for older callers while the persisted vocabulary is tags.
+    folders: tags,
     searches: project.searches ?? [],
     tests: project.tests.map(decodeCompactTest),
   };

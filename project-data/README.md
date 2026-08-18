@@ -2,7 +2,9 @@
 
 The local editor automatically reads and writes `project.json` plus the files
 under `tests/`. The manifest contains physics roles, block definitions, suite
-folders, searches, and the ordered test index. Every test owns one compact
+hierarchical tags, searches, and the ordered test index. Tests may belong to
+multiple direct tags; membership in a subtag is automatically visible from
+all of its parent tags. Every test owns one compact
 file containing a palette, its full Start frame, and lossless add/remove deltas
 for subsequent ticks and Expected. Static floor and terrain are therefore not
 repeated in every frame.
