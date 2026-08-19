@@ -32,6 +32,8 @@ test("server-renders the VoxelBench editor", async () => {
   assert.doesNotMatch(html, /Generic object ID/);
   assert.match(html, /Ice/);
   assert.match(html, /Ice slope/);
+  assert.match(html, /Blue box slope/);
+  assert.match(html, /Yellow clone slope/);
   assert.match(html, /Outlined slope · 4 directions/);
   assert.match(html, /Interactive MazeBench perspective polycube editor/);
   assert.match(html, /Erase tool/);

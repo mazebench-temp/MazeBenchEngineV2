@@ -48,6 +48,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Keep `groupId`, `variantId`, `stateId`, mechanism depth, and orientation independently editable.
 - [x] Add per-variant rotation mappings for Ice slopes and the five supported lift mountings.
 - [x] Rotate authored Ice-slope direction metadata through all four automatic test rotations.
+- [x] Add generic Blue Box Slope and Yellow Clone Slope families with independent IDs and four directions.
 - [x] Rotate positions and authored horizontal orientations in all four automatic unit-test rotations.
 - [ ] Show state transitions directly in expected-versus-engine differences.
 - [ ] Materialize state values in generated intermediate tick frames.
@@ -58,6 +59,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Create the first versioned object visual manifest.
 - [x] Keep the existing outlined cube renderer as the default visual.
 - [x] Add the MazeBench outlined wedge/ramp primitive with a full-cell editor pick volume.
+- [x] Reuse the outlined wedge for MazeBench-colored movable box and clone slope families.
 - [ ] Add a six-direction face/plane primitive.
 - [x] Add a six-face orange pressure-button cylinder primitive.
 - [ ] Add cube-face symbols/decals.

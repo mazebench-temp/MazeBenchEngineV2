@@ -13,6 +13,7 @@ import {
   offsetSlopeDirection,
   rotateLiftMetadata,
   rotateSlopeMetadata,
+  slopeDirectionFromPaintFace,
   slopeDirectionIndex,
 } from "../app/visualVariants.mjs";
 
@@ -32,6 +33,15 @@ test("slope rotation updates both orientation and numbered visual variant", () =
     rotateSlopeMetadata({ blockId: "ordinary-cube", orientation: "none", variantId: 7 }, 1),
     { blockId: "ordinary-cube", orientation: "none", variantId: 7 },
   );
+});
+
+test("slope paint faces choose their world-space cardinal direction", () => {
+  assert.equal(slopeDirectionFromPaintFace({ dx: 0, dy: -1 }, "left"), "up");
+  assert.equal(slopeDirectionFromPaintFace({ dx: 1, dy: 0 }, "left"), "right");
+  assert.equal(slopeDirectionFromPaintFace({ dx: 0, dy: 1 }, "left"), "down");
+  assert.equal(slopeDirectionFromPaintFace({ dx: -1, dy: 0 }, "up"), "left");
+  assert.equal(slopeDirectionFromPaintFace({ face: "top", dx: 0, dy: 0 }, "down"), "down");
+  assert.equal(slopeDirectionFromPaintFace({ face: "bottom-face" }, "right"), "right");
 });
 
 test("player lifts support top plus four wall-facing variants but not downward", () => {

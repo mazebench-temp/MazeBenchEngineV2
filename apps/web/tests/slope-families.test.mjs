@@ -1,0 +1,64 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import test from "node:test";
+
+const projectUrl = new URL("../../../project-data/project.json", import.meta.url);
+
+test("MazeBench box and clone slopes are generic four-direction object families", async () => {
+  const project = JSON.parse(await readFile(projectUrl, "utf8"));
+  const roles = new Map(project.roles.map((role) => [role.id, role]));
+  const blocks = new Map(project.blocks.map((block) => [block.id, block]));
+  const boxSlope = blocks.get("blue-box-slope");
+  const cloneSlope = blocks.get("yellow-clone-slope");
+
+  assert.equal(roles.get("weightless-pushable")?.generic, true);
+  assert.equal(roles.get("clone")?.generic, true);
+  assert.deepEqual(boxSlope, {
+    id: "blue-box-slope",
+    name: "Blue box slope",
+    color: "#5e87d9",
+    roleId: "weightless-pushable",
+    occupancy: "solid",
+    visual: { kind: "slope" },
+  });
+  assert.deepEqual(cloneSlope, {
+    id: "yellow-clone-slope",
+    name: "Yellow clone slope",
+    color: "#a0a244",
+    roleId: "clone",
+    occupancy: "solid",
+    visual: { kind: "slope" },
+  });
+});
+
+test("generic slope numbers use MazeBench's inclined ramp-face label", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(renderer, /function iceSlopeGroupLabelGeometry\(direction\)/);
+  assert.match(
+    renderer,
+    /addWeightlessSlopeGroupLabel\(\s*\{\s*direction: descriptor\.layer\?\.direction,\s*groupId: descriptor\.layer\.genericLabel/s,
+  );
+});
+
+test("browser simulation and search preserve distinct directional slope roles", async () => {
+  const physicsEngine = await readFile(
+    new URL("../app/physicsEngine.ts", import.meta.url),
+    "utf8",
+  );
+  const searchWorker = await readFile(
+    new URL("../public/search-worker.js", import.meta.url),
+    "utf8",
+  );
+
+  for (const source of [physicsEngine, searchWorker]) {
+    assert.match(source, /blue-box-slope-up/);
+    assert.match(source, /blue-box-slope-left/);
+    assert.match(source, /yellow-clone-slope-up/);
+    assert.match(source, /yellow-clone-slope-left/);
+    assert.match(source, /slopePhysicsRoleId\(block\.roleId, (?:orientation|direction)\)/);
+  }
+});

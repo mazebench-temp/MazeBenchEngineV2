@@ -123,6 +123,19 @@ test("clockwise level rotations keep a slope's visual direction attached to the 
   });
 });
 
+test("generic box and clone slopes rotate without losing their group identity", () => {
+  const world = { width: 4, height: 3 };
+  const slopes = [
+    { x: 0, y: 1, z: 2, blockId: "blue-box-slope", orientation: "up", variantId: 0, genericId: 12, groupId: 12 },
+    { x: 2, y: 1, z: -1, blockId: "yellow-clone-slope", orientation: "left", variantId: 3, genericId: 7, groupId: 7 },
+  ];
+
+  assert.deepEqual(rotateVoxelsClockwise(slopes, world, 1), [
+    { x: 1, y: 0, z: 2, blockId: "blue-box-slope", orientation: "right", variantId: 1, genericId: 12, groupId: 12 },
+    { x: 1, y: 2, z: -1, blockId: "yellow-clone-slope", orientation: "up", variantId: 0, genericId: 7, groupId: 7 },
+  ]);
+});
+
 test("clockwise level rotations rotate wall-facing lifts but keep top lifts upward", () => {
   const world = { width: 4, height: 3 };
   const lifts = [

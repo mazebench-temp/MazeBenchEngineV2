@@ -7603,6 +7603,21 @@
         }
       );
 
+      if (descriptor.layer?.genericLabel !== undefined) {
+        // Generic editor slopes use MazeBench's original inclined label
+        // geometry: the number is printed on the diagonal ramp, oriented so
+        // its top points uphill, instead of floating on a cube face.
+        addWeightlessSlopeGroupLabel(
+          {
+            direction: descriptor.layer?.direction,
+            groupId: descriptor.layer.genericLabel
+          },
+          { x: centerX, z: centerZ },
+          bottomY,
+          Math.min(0.92, visibility)
+        );
+      }
+
       addIceSlopeEditorPickVolume(centerX, centerZ, bottomY, descriptor, editorPick);
     }
 

@@ -81,6 +81,7 @@ import {
   normalizeLiftOrientation,
   normalizeSlopeDirection,
   offsetSlopeDirection,
+  slopeDirectionFromPaintFace,
   slopeDirectionIndex,
 } from "./visualVariants.mjs";
 import {
@@ -248,6 +249,8 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "ice", name: "Ice", description: "A support tile that continues movement until normal floor or an obstacle.", generic: false },
   { id: "goal", name: "Goal / floor", description: "A floor marker with no movement behavior of its own.", generic: false },
   { id: "decor", name: "Decoration", description: "A visible object with no special movement behavior.", generic: false },
+  { id: "weightless-pushable", name: "Weightless Pushable", description: "A numbered rigid polycube family that can push other weightless bodies.", generic: true },
+  { id: "clone", name: "Clone", description: "A numbered rigid polycube family that receives the player's command.", generic: true },
   { id: "player-lift", name: "Player Lift", description: "A numbered purple lift family: 0/1 Up, 2/3 Front, 4/5 Right, 6/7 Back, and 8/9 Left. Even IDs are lowered and odd IDs are raised.", generic: true },
   { id: "orange-button", name: "Orange Button", description: "A six-face pressure sensor. Every independently pressed button lowers every Orange Wall by one additional unit.", generic: false },
   { id: "orange-wall", name: "Orange Wall", description: "The shared mechanism for Orange Face and Orange Cube objects. Each stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.", generic: false },
@@ -260,6 +263,10 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "player", name: "Player", color: "#5A67D8", roleId: "player", occupancy: "solid", visual: { kind: "cube" } },
   { id: "ice", name: "Ice", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "cube" } },
   { id: "ice-slope", name: "Ice slope", color: "#72D7FF", roleId: "ice", occupancy: "solid", visual: { kind: "slope" } },
+  { id: "weightless-pushbox", name: "Weightless Pushbox", color: "#5E87D9", roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "blue-box-slope", name: "Blue box slope", color: "#5E87D9", roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "slope" } },
+  { id: "clone", name: "Clone", color: "#A0A244", roleId: "clone", occupancy: "solid", visual: { kind: "cube" } },
+  { id: "yellow-clone-slope", name: "Yellow clone slope", color: "#A0A244", roleId: "clone", occupancy: "solid", visual: { kind: "slope" } },
   { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
   { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: LIFT_GENERIC_MAX, visual: { kind: "lift" } },
   { id: "orange-wall-face", name: "Orange face", color: "#B85F16", roleId: "orange-wall", occupancy: "support", visual: { kind: "orange-wall", orangeForm: "face" } },
@@ -368,12 +375,43 @@ function normalizeBlocks(
           : { kind: "cube" },
       };
     });
-  if (roleIds.has("ice") && !normalized.some((block) => block.visual.kind === "slope")) {
+  if (roleIds.has("ice") && !normalized.some((block) =>
+    block.roleId === "ice" && block.visual.kind === "slope")) {
     normalized.push({
       id: "ice-slope",
       name: "Ice slope",
       color: "#72D7FF",
       roleId: "ice",
+      occupancy: "solid",
+      visual: { kind: "slope" },
+    });
+  }
+  if (roleIds.has("weightless-pushable") && !normalized.some((block) =>
+    block.roleId === "weightless-pushable" && block.visual.kind === "slope")) {
+    const boxIndex = normalized.findIndex((block) => block.roleId === "weightless-pushable");
+    normalized.splice(boxIndex < 0 ? normalized.length : boxIndex + 1, 0, {
+      id: normalized.some((block) => block.id === "blue-box-slope")
+        ? "blue-box-slope-2"
+        : "blue-box-slope",
+      name: "Blue box slope",
+      color: normalized.find((block) =>
+        block.roleId === "weightless-pushable" && block.visual.kind === "cube")?.color ?? "#5E87D9",
+      roleId: "weightless-pushable",
+      occupancy: "solid",
+      visual: { kind: "slope" },
+    });
+  }
+  if (roleIds.has("clone") && !normalized.some((block) =>
+    block.roleId === "clone" && block.visual.kind === "slope")) {
+    const cloneIndex = normalized.findIndex((block) => block.roleId === "clone");
+    normalized.splice(cloneIndex < 0 ? normalized.length : cloneIndex + 1, 0, {
+      id: normalized.some((block) => block.id === "yellow-clone-slope")
+        ? "yellow-clone-slope-2"
+        : "yellow-clone-slope",
+      name: "Yellow clone slope",
+      color: normalized.find((block) =>
+        block.roleId === "clone" && block.visual.kind === "cube")?.color ?? "#A0A244",
+      roleId: "clone",
       occupancy: "solid",
       visual: { kind: "slope" },
     });
@@ -438,7 +476,19 @@ function normalizeBlocks(
       visual: { kind: "button" },
     });
   }
-  return normalized;
+  const familyCubeColors = new Map(
+    ["weightless-pushable", "clone"].flatMap((roleId) => {
+      const cube = normalized.find((block) =>
+        block.roleId === roleId && block.visual.kind === "cube");
+      return cube ? [[roleId, cube.color] as const] : [];
+    }),
+  );
+  return normalized.map((block) => {
+    const familyColor = familyCubeColors.get(block.roleId);
+    return block.visual.kind === "slope" && familyColor
+      ? { ...block, color: familyColor }
+      : block;
+  });
 }
 
 function nonnegativeInteger(value: unknown, fallback = 0) {
@@ -2559,7 +2609,10 @@ export default function VoxelBench() {
       : undefined;
     const blockDefinition = blockId ? blockDefinitionsById.get(blockId) : undefined;
     const slopeDirection = blockDefinition?.visual.kind === "slope"
-      ? normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id])
+      ? slopeDirectionFromPaintFace(
+          surface,
+          normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id]),
+        )
       : null;
     const liftOrientation = blockDefinition?.visual.kind === "lift"
       ? liftOrientationFromPaintFace(surface)

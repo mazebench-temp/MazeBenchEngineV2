@@ -156,6 +156,16 @@
       }
     },
     {
+      "id": "blue-box-slope",
+      "name": "Blue box slope",
+      "color": "#5e87d9",
+      "roleId": "weightless-pushable",
+      "occupancy": "solid",
+      "visual": {
+        "kind": "slope"
+      }
+    },
+    {
       "id": "ice-slope",
       "name": "Ice slope",
       "color": "#90e3f4",
@@ -228,6 +238,16 @@
       "occupancy": "solid",
       "visual": {
         "kind": "cube"
+      }
+    },
+    {
+      "id": "yellow-clone-slope",
+      "name": "Yellow clone slope",
+      "color": "#a0a244",
+      "roleId": "clone",
+      "occupancy": "solid",
+      "visual": {
+        "kind": "slope"
       }
     }
   ],
@@ -485,7 +505,7 @@
       "parentId": "3d-boxes"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "clone",
       "locked": false,
       "name": "Clone"
@@ -518,6 +538,20 @@
       "locked": false,
       "name": "and box",
       "parentId": "clone"
+    },
+    {
+      "collapsed": false,
+      "id": "box-slopes",
+      "locked": false,
+      "name": "Box Slopes"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "box-slopes-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "box-slopes"
     }
   ],
   "searches": [
@@ -22164,6 +22198,42 @@
         "and-box"
       ],
       "file": "test-363-copy-copy.json"
+    },
+    {
+      "id": "test-369",
+      "name": "Untitled test 369",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369.json"
+    },
+    {
+      "id": "test-369-copy",
+      "name": "Untitled test 369 copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369-copy.json"
+    },
+    {
+      "id": "test-369-copy-copy",
+      "name": "Untitled test 369 copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369-copy-copy.json"
+    },
+    {
+      "id": "test-369-copy-copy-copy",
+      "name": "Untitled test 369 copy copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369-copy-copy-copy.json"
     }
   ]
 }

@@ -1838,6 +1838,14 @@ function roleCodes(physics, roles) {
     "ice-slope-right",
     "ice-slope-down",
     "ice-slope-left",
+    "blue-box-slope-up",
+    "blue-box-slope-right",
+    "blue-box-slope-down",
+    "blue-box-slope-left",
+    "yellow-clone-slope-up",
+    "yellow-clone-slope-right",
+    "yellow-clone-slope-down",
+    "yellow-clone-slope-left",
   ];
   for (const roleId of roleIds) {
     const bytes = encoder.encode(roleId);
@@ -1845,6 +1853,12 @@ function roleCodes(physics, roles) {
     codes.set(roleId, physics.role_code(bytes.length));
   }
   return codes;
+}
+
+function slopePhysicsRoleId(baseRoleId, direction) {
+  if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
+  if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
+  return `ice-slope-${direction}`;
 }
 
 function solutionInteractionStats(
@@ -1934,7 +1948,7 @@ async function evaluate(
       const direction = slopeDirections.includes(voxel.orientation)
         ? voxel.orientation
         : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
-      return codes.get(`ice-slope-${direction}`) ?? 0;
+      return codes.get(slopePhysicsRoleId(block.roleId, direction)) ?? 0;
     }
     return codes.get(block.roleId) ?? 0;
   };

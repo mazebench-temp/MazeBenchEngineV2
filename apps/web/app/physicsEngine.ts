@@ -77,6 +77,12 @@ function framesHaveSameCoordinates(left: Frame, right: Frame) {
     });
 }
 
+function slopePhysicsRoleId(baseRoleId: string, direction: string) {
+  if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
+  if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
+  return `ice-slope-${direction}`;
+}
+
 async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
   const encoder = new TextEncoder();
   const roleBufferPointer = physics.role_buffer();
@@ -89,6 +95,14 @@ async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
     "ice-slope-right",
     "ice-slope-down",
     "ice-slope-left",
+    "blue-box-slope-up",
+    "blue-box-slope-right",
+    "blue-box-slope-down",
+    "blue-box-slope-left",
+    "yellow-clone-slope-up",
+    "yellow-clone-slope-right",
+    "yellow-clone-slope-down",
+    "yellow-clone-slope-left",
   ];
   for (const roleId of roleIds) {
     const bytes = encoder.encode(roleId);
@@ -141,7 +155,7 @@ export async function simulateCommandWithCpp(
       const orientation = slopeDirections.includes(voxel.orientation ?? "")
         ? voxel.orientation
         : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
-      return rolesById.get(`ice-slope-${orientation}`) ?? 0;
+      return rolesById.get(slopePhysicsRoleId(block.roleId, orientation)) ?? 0;
     }
     return rolesById.get(block.roleId) ?? 0;
   };
