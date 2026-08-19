@@ -119,19 +119,20 @@ export function orangeWallPhysicalState(wall, voxels, definitions) {
     };
   }
   if (orangeWallIsDedicatedFace(wall, definitions)) {
+    // Read the retired lowered-face state as an ordinary visible cube. New
+    // project data never writes state 0, but this keeps old imports lossless.
     return {
       mechanismDepth,
       physicalZ: wall.z,
-      stateId: 0,
+      stateId: 1,
       supportZ,
     };
   }
   const desiredZ = wall.z - mechanismDepth;
-  const flattened = Number.isFinite(supportZ) && desiredZ <= supportZ;
   return {
     mechanismDepth,
-    physicalZ: flattened ? supportZ + 1 : desiredZ,
-    stateId: flattened ? 0 : 1,
+    physicalZ: desiredZ,
+    stateId: 1,
     supportZ,
   };
 }
@@ -151,13 +152,12 @@ export function normalizeOrangeWallFrame(frame, definitions) {
       const definition = definitionFor(definitions, voxel.blockId);
       if (definition?.visual?.kind !== "orange-wall") return voxel;
       const state = orangeWallPhysicalState(voxel, voxels, definitions);
-      const storedState = Number(voxel.stateId);
       return {
         ...voxel,
         mechanismDepth: state.mechanismDepth,
         stateId: orangeWallIsHiddenVolume(voxel, definitions)
           ? 2
-          : storedState === 0 ? 0 : 1,
+          : 1,
       };
     }),
   };
@@ -191,9 +191,7 @@ export function orangeWallFrameFromEngine(frame, definitions) {
       const supportZ = orangeWallSupportZFromEngineAnchors(
         voxel, engineVoxels, definitions);
       const desiredZ = voxel.z - depth;
-      const stateId = Number.isFinite(supportZ) && desiredZ === supportZ
-        ? 0
-        : Number.isFinite(supportZ) && desiredZ < supportZ ? 2 : 1;
+      const stateId = Number.isFinite(supportZ) && desiredZ < supportZ ? 2 : 1;
       return {
         ...voxel,
         blockId: orangeWallBlockIdForForm(
@@ -203,7 +201,7 @@ export function orangeWallFrameFromEngine(frame, definitions) {
         ),
         mechanismDepth: depth,
         stateId,
-        z: stateId === 0 ? supportZ + 1 : desiredZ,
+        z: desiredZ,
       };
     });
 

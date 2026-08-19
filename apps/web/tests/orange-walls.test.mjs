@@ -36,7 +36,7 @@ test("all Orange Walls use the same nonnegative mechanism depth", () => {
   };
   assert.equal(orangeWallMechanismValue(wall, definitions), 7);
   assert.equal(orangeWallDepthFromMechanismValue(-9), 7);
-  assert.equal(orangeWallPhysicalState(wall, [wall], definitions).stateId, 0);
+  assert.equal(orangeWallPhysicalState(wall, [wall], definitions).stateId, 1);
 });
 
 test("invisible wall state preserves hidden volumes and ABI anchors", () => {
@@ -101,7 +101,7 @@ test("engine frames select the invisible wall form below solid support", () => {
   );
 });
 
-test("visual comparison preserves every authored Orange Wall cube", () => {
+test("visual comparison migrates retired face records to visible cubes", () => {
   const first = {
     x: 1, y: 1, z: 1, blockId: "orange-wall", stateId: 0, mechanismDepth: 1,
   };
@@ -110,6 +110,6 @@ test("visual comparison preserves every authored Orange Wall cube", () => {
   };
   assert.deepEqual(
     orangeWallVisualFrame({ voxels: [first, second] }, definitions).voxels,
-    [first, second],
+    [{ ...first, stateId: 1 }, second],
   );
 });
