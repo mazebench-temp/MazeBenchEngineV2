@@ -519,7 +519,10 @@ TickResult step_tick(
         width,
         height,
         lift_will_raise);
-    const int32_t outward = lift_index >= 0 && lift_will_raise
+    const int32_t lift_count = PlayerLiftCountAtPlayer(
+        voxels, count, player_index, width, height);
+    const int32_t outward = lift_count == 1 && lift_index >= 0 &&
+            lift_will_raise
         ? PlayerLiftSideOutwardDirection(voxels[lift_index])
         : -1;
     const bool toggled = TogglePlayerLiftAtPlayer(

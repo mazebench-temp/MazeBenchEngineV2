@@ -1359,6 +1359,189 @@ int32_t PlayerLiftAtPlayer(
   return -1;
 }
 
+int32_t PlayerLiftCountAtPlayer(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  const Voxel& player = voxels[player_index];
+  if (!IsInsideRoom(player.x, player.y, width, height)) return 0;
+  int32_t matches = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    const Voxel& lift = voxels[index];
+    if (lift.role != kPlayerLiftRole || lift.x != player.x ||
+        lift.y != player.y || lift.generic_id < 0 ||
+        lift.generic_id > 9) {
+      continue;
+    }
+    if ((!PlayerLiftIsRaised(lift) && lift.z == player.z) ||
+        (lift.generic_id <= 1 && PlayerLiftIsRaised(lift) &&
+         player.z != INT32_MIN && lift.z == player.z - 1)) {
+      ++matches;
+    }
+  }
+  return matches;
+}
+
+bool TranslateSlopeMomentumObjects(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height,
+    bool allow_push,
+    bool pushed_targets_require_ice,
+    bool allow_downhill_contact_push,
+    bool player_moves_horizontally,
+    bool& player_was_pushed);
+
+// Several pass-through fixtures may deliberately share a voxel. An overlap
+// is not an ordering rule: incompatible lifts cancel instead of allowing the
+// first voxel in storage to win. The unambiguous multi-lift arrangement is a
+// balanced set of opposed side lifts, each mounted to a distinct movable
+// body. In that case the trapped rider stays centered and the mounted bodies
+// receive the equal-and-opposite recoil proposals in one transaction.
+bool OverlappingPlayerLiftsCanRecoil(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  constexpr int32_t kMaximumDirections = 4;
+  int32_t support_objects[kMaximumDirections] = {-1, -1, -1, -1};
+  uint8_t directions = 0;
+  int32_t matches = 0;
+  const Voxel& player = voxels[player_index];
+  for (int32_t index = 0; index < count; ++index) {
+    const Voxel& lift = voxels[index];
+    if (lift.role != kPlayerLiftRole || lift.x != player.x ||
+        lift.y != player.y || lift.z != player.z ||
+        PlayerLiftIsRaised(lift)) {
+      continue;
+    }
+    const int32_t outward = PlayerLiftSideOutwardDirection(lift);
+    const int32_t lift_object = g_voxel_object[index];
+    if (outward < 0 || lift_object < 0 || matches >= kMaximumDirections ||
+        (directions & (1u << outward)) != 0) {
+      return false;
+    }
+    const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+        voxels, lift_object, width, height);
+    const int32_t support_object = attachment >= 0
+        ? g_voxel_object[attachment]
+        : -1;
+    if (support_object < 0 || support_object == lift_object ||
+        g_object_kind[support_object] == kMechanismObject) {
+      return false;
+    }
+    for (int32_t prior = 0; prior < matches; ++prior) {
+      if (support_objects[prior] == support_object) return false;
+    }
+    support_objects[matches++] = support_object;
+    directions |= static_cast<uint8_t>(1u << outward);
+  }
+  if (matches < 2) return false;
+  const bool north_south_balanced =
+      ((directions & 0b0001u) != 0) == ((directions & 0b0100u) != 0);
+  const bool east_west_balanced =
+      ((directions & 0b0010u) != 0) == ((directions & 0b1000u) != 0);
+  return north_south_balanced && east_west_balanced;
+}
+
+bool RecoilOverlappingPlayerLifts(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  if (!OverlappingPlayerLiftsCanRecoil(
+          voxels, count, player_index, width, height)) {
+    return false;
+  }
+
+  ClearMovingObjects();
+  const Voxel& player = voxels[player_index];
+  for (int32_t index = 0; index < count; ++index) {
+    Voxel& lift = voxels[index];
+    if (lift.role != kPlayerLiftRole || lift.x != player.x ||
+        lift.y != player.y || lift.z != player.z ||
+        PlayerLiftIsRaised(lift)) {
+      continue;
+    }
+    const int32_t lift_object = g_voxel_object[index];
+    const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+        voxels, lift_object, width, height);
+    const int32_t support_object = g_voxel_object[attachment];
+    const int32_t recoil = OppositeDirection(
+        PlayerLiftSideOutwardDirection(lift));
+    g_mandatory_objects[lift_object] = 1;
+    g_moving_objects[lift_object] = 1;
+    g_object_direction[lift_object] = static_cast<uint8_t>(recoil);
+    g_mandatory_objects[support_object] = 1;
+    g_moving_objects[support_object] = 1;
+    g_object_direction[support_object] = static_cast<uint8_t>(recoil);
+  }
+
+  // Fixtures attached to either recoiling body inherit that body's proposal.
+  // This is a transitive closure so buttons and future surface mechanisms do
+  // not detach merely because the lift event has more than one direction.
+  bool added_fixture = true;
+  while (added_fixture) {
+    added_fixture = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_mandatory_objects[object] != 0 ||
+          g_object_kind[object] != kMechanismObject) {
+        continue;
+      }
+      const int32_t attachment = MechanismAttachmentVoxel(
+          voxels, object, width, height);
+      const int32_t support_object = attachment >= 0
+          ? g_voxel_object[attachment]
+          : -1;
+      if (support_object < 0 || g_mandatory_objects[support_object] == 0) {
+        continue;
+      }
+      g_mandatory_objects[object] = 1;
+      g_moving_objects[object] = 1;
+      g_object_direction[object] = g_object_direction[support_object];
+      added_fixture = true;
+    }
+  }
+
+  // Raised state participates in collision validation. Voxel indices remain
+  // stable during the transaction, so a rejected proposal can restore every
+  // participating lift without a scene copy.
+  for (int32_t index = 0; index < count; ++index) {
+    Voxel& lift = voxels[index];
+    if (lift.role == kPlayerLiftRole && !PlayerLiftIsRaised(lift) &&
+        lift.x == player.x && lift.y == player.y && lift.z == player.z) {
+      ++lift.generic_id;
+    }
+  }
+  bool player_was_pushed = false;
+  const bool moved = TranslateSlopeMomentumObjects(
+      voxels,
+      count,
+      player_index,
+      width,
+      height,
+      true,
+      false,
+      false,
+      false,
+      player_was_pushed);
+  if (moved) return true;
+  for (int32_t index = 0; index < count; ++index) {
+    Voxel& lift = voxels[index];
+    if (lift.role == kPlayerLiftRole && PlayerLiftIsRaised(lift) &&
+        lift.x == player.x && lift.y == player.y && lift.z == player.z) {
+      --lift.generic_id;
+    }
+  }
+  return false;
+}
+
 bool PlayerLiftCanToggleOnEntry(
     Voxel* voxels,
     int32_t count,
@@ -1369,6 +1552,12 @@ bool PlayerLiftCanToggleOnEntry(
     int32_t height) {
   const Voxel& player = voxels[player_index];
   if (player.x == from_x && player.y == from_y) return false;
+  const int32_t lift_count = PlayerLiftCountAtPlayer(
+      voxels, count, player_index, width, height);
+  if (lift_count > 1) {
+    return OverlappingPlayerLiftsCanRecoil(
+        voxels, count, player_index, width, height);
+  }
   bool raise = false;
   const int32_t lift_index = PlayerLiftAtPlayer(
       voxels, count, player_index, width, height, raise);
@@ -1399,6 +1588,16 @@ bool RaiseVacatedUpwardPlayerLift(
   if (player.x == from_x && player.y == from_y && player.z == from_z) {
     return false;
   }
+  int32_t lowered_lifts = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    const Voxel& lift = voxels[index];
+    lowered_lifts += lift.role == kPlayerLiftRole && lift.generic_id >= 0 &&
+        lift.generic_id <= 9 && lift.generic_id % 2 == 0 &&
+        lift.x == from_x && lift.y == from_y && lift.z == from_z
+        ? 1
+        : 0;
+  }
+  if (lowered_lifts > 1) return false;
   for (int32_t index = 0; index < count; ++index) {
     Voxel& lift = voxels[index];
     if (lift.role == kPlayerLiftRole && lift.generic_id >= 0 &&
@@ -1429,6 +1628,11 @@ bool TogglePlayerLiftAtPlayer(
     int32_t width,
     int32_t height) {
   Voxel& player = voxels[player_index];
+  if (PlayerLiftCountAtPlayer(
+          voxels, count, player_index, width, height) > 1) {
+    return RecoilOverlappingPlayerLifts(
+        voxels, count, player_index, width, height);
+  }
   bool raise = false;
   const int32_t lift_index = PlayerLiftAtPlayer(
       voxels, count, player_index, width, height, raise);

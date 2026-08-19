@@ -556,7 +556,7 @@
       "parentId": "box-slopes"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "clone-slopes",
       "locked": false,
       "name": "Clone Slopes"

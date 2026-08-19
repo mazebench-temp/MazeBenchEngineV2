@@ -1327,6 +1327,61 @@ void TestBlockedPlayerLiftRefusesToRaise() {
         "a lift must remain lowered rather than embed its player in a blocker");
 }
 
+void TestOverlappingPlayerLiftsDoNotDependOnVoxelOrder() {
+  voxelbench::Voxel entering[] = {
+      {2, 2, 1, Role("player"), -1},
+      {2, 1, 1, Role("player-lift"), 0},
+      {2, 1, 1, Role("player-lift"), 4},
+      {1, 1, 1, Role("wall"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(entering, 6, 5, 4, 0) == 0,
+        "entering incompatible overlapping lifts should finish safely");
+  Check(entering[0].y == 1 && entering[0].z == 1 &&
+            entering[1].generic_id == 0 && entering[2].generic_id == 4,
+        "overlapping lifts must cancel rather than select the first voxel");
+
+  voxelbench::Voxel leaving[] = {
+      {2, 1, 1, Role("player"), -1},
+      {2, 1, 1, Role("player-lift"), 0},
+      {2, 1, 1, Role("player-lift"), 4},
+      {1, 1, 1, Role("wall"), -1},
+      {2, 1, 0, Role("floor"), -1},
+      {2, 0, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(leaving, 6, 5, 4, 0) == 0,
+        "leaving incompatible overlapping lifts should finish safely");
+  Check(leaving[0].y == 0 && leaving[1].generic_id == 0 &&
+            leaving[2].generic_id == 4,
+        "vacating an overlap must not raise an arbitrary first lift");
+}
+
+void TestOpposingPlayerLiftsRecoilMountedBodies() {
+  voxelbench::Voxel voxels[] = {
+      {3, 3, 1, Role("player"), -1},
+      {3, 2, 1, Role("player-lift"), 4},
+      {3, 2, 1, Role("player-lift"), 8},
+      {2, 2, 1, Role("weightless-pushable"), 0},
+      {4, 2, 1, Role("weightless-pushable"), 1},
+      {3, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {3, 2, 0, Role("floor"), -1},
+      {4, 2, 0, Role("floor"), -1},
+      {5, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 11, 7, 5, 0) == 0,
+        "opposed mounted lifts should resolve as one command");
+  Check(voxels[0].x == 3 && voxels[0].y == 2 && voxels[0].z == 1,
+        "balanced opposed lifts should leave their rider centered");
+  Check(voxels[1].x == 2 && voxels[1].generic_id == 5 &&
+            voxels[2].x == 4 && voxels[2].generic_id == 9,
+        "both opposed lift fixtures should raise and recoil together");
+  Check(voxels[3].x == 1 && voxels[4].x == 5,
+        "each mounted body should receive its lift's recoil proposal");
+}
+
 void TestSearchTracksPlayerLiftState() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
@@ -1758,6 +1813,8 @@ int main() {
   TestPlayerLiftToggleUsesItsOwnAnimationTick();
   TestLiftRidesWeightlessCarrierWithStatefulCollision();
   TestBlockedPlayerLiftRefusesToRaise();
+  TestOverlappingPlayerLiftsDoNotDependOnVoxelOrder();
+  TestOpposingPlayerLiftsRecoilMountedBodies();
   TestSearchTracksPlayerLiftState();
   TestOrangeButtonUsesASeparateWallTick();
   TestOrangeWallCarriesItsMountedButtonInTheSameTick();
@@ -1777,6 +1834,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 68 C++ physics/search tests passed\n";
+  std::cout << "all 70 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }
