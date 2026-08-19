@@ -227,7 +227,20 @@
       "variantMax": 5,
       "occupancy": "sensor",
       "visual": {
-        "kind": "button"
+        "kind": "button",
+        "buttonForm": "visible"
+      }
+    },
+    {
+      "id": "orange-button-hidden",
+      "name": "Orange hidden button",
+      "color": "#F59E0B",
+      "roleId": "orange-button",
+      "variantMax": 5,
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "button",
+        "buttonForm": "hidden"
       }
     },
     {
@@ -407,7 +420,7 @@
       "parentId": "lift"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "orange-walls",
       "locked": false,
       "name": "Orange Walls"
@@ -21778,6 +21791,37 @@
       "file": "test-319-copy-copy-2.json"
     },
     {
+      "id": "test-319-copy-copy-2-copy-3",
+      "name": "Press sideways button copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "sideways-button",
+        "orange-walls-boxes"
+      ],
+      "file": "test-319-copy-copy-2-copy-3.json"
+    },
+    {
+      "id": "test-319-copy-copy-2-copy-2",
+      "name": "Press sideways button copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "sideways-button",
+        "orange-walls-boxes"
+      ],
+      "file": "test-319-copy-copy-2-copy-2.json"
+    },
+    {
+      "id": "test-319-copy-copy-2-copy",
+      "name": "Press sideways button copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "sideways-button",
+        "multiple-buttons",
+        "orange-walls-boxes"
+      ],
+      "file": "test-319-copy-copy-2-copy.json"
+    },
+    {
       "id": "test-319-copy-copy",
       "name": "Box presses button",
       "groupTagId": "orange-walls",
@@ -21817,6 +21861,17 @@
       "file": "test-319-copy-2-copy.json"
     },
     {
+      "id": "test-319-copy-2-copy-copy",
+      "name": "Buttons attached to box copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "sideways-button",
+        "orange-walls-boxes"
+      ],
+      "file": "test-319-copy-2-copy-copy.json"
+    },
+    {
       "id": "test-323-copy",
       "name": "box resting on orange (1)",
       "groupTagId": "orange-walls",
@@ -21849,10 +21904,60 @@
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
-        "orange-walls-boxes",
         "sideways-button"
       ],
       "file": "test-323-copy-2.json"
+    },
+    {
+      "id": "test-323-copy-2-copy-3",
+      "name": "Buttons attached to orange (2) copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "sideways-button"
+      ],
+      "file": "test-323-copy-2-copy-3.json"
+    },
+    {
+      "id": "test-323-copy-2-copy-3-copy",
+      "name": "Buttons attached to orange (2) copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "sideways-button"
+      ],
+      "file": "test-323-copy-2-copy-3-copy.json"
+    },
+    {
+      "id": "test-323-copy-2-copy-2",
+      "name": "Buttons attached to orange (2) copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "sideways-button"
+      ],
+      "file": "test-323-copy-2-copy-2.json"
+    },
+    {
+      "id": "test-323-copy-2-copy-2-copy",
+      "name": "Buttons attached to orange (2) copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "sideways-button"
+      ],
+      "file": "test-323-copy-2-copy-2-copy.json"
+    },
+    {
+      "id": "test-323-copy-2-copy",
+      "name": "Buttons attached to orange (2) copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "orange-walls-boxes",
+        "sideways-button"
+      ],
+      "file": "test-323-copy-2-copy.json"
     },
     {
       "id": "test-325",

@@ -16,6 +16,11 @@ const definitions = new Map([
   ["wall", { roleId: "solid", occupancy: "solid" }],
   ["gem", { roleId: "goal", occupancy: "sensor" }],
   ["button", { roleId: "button", occupancy: "sensor" }],
+  ["hidden-button", {
+    roleId: "orange-button",
+    occupancy: "inactive",
+    visual: { kind: "button", buttonForm: "hidden" },
+  }],
   ["orange-wall", {
     roleId: "orange-wall",
     occupancy: "solid",
@@ -70,6 +75,13 @@ test("differently oriented buttons may share one cell", () => {
   const result = placeObjectInCell([north], east, definitions);
   assert.equal(result.changed, true);
   assert.deepEqual(result.objects, [north, east]);
+});
+
+test("an invisible Orange Button may share a solid object's cell", () => {
+  const hidden = at("hidden-button", { orientation: "east", variantId: 2 });
+  const result = placeObjectInCell([at("box")], hidden, definitions);
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.objects, [at("box"), hidden]);
 });
 
 test("Orange Faces and hidden volumes are shareable regardless of number", () => {

@@ -244,6 +244,25 @@ test("hidden Orange Wall volumes are translucent only in editor rendering", asyn
   assert.match(renderer, /descriptor\.layer\?\.editorOpacity/);
 });
 
+test("hidden Orange Buttons are translucent editor-only pressure sensors", async () => {
+  const [editor, canvas, renderer] = await Promise.all([
+    readFile(new URL("../app/VoxelBench.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
+    readFile(
+      new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+      "utf8",
+    ),
+  ]);
+  assert.match(editor, /id: "orange-button-hidden"[\s\S]*?roleId: "orange-button"[\s\S]*?occupancy: "inactive"/);
+  assert.match(editor, /buttonForm: block\.visual\?\.buttonForm === "hidden" \? "hidden" : "visible"/);
+  assert.match(canvas, /hiddenButton[\s\S]*?editorOnly: true[\s\S]*?editorOpacity/);
+  assert.match(renderer, /actor\.editorOnly !== true \|\| isEditorRenderMode\(\)/);
+  assert.match(canvas, /hiddenButton[\s\S]*?editorOpacity: 0\.5/);
+  assert.match(canvas, /orangeForm === "hidden"[\s\S]*?editorOpacity: 0\.5/);
+  assert.match(renderer, /actor\.editorOpacity \?\? 0\.5/);
+  assert.match(renderer, /actor\.editorOnly === true \? opacity : fade \* visibility/);
+});
+
 test("the cell inspector imports its Orange Wall number formatter", async () => {
   const editor = await readFile(
     new URL("../app/VoxelBench.tsx", import.meta.url),

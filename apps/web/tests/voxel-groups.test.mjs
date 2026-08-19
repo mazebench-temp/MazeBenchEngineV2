@@ -17,6 +17,8 @@ const voxel = (x, y, z, blockId = "crate", genericId) =>
 const selectionKeys = (voxels) => voxels.map(cellObjectSelectionKey);
 const definitions = new Map([
   ["crate", { roleId: "pushable", occupancy: "solid" }],
+  ["ice", { roleId: "ice", occupancy: "solid", visual: { kind: "cube" } }],
+  ["ice-slope", { roleId: "ice", occupancy: "solid", visual: { kind: "slope" } }],
   ["blue-box", { roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "cube" } }],
   ["blue-box-slope", { roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "slope" } }],
   ["clone", { roleId: "clone", occupancy: "solid", visual: { kind: "cube" } }],
@@ -92,6 +94,28 @@ test("same-ID clone cubes and slopes form one group without joining box IDs", ()
   assert.deepEqual(
     new Set(selectConnectedVoxelGroup([clone, slope, box], slope, new Set(), definitions)),
     new Set(["instance:clone-cube", "instance:clone-slope"]),
+  );
+});
+
+test("touching Ice cubes and directional slopes form one connected terrain selection", () => {
+  const cube = { ...voxel(1, 1, 0, "ice"), instanceId: "ice-cube" };
+  const slope = {
+    ...voxel(2, 1, 0, "ice-slope"),
+    instanceId: "ice-slope",
+    orientation: "right",
+    variantId: 1,
+  };
+  const upperCube = { ...voxel(2, 1, 1, "ice"), instanceId: "upper-ice" };
+  const disconnected = { ...voxel(5, 5, 0, "ice"), instanceId: "far-ice" };
+
+  assert.deepEqual(
+    new Set(selectConnectedVoxelGroup(
+      [cube, slope, upperCube, disconnected],
+      slope,
+      new Set(),
+      definitions,
+    )),
+    new Set(["instance:ice-cube", "instance:ice-slope", "instance:upper-ice"]),
   );
 });
 

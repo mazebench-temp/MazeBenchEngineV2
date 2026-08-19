@@ -186,7 +186,7 @@ export function rotateButtonMetadata(voxel, quarterTurns) {
 export function rotateVoxelVisualMetadata(voxel, quarterTurns) {
   return voxel?.blockId === "player-lift"
     ? rotateLiftMetadata(voxel, quarterTurns)
-    : voxel?.blockId === "orange-button"
+    : voxel?.blockId === "orange-button" || voxel?.blockId === "orange-button-hidden"
       ? rotateButtonMetadata(voxel, quarterTurns)
     : rotateSlopeMetadata(voxel, quarterTurns);
 }

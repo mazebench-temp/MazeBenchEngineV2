@@ -354,6 +354,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .swatch-cube.pressure-button { background: transparent; border: 0; border-radius: 50%; box-shadow: none; }
 .swatch-cube.pressure-button::before { background: var(--block-color); border: 2px solid rgba(3,7,12,.92); border-radius: 50%; box-shadow: inset -5px -4px rgba(0,0,0,.16), inset 3px 3px rgba(255,255,255,.24), 0 0 9px color-mix(in srgb, var(--block-color) 45%, transparent); content: ""; height: 15px; width: 24px; }
 .swatch-cube.large.pressure-button::before { height: 21px; width: 34px; }
+.swatch-cube.pressure-button--hidden::before { background: color-mix(in srgb, var(--block-color) 38%, transparent); border-style: dashed; box-shadow: inset -5px -4px rgba(0,0,0,.08), inset 3px 3px rgba(255,255,255,.12), 0 0 9px color-mix(in srgb, var(--block-color) 30%, transparent); opacity: .5; }
 .swatch-cube.orange-wall { border-color: rgba(55,25,4,.94); }
 .swatch-cube.orange-wall--surface { box-shadow: inset -7px -2px rgba(0,0,0,.18), inset 5px 2px rgba(255,255,255,.22), 0 8px 0 -5px rgba(55,25,4,.94), 0 0 9px color-mix(in srgb, var(--block-color) 45%, transparent); height: 12px; margin-top: 18px; }
 .swatch-cube.large.orange-wall--surface { height: 16px; margin-top: 26px; }

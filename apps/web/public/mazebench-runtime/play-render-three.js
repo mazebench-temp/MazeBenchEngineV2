@@ -7975,7 +7975,12 @@
     }
 
     function actorOpacity(actor) {
-      return actor.renderInHole ? 1 : actorFadeVisibility(actor);
+      const baseOpacity = actor.renderInHole ? 1 : actorFadeVisibility(actor);
+      const editorOpacity = actor.editorOnly === true && isEditorRenderMode()
+        ? Math.max(0, Math.min(1, Number(actor.editorOpacity ?? 0.5)))
+        : 1;
+
+      return baseOpacity * editorOpacity;
     }
 
     function actorRenderColor(actor) {
@@ -7990,6 +7995,7 @@
 
     function actorIsVisible(actor) {
       return (
+        (actor.editorOnly !== true || isEditorRenderMode()) &&
         actorFadeVisibility(actor) > 0.001 &&
         actorVisualScale(actor) > 0.001
       );
@@ -8945,7 +8951,7 @@
           center,
           baseY,
           opacity,
-          fade * visibility,
+          actor.editorOnly === true ? opacity : fade * visibility,
           editorPick,
           actor.orientation,
           actor.selected === true
@@ -9494,6 +9500,8 @@
         actor.shape || "",
         actor.styleKey || "",
         actor.voxelColor || "",
+        actor.editorOpacity ?? 1,
+        actor.editorOnly === true ? 1 : 0,
         actor.modelUrl || "",
         actor.direction || actor.facing || "",
         actor.removed ? 1 : 0,

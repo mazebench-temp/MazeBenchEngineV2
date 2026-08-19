@@ -11,7 +11,11 @@ type PhysicsRole = { id: string; generic: boolean };
 type BlockDefinition = {
   id: string;
   roleId: string;
-  visual?: { kind?: string; orangeForm?: "cube" | "face" | "hidden" };
+  visual?: {
+    buttonForm?: "visible" | "hidden";
+    kind?: string;
+    orangeForm?: "cube" | "face" | "hidden";
+  };
 };
 type Voxel = {
   x: number;

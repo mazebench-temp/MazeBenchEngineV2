@@ -155,11 +155,13 @@ test("clockwise level rotations rotate side buttons and preserve top and bottom 
     { x: 1, y: 0, z: 2, blockId: "orange-button", orientation: "north", variantId: 1, stateId: 0 },
     { x: 2, y: 1, z: 4, blockId: "orange-button", orientation: "top", variantId: 0, stateId: 0 },
     { x: 0, y: 2, z: -1, blockId: "orange-button", orientation: "bottom", variantId: 5, stateId: 0 },
+    { x: 3, y: 2, z: 3, blockId: "orange-button-hidden", orientation: "west", variantId: 4, stateId: 0 },
   ];
 
   assert.deepEqual(rotateVoxelsClockwise(buttons, world, 1), [
     { x: 2, y: 1, z: 2, blockId: "orange-button", orientation: "east", variantId: 2, stateId: 0 },
     { x: 1, y: 2, z: 4, blockId: "orange-button", orientation: "top", variantId: 0, stateId: 0 },
     { x: 0, y: 0, z: -1, blockId: "orange-button", orientation: "bottom", variantId: 5, stateId: 0 },
+    { x: 0, y: 3, z: 3, blockId: "orange-button-hidden", orientation: "north", variantId: 1, stateId: 0 },
   ]);
 });

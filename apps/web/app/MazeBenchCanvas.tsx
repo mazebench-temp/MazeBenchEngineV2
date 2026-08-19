@@ -26,6 +26,7 @@ type BlockDefinition = {
   roleId: string;
   occupancy: string;
   visual: {
+    buttonForm?: "visible" | "hidden";
     kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
     modelUrl?: string;
     orangeForm?: "cube" | "face" | "hidden";
@@ -171,6 +172,8 @@ type TerrainCell = {
 type RenderActor = {
   collectionId: string;
   direction?: string;
+  editorOnly?: boolean;
+  editorOpacity?: number;
   elevation: number;
   groupId?: string;
   label: string;
@@ -413,6 +416,8 @@ function frameToPlayData(
     const genericId = Math.max(0, Math.floor(Number(voxel.groupId ?? voxel.genericId) || 0));
     const groupId = rigidFamilyType === "clone" ? `c${genericId}` : `M${genericId}`;
     const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
+    const hiddenButton = definition.visual.kind === "button" &&
+      definition.visual.buttonForm === "hidden";
     return [{
       collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
       ...(isRigidFamilyMember
@@ -429,6 +434,9 @@ function frameToPlayData(
           }
         : {}),
       elevation: voxel.z + layerOffset,
+      ...(hiddenButton
+        ? { editorOnly: true, editorOpacity: 0.5 }
+        : {}),
       label: definition.name,
       ...(definition.visual.kind === "gem"
         ? { modelUrl: definition.visual.modelUrl }
@@ -474,7 +482,7 @@ function frameToPlayData(
             // differ or are nonzero.
             elevation: voxel.z + layerOffset,
             ...(orangeForm === "hidden"
-              ? { editorOnly: true, editorOpacity: selected ? 0.72 : 0.45 }
+              ? { editorOnly: true, editorOpacity: 0.5 }
               : {}),
             genericLabel: definition.visual.kind === "orange-wall"
               ? String(orangeWallMechanismDepth(voxel))

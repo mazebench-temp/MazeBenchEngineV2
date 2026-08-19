@@ -59,6 +59,19 @@ test("box and clone cubes share MazeBench's grouped actor render path with their
   assert.match(renderer, /groupedSlopeActorSuppressedEdgeContacts/);
 });
 
+test("ordinary Ice cubes and slopes suppress their shared internal outlines", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(renderer, /return descriptor\.layer\?\.styleKey \? null : "ice_block"/);
+  assert.match(renderer, /iceSlopeHighSideHasSolidContact/);
+  assert.match(renderer, /iceSlopeBottomHasSolidContact/);
+  assert.match(renderer, /iceSlopeCoveredTopFaceCellsForVoxels/);
+  assert.match(renderer, /iceSlopeSuppressedEdgeContacts/);
+});
+
 test("browser simulation and search preserve distinct directional slope roles", async () => {
   const physicsEngine = await readFile(
     new URL("../app/physicsEngine.ts", import.meta.url),

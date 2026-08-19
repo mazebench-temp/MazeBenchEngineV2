@@ -31,17 +31,26 @@ function genericObjectGroupId(voxel) {
     : Number.isInteger(voxel.genericId) ? voxel.genericId : -1;
 }
 
-function rigidGenericFamilyRole(voxel, definitions) {
+function connectedFamilyIdentity(voxel, definitions) {
   if (!(definitions instanceof Map)) return null;
-  const roleId = definitions.get(voxel.blockId)?.roleId;
-  return roleId === "weightless-pushable" || roleId === "clone" ? roleId : null;
+  const definition = definitions.get(voxel.blockId);
+  if (!definition || (definition.visual?.kind !== "cube" && definition.visual?.kind !== "slope")) {
+    return null;
+  }
+  if (definition.roleId === "ice") return "ice";
+  if (definition.roleId !== "weightless-pushable" && definition.roleId !== "clone") {
+    return null;
+  }
+  const groupId = genericObjectGroupId(voxel);
+  return groupId >= 0 ? `${definition.roleId}:${groupId}` : null;
 }
 
 /**
  * Selects the complete six-neighbor component containing `origin`. Numbered
  * rigid box/clone families use role + object ID as their identity, allowing a
- * cube and any directional slopes to form one selectable polycube. Other
- * authored objects retain exact block, variant, state, and orientation identity.
+ * cube and any directional slopes to form one selectable polycube. Static Ice
+ * cubes and slopes likewise form one connected terrain family. Other authored
+ * objects retain exact block, variant, state, and orientation identity.
  *
  * @param {Voxel[]} voxels
  * @param {{ x: number, y: number, z: number, selectionKey?: string }} origin
@@ -69,9 +78,7 @@ export function selectConnectedVoxelGroup(
   if (!first) return [];
 
   const groupId = genericObjectGroupId(first);
-  const rigidFamilyRole = groupId >= 0
-    ? rigidGenericFamilyRole(first, definitions)
-    : null;
+  const connectedFamily = connectedFamilyIdentity(first, definitions);
   const variantId = Number.isInteger(first.variantId) ? first.variantId : 0;
   const stateId = Number.isInteger(first.stateId) ? first.stateId : 0;
   const orientation = String(first.orientation ?? "none");
@@ -87,14 +94,13 @@ export function selectConnectedVoxelGroup(
       ) ?? [];
       const neighbor = candidates.find((candidate) => {
         const candidateGroupId = genericObjectGroupId(candidate);
-        const sameRigidFamily = rigidFamilyRole !== null &&
-          rigidGenericFamilyRole(candidate, definitions) === rigidFamilyRole &&
-          candidateGroupId === groupId;
+        const sameConnectedFamily = connectedFamily !== null &&
+          connectedFamilyIdentity(candidate, definitions) === connectedFamily;
         const sameExactType = candidate.blockId === first.blockId && candidateGroupId === groupId &&
           (Number.isInteger(candidate.variantId) ? candidate.variantId : 0) === variantId &&
           (Number.isInteger(candidate.stateId) ? candidate.stateId : 0) === stateId &&
           String(candidate.orientation ?? "none") === orientation;
-        return (sameRigidFamily || sameExactType) &&
+        return (sameConnectedFamily || sameExactType) &&
           !selected.has(cellObjectSelectionKey(candidate));
       });
       if (!neighbor) continue;

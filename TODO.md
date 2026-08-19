@@ -113,6 +113,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Search distinguishes identical coordinates with different mechanism states.
 - [x] A supported orange wall flattens into a surface; over a void it descends as a full cube.
 - [x] Hidden Orange Wall volumes can be painted, selected, translated, and stored inside any occupied editor cell.
+- [x] Hidden Orange Buttons use normal pressure-button physics while remaining translucent/editor-only and shareable with occupied cells.
 - [ ] Custom shapes remain pickable from above and below.
 - [x] All 321 authored physics tests and their automatic rotations remain green.
 - [x] Native C++ tests, WASM API tests, web tests, lint, and production build remain green.
