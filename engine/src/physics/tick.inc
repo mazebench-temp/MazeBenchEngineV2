@@ -1,3 +1,248 @@
+namespace {
+
+bool IsCommandActorObject(int32_t object) {
+  return object >= 0 &&
+      (g_object_kind[object] == kCloneObject ||
+       g_object_kind[object] == kPlayerObject);
+}
+
+// Clone IDs and a multi-voxel player are command-controlled rigid polycubes.
+// They all receive the input, but a blocked actor must not cancel another
+// actor. Destination-linked actors form one simultaneous
+// proposal component; unrelated components resolve front-first so vacated
+// cells become available without imposing a level-wide all-or-nothing move.
+bool AdvanceCloneCommandObjects(
+    MotionState* state,
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  const int32_t dx = kDx[direction];
+  const int32_t dy = kDy[direction];
+  ActiveWorkspace().clone_command_tick_active = true;
+  bool has_clone = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    g_clone_command_moved[object] = 0;
+    g_clone_command_processed[object] = 0;
+    has_clone |= IsCommandActorObject(object) &&
+        ObjectIsActive(voxels, object, width, height);
+  }
+  if (!has_clone) {
+    ActiveWorkspace().clone_command_tick_active = false;
+    return false;
+  }
+
+  bool advanced = false;
+  for (;;) {
+    int32_t next_object = -1;
+    int64_t next_front = INT64_MIN;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (!IsCommandActorObject(object) ||
+          g_clone_command_processed[object] != 0 ||
+          !ObjectIsActive(voxels, object, width, height)) {
+        continue;
+      }
+      int64_t front = INT64_MIN;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const int64_t projection =
+            static_cast<int64_t>(voxels[member].x) * dx +
+            static_cast<int64_t>(voxels[member].y) * dy;
+        if (projection > front) front = projection;
+      }
+      if (front > next_front) {
+        next_front = front;
+        next_object = object;
+      }
+    }
+    if (next_object < 0) break;
+
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      g_component_objects[object] = 0;
+    }
+    int32_t queue_begin = 0;
+    int32_t queue_end = 0;
+    g_component_objects[next_object] = 1;
+    g_object_queue[queue_end++] = next_object;
+    while (queue_begin < queue_end) {
+      const int32_t object = g_object_queue[queue_begin++];
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const int32_t occupant = FindVoxelAt(
+            voxels,
+            voxels[member].x + dx,
+            voxels[member].y + dy,
+            voxels[member].z,
+            width,
+            height);
+        const int32_t other = occupant >= 0
+            ? g_voxel_object[occupant]
+            : -1;
+        if (other < 0 || other == object ||
+            !IsCommandActorObject(other) ||
+            g_clone_command_processed[other] != 0 ||
+            g_component_objects[other] != 0) {
+          continue;
+        }
+        g_component_objects[other] = 1;
+        g_object_queue[queue_end++] = other;
+      }
+    }
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_component_objects[object] != 0) {
+        g_clone_command_processed[object] = 1;
+      }
+    }
+
+    // Like the player, a clone may deliberately walk off Floor or Ice but not
+    // step away from the top of a wall into unsupported space. A polycube is
+    // anchored only by external rigid terrain; support from the player or a
+    // movable body participates in the normal simultaneous carrier rules.
+    bool ledge_blocked = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_component_objects[object] == 0) continue;
+      bool has_rigid_foothold = false;
+      bool has_destination_support = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        const Voxel& voxel = voxels[member];
+        if (voxel.z == INT32_MIN) continue;
+        const int32_t support = FindVoxelAt(
+            voxels, voxel.x, voxel.y, voxel.z - 1, width, height);
+        if (support >= 0 && support != player_index &&
+            g_voxel_object[support] != object &&
+            g_voxel_object[support] < 0 &&
+            !IsIceRole(voxels[support].role) &&
+            voxels[support].role != kFloorRole) {
+          has_rigid_foothold = true;
+        }
+        const int32_t destination_support = FindVoxelAt(
+            voxels,
+            voxel.x + dx,
+            voxel.y + dy,
+            voxel.z - 1,
+            width,
+            height);
+        const int32_t support_object = destination_support >= 0
+            ? g_voxel_object[destination_support]
+            : -1;
+        if (destination_support >= 0 && destination_support != player_index &&
+            support_object != object &&
+            (support_object < 0 || g_component_objects[support_object] == 0)) {
+          has_destination_support = true;
+        }
+      }
+      ledge_blocked |= has_rigid_foothold && !has_destination_support;
+    }
+    if (ledge_blocked) continue;
+
+    ClearMovingObjects();
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_component_objects[object] == 0) continue;
+      g_mandatory_objects[object] = 1;
+      g_moving_objects[object] = 1;
+      g_object_direction[object] = static_cast<uint8_t>(direction);
+    }
+    bool player_was_pushed = false;
+    const bool moved = SceneHasIceSlopes(voxels, count, width, height)
+        ? TranslateSlopeMomentumObjects(
+              voxels,
+              count,
+              player_index,
+              width,
+              height,
+              true,
+              false,
+              true,
+              true,
+              player_was_pushed)
+        : TranslateMovingObjects(
+              voxels,
+              count,
+              player_index,
+              dx,
+              dy,
+              0,
+              width,
+              height,
+              false,
+              true,
+              true,
+              false);
+    if (!moved) continue;
+    advanced = true;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_moving_objects[object] != 0) {
+        g_clone_command_moved[object] = 1;
+      }
+    }
+  }
+
+  ClearMovingObjects();
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_clone_command_moved[object] == 0) continue;
+    g_mandatory_objects[object] = 1;
+    g_moving_objects[object] = 1;
+    g_object_direction[object] = static_cast<uint8_t>(direction);
+  }
+  (void)StoreSupportedMandatoryMomentum(
+      state, voxels, count, width, height, direction);
+  return advanced;
+}
+
+bool AppendCloneCommandMomentum(
+    MotionState* state,
+    Voxel* voxels,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  bool stored = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_clone_command_moved[object] == 0 ||
+        !ObjectIsActive(voxels, object, width, height) ||
+        !ObjectIsFullyOnIce(voxels, object, width, height)) {
+      continue;
+    }
+    stored = true;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      state->horizontal_momentum[member] =
+          static_cast<uint8_t>(direction + 1);
+    }
+  }
+  return stored;
+}
+
+bool HasSupportedObjectMomentum(
+    const MotionState* state,
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    const uint8_t momentum = ReadObjectMomentum(
+        state->horizontal_momentum, object);
+    if (momentum > 0 && momentum <= 4 &&
+        ObjectIsActive(voxels, object, width, height) &&
+        ObjectIsFullyOnIce(voxels, object, width, height)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool SceneHasCommandActorObject() {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (IsCommandActorObject(object)) return true;
+  }
+  return false;
+}
+
+}  // namespace
+
 TickResult step_tick(
     PhysicsWorkspace* workspace,
     MotionState* state,
@@ -71,12 +316,41 @@ TickResult step_tick(
     BuildSpatialIndex(voxels, count, width, height);
     LoadObjectMotion(state);
   }
+  const int32_t player_object = g_voxel_object[player_index];
+  const bool player_is_rigid_object =
+      player_object >= 0 && g_object_kind[player_object] == kPlayerObject;
+
+  const bool clone_command_tick = state->phase == kMotionReady;
+  const bool clone_command_advanced = clone_command_tick &&
+      AdvanceCloneCommandObjects(
+          state,
+          voxels,
+          count,
+          player_index,
+          state->direction,
+          width,
+          height);
 
   bool orange_advanced_this_tick = false;
   auto store_and_finish = [&](int32_t phase,
                               bool advanced,
                               bool gravity_already_checked = false) {
-    advanced |= orange_advanced_this_tick;
+    advanced |= orange_advanced_this_tick || clone_command_advanced;
+    if (clone_command_tick) {
+      (void)AppendCloneCommandMomentum(
+          state, voxels, state->direction, width, height);
+    }
+    const bool object_momentum_pending = SceneHasCommandActorObject() &&
+        HasSupportedObjectMomentum(state, voxels, width, height);
+    if (phase == kMotionGravity && object_momentum_pending &&
+        state->reserved[0] != kResumeCommand) {
+      state->reserved[0] = kResumeObjectIce;
+    } else if ((phase == kMotionComplete || phase == kMotionPlayerIce) &&
+               object_momentum_pending) {
+      // Object-Ice advances every independently sliding clone and also folds
+      // in the player's own Ice proposal when both exist in the same tick.
+      phase = kMotionObjectIce;
+    }
     if (phase == kMotionComplete && !gravity_already_checked &&
         ObjectsNeedGravityTick(voxels, count, width, height)) {
       // A blocked/boundary-ending Ice proposal can happen immediately after a
@@ -95,10 +369,11 @@ TickResult step_tick(
     state->phase = phase;
     if (advanced) ++state->tick;
     if (phase == kMotionComplete) {
-      CollectGoalsAtPlayer(
+      CollectGoalsAtActors(
           voxels, count, state->player_index, width, height);
     }
     StoreObjectMotion(state, count);
+    ActiveWorkspace().clone_command_tick_active = false;
     if (phase == kMotionComplete) {
       ActiveWorkspace().continuation_state = nullptr;
       ActiveWorkspace().continuation_voxels = nullptr;
@@ -115,6 +390,10 @@ TickResult step_tick(
   auto resolve_player_gravity = [&](bool automatic_ice_motion,
                                     bool started_on_ice,
                                     bool pushed) {
+    if (player_is_rigid_object) {
+      state->player_falling = 0;
+      return false;
+    }
     Voxel& player = voxels[player_index];
     if (!IsInsideRoom(player.x, player.y, width, height)) {
       state->player_falling = 0;
@@ -164,6 +443,10 @@ TickResult step_tick(
   auto defer_player_gravity = [&](bool automatic_ice_motion,
                                   bool started_on_ice,
                                   bool pushed) {
+    if (player_is_rigid_object) {
+      state->player_falling = 0;
+      return false;
+    }
     const Voxel& player = voxels[player_index];
     if (!IsInsideRoom(player.x, player.y, width, height)) {
       state->player_falling = 0;
@@ -457,7 +740,8 @@ TickResult step_tick(
         ? 0
         : MovingObjectSlopeVerticalDelta(
               voxels, state->direction, width, height);
-    const bool player_has_ice_momentum = state->reserved[1] == 0 &&
+    const bool player_has_ice_momentum = !player_is_rigid_object &&
+        state->reserved[1] == 0 &&
         IsSupportedByIce(voxels, voxels[player_index], width, height);
     const RiderSnapshot rider =
         CapturePlayerRider(voxels, player_index, width, height);
@@ -680,6 +964,14 @@ TickResult step_tick(
   const bool automatic_ice_motion = state->phase == kMotionPlayerIce;
   const bool records_initial_tick =
       state->phase == kMotionReady && state->tick == 0;
+  if (player_is_rigid_object && state->phase == kMotionReady) {
+    const bool gravity_continues =
+        ObjectsNeedGravityTick(voxels, count, width, height, false);
+    return store_and_finish(
+        gravity_continues ? kMotionGravity : kMotionComplete,
+        clone_command_advanced || records_initial_tick,
+        true);
+  }
   Voxel& player = voxels[player_index];
   if (automatic_ice_motion) {
     state->direction = RedirectSlopeDirection(
@@ -833,6 +1125,11 @@ TickResult step_tick(
   }
   if (target_index >= 0) {
     int32_t object = g_voxel_object[target_index];
+    if (object >= 0 && g_object_kind[object] == kCloneObject) {
+      // Clones are actors, not pushable cargo. The player's independent
+      // proposal stops on a clone that did not vacate this cell.
+      return store_and_finish(kMotionComplete, records_initial_tick);
+    }
     if (object >= 0 && g_object_kind[object] == kMechanismObject) {
       const int32_t mechanism_support = raised_side_lift_contact >= 0
           ? PlayerLiftSideAttachmentVoxel(

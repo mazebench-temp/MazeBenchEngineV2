@@ -145,6 +145,128 @@ void TestUnknownRoleBlocks() {
         "unknown roles should block and preserve generic IDs");
 }
 
+void TestIndependentCloneCommands() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 2, 1, Role("clone"), 0},
+      {2, 2, 1, Role("clone"), 1},
+      {1, 1, 1, Role("wall"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 10, 3, 3, 0) == 0,
+        "clone command should run");
+  Check(voxels[0].y == 1,
+        "the player should move independently of a blocked clone");
+  Check(voxels[1].y == 2,
+        "a clone blocked by terrain should remain stationary");
+  Check(voxels[2].y == 1,
+        "an unblocked clone should still receive the shared command");
+}
+
+void TestInterlockingCloneCommandComponent() {
+  voxelbench::Voxel voxels[] = {
+      {0, 5, 1, Role("player"), -1},
+      {1, 1, 1, Role("clone"), 0},
+      {1, 3, 1, Role("clone"), 0},
+      {1, 2, 1, Role("clone"), 1},
+      {1, 4, 1, Role("clone"), 1},
+      {0, 5, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {1, 0, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 4, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 12, 3, 6, 0) == 0,
+        "interlocking clone command should run");
+  Check(voxels[1].y == 0 && voxels[2].y == 2 &&
+        voxels[3].y == 1 && voxels[4].y == 3,
+        "destination-linked clone polycubes should translate atomically");
+}
+
+void TestExactSearchTracksCloneActors() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {2, 2, 1, Role("clone"), 0},
+      {0, 1, 1, Role("wall"), -1},
+      {2, 1, 1, Role("goal"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 7, 3, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved &&
+            result.moves == 1 && result.solution_length == 1 &&
+            result.solution[0] == 0,
+        "exact search should encode clone motion and let a clone collect a gem");
+}
+
+void TestPlayerPolycubeMovesAndFallsRigidly() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 2, 1, Role("player"), -1},
+      {1, 2, 2, Role("player"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {2, 0, 0, Role("floor"), -1},
+  };
+  static voxelbench::PhysicsWorkspace workspace;
+  voxelbench::MotionState state{};
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kMore,
+        "a player polycube should move into an unsupported destination");
+  Check(voxels[0].y == 1 && voxels[1].y == 1 && voxels[2].y == 1,
+        "every player voxel should translate atomically");
+  for (int32_t tick = 0; tick < 3; ++tick) {
+    Check(voxelbench::step_tick(
+              &workspace, &state, voxels, 6, 3, 3, 0) ==
+              voxelbench::TickResult::kMore,
+          "the complete player polycube should fall one row per tick");
+  }
+  Check(voxels[0].z == -2 && voxels[1].z == -2 && voxels[2].z == -1,
+        "player-polycube gravity should preserve every relative offset");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 6, 3, 3, 0) ==
+            voxelbench::TickResult::kComplete,
+        "the player polycube should disappear once its top passes the room");
+  Check(voxels[0].x == -1 && voxels[1].x == -1 && voxels[2].x == -1,
+        "abyss removal should remove the complete player polycube together");
+}
+
+void TestExactSearchTracksPlayerPolycube() {
+  static voxelbench::PhysicsWorkspace physics_workspace;
+  static voxelbench::SearchWorkspace search_workspace;
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 2, 1, Role("player"), -1},
+      {1, 1, 1, Role("goal"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&physics_workspace);
+  const auto result = voxelbench::search_shortest(
+      &search_workspace, &physics_workspace, voxels, 7, 3, 3, 1000);
+  Check(result.status == voxelbench::SearchStatus::kSolved &&
+            result.moves == 1 && result.solution_length == 1 &&
+            result.solution[0] == 0,
+        "exact search should encode every player-polycube voxel as one actor");
+}
+
 void TestEveryBoundary() {
   constexpr int32_t positions[][3] = {{2, 0, 0}, {4, 2, 1}, {2, 4, 2}, {0, 2, 3}};
   for (const auto& value : positions) {
@@ -1383,6 +1505,11 @@ int main() {
   TestPlayerAndPushedBodySlideTogetherOnIce();
   TestIceStopsAtObstacle();
   TestUnknownRoleBlocks();
+  TestIndependentCloneCommands();
+  TestInterlockingCloneCommandComponent();
+  TestExactSearchTracksCloneActors();
+  TestPlayerPolycubeMovesAndFallsRigidly();
+  TestExactSearchTracksPlayerPolycube();
   TestEveryBoundary();
   TestTickTraceAndWorkspaceIsolation();
   TestObserverReceivesNoMovementCompletionFrame();
@@ -1437,6 +1564,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 56 C++ physics/search tests passed\n";
+  std::cout << "all 61 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

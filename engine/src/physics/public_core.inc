@@ -25,7 +25,10 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_has_ice_slopes = false;
   data->prepared_has_player_lifts = false;
   data->prepared_has_orange_mechanisms = false;
+  data->prepared_has_clones = false;
+  data->prepared_has_player_polycube = false;
   data->scene_has_orange_mechanisms = false;
+  data->clone_command_tick_active = false;
   data->assume_quiescent_start = false;
   data->motion_voxel_count = -1;
   data->prepared_index_active = false;
@@ -58,7 +61,7 @@ bool prepare_scene(
   data.prepared_index_active = false;
   for (int32_t index = dynamic_voxel_count; index < count; ++index) {
     const uint32_t role = voxels[index].role;
-    if (role == kPlayerRole || role == kPushableRole ||
+    if (role == kPlayerRole || role == kCloneRole || role == kPushableRole ||
         role == kWeightlessPushableRole || role == kPlayerLiftRole ||
         role == kOrangeButtonRole || role == kOrangeWallRole) {
       data.prepared_dynamic_voxel_count = -1;
@@ -71,22 +74,27 @@ bool prepare_scene(
   data.prepared_has_ice_slopes = false;
   data.prepared_has_player_lifts = false;
   data.prepared_has_orange_mechanisms = false;
+  data.prepared_has_clones = false;
+  data.prepared_has_player_polycube = false;
+  int32_t player_count = 0;
   for (int32_t index = 0; index < count; ++index) {
     data.prepared_has_ice_slopes |= IsIceSlopeRole(voxels[index].role);
     data.prepared_has_player_lifts |= voxels[index].role == kPlayerLiftRole;
     data.prepared_has_orange_mechanisms |=
         voxels[index].role == kOrangeButtonRole ||
         voxels[index].role == kOrangeWallRole;
+    data.prepared_has_clones |= voxels[index].role == kCloneRole;
+    player_count += voxels[index].role == kPlayerRole ? 1 : 0;
     if (voxels[index].role == kGoalRole) {
       data.prepared_goal_indices[data.prepared_goal_count++] = index;
     }
   }
   for (int32_t index = 0; index < dynamic_voxel_count; ++index) {
     if (voxels[index].role != kPlayerRole) continue;
-    if (data.prepared_player_index >= 0) return false;
-    data.prepared_player_index = index;
+    if (data.prepared_player_index < 0) data.prepared_player_index = index;
   }
   if (data.prepared_player_index < 0) return false;
+  data.prepared_has_player_polycube = player_count > 1;
   ResetStaticHash();
   data.prepared_dense_columns = cell_count <= kDenseColumnCapacity;
   if (data.prepared_dense_columns) {

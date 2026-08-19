@@ -5,6 +5,7 @@ constexpr uint32_t HashRoleLiteral(const char* value, uint32_t hash = 2166136261
 }
 
 constexpr uint32_t kPlayerRole = HashRoleLiteral("player");
+constexpr uint32_t kCloneRole = HashRoleLiteral("clone");
 constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole = HashRoleLiteral("weightless-pushable");
 constexpr uint32_t kIceRole = HashRoleLiteral("ice");
@@ -27,6 +28,8 @@ constexpr int32_t kLinearSpatialThreshold = 16;
 constexpr uint8_t kNormalObject = 0;
 constexpr uint8_t kWeightlessObject = 1;
 constexpr uint8_t kMechanismObject = 2;
+constexpr uint8_t kCloneObject = 3;
+constexpr uint8_t kPlayerObject = 4;
 
 bool IsIceSlopeRole(uint32_t role) {
   return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||
@@ -251,6 +254,8 @@ struct WorkspaceData {
   uint8_t fell_objects[kVoxelCapacity];
   uint8_t object_falling[kVoxelCapacity];
   uint8_t pending_fall[kVoxelCapacity];
+  uint8_t clone_command_moved[kVoxelCapacity];
+  uint8_t clone_command_processed[kVoxelCapacity];
   uint8_t blocked_orange_walls[kVoxelCapacity];
   uint8_t orange_component_walls[kVoxelCapacity];
   int8_t orange_component_shifts[kVoxelCapacity];
@@ -289,7 +294,10 @@ struct WorkspaceData {
   bool prepared_has_ice_slopes;
   bool prepared_has_player_lifts;
   bool prepared_has_orange_mechanisms;
+  bool prepared_has_clones;
+  bool prepared_has_player_polycube;
   bool scene_has_orange_mechanisms;
+  bool clone_command_tick_active;
   bool assume_quiescent_start;
   int32_t motion_voxel_count;
   bool prepared_index_active;
@@ -335,6 +343,8 @@ WorkspaceData& ActiveWorkspace() {
 #define g_fell_objects ActiveWorkspace().fell_objects
 #define g_object_falling ActiveWorkspace().object_falling
 #define g_pending_fall ActiveWorkspace().pending_fall
+#define g_clone_command_moved ActiveWorkspace().clone_command_moved
+#define g_clone_command_processed ActiveWorkspace().clone_command_processed
 #define g_blocked_orange_walls ActiveWorkspace().blocked_orange_walls
 #define g_orange_component_walls ActiveWorkspace().orange_component_walls
 #define g_orange_component_shifts ActiveWorkspace().orange_component_shifts

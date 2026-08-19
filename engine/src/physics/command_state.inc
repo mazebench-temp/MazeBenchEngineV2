@@ -396,6 +396,41 @@ void CollectGoalsAtPlayer(
   }
 }
 
+void CollectGoalsAtActors(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t width,
+    int32_t height) {
+  CollectGoalsAtPlayer(voxels, count, player_index, width, height);
+  auto collect_if_overlapped = [&](int32_t goal_index) {
+    Voxel& goal = voxels[goal_index];
+    if (goal.role != kGoalRole ||
+        !IsInsideRoom(goal.x, goal.y, width, height)) {
+      return;
+    }
+    for (int32_t index = 0; index < count; ++index) {
+      if ((voxels[index].role == kCloneRole ||
+           voxels[index].role == kPlayerRole) &&
+          voxels[index].x == goal.x && voxels[index].y == goal.y &&
+          voxels[index].z == goal.z) {
+        goal.x = -1;
+        return;
+      }
+    }
+  };
+  if (IsPreparedScene(voxels, count, width, height)) {
+    const WorkspaceData& workspace = ActiveWorkspace();
+    for (int32_t goal = 0; goal < workspace.prepared_goal_count; ++goal) {
+      collect_if_overlapped(workspace.prepared_goal_indices[goal]);
+    }
+    return;
+  }
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kGoalRole) collect_if_overlapped(index);
+  }
+}
+
 bool OrangeButtonShouldBePressed(
     Voxel* voxels,
     int32_t button_index,
@@ -903,7 +938,9 @@ int32_t TrySimulatePassiveQuiescentTurn(
   // stay on the generalized command kernel, including exact cycle handling.
   if (ActiveWorkspace().prepared_has_ice_slopes ||
       ActiveWorkspace().prepared_has_player_lifts ||
-      ActiveWorkspace().prepared_has_orange_mechanisms) return 0;
+      ActiveWorkspace().prepared_has_orange_mechanisms ||
+      ActiveWorkspace().prepared_has_clones ||
+      ActiveWorkspace().prepared_has_player_polycube) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;
   if (player_index < 0 || player_index >= count ||
       voxels[player_index].role != kPlayerRole) {

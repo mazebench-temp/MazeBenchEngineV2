@@ -362,7 +362,7 @@
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
       "locked": false,
-      "name": "ICE SLOPES + 3D BOXES"
+      "name": "Ice slopes + 3D Boxes"
     },
     {
       "collapsed": false,
@@ -20035,6 +20035,36 @@
       "file": "test-132-copy.json"
     },
     {
+      "id": "test-132-copy-copy",
+      "name": "Fall onto gem copy",
+      "groupTagId": "general",
+      "tagIds": [
+        "on-ice",
+        "gem"
+      ],
+      "file": "test-132-copy-copy.json"
+    },
+    {
+      "id": "test-132-copy-copy-copy",
+      "name": "Fall onto gem copy copy",
+      "groupTagId": "general",
+      "tagIds": [
+        "on-ice",
+        "gem"
+      ],
+      "file": "test-132-copy-copy-copy.json"
+    },
+    {
+      "id": "test-132-copy-copy-copy-copy",
+      "name": "Fall onto gem copy copy copy",
+      "groupTagId": "general",
+      "tagIds": [
+        "on-ice",
+        "gem"
+      ],
+      "file": "test-132-copy-copy-copy-copy.json"
+    },
+    {
       "id": "test-135",
       "name": "Ice slope",
       "groupTagId": "lifts",
@@ -22116,6 +22146,24 @@
         "and-box"
       ],
       "file": "test-363.json"
+    },
+    {
+      "id": "test-363-copy",
+      "name": "Untitled test 363 copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "and-box"
+      ],
+      "file": "test-363-copy.json"
+    },
+    {
+      "id": "test-363-copy-copy",
+      "name": "Untitled test 363 copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "and-box"
+      ],
+      "file": "test-363-copy-copy.json"
     }
   ]
 }

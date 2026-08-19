@@ -18,9 +18,20 @@ void BuildObjects(Voxel* voxels, int32_t count) {
   g_weightless_object_count = 0;
   ActiveWorkspace().scene_has_orange_mechanisms = false;
   ResetHash();
+  int32_t player_count = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    player_count += voxels[index].role == kPlayerRole ? 1 : 0;
+  }
+  const int32_t player_object = player_count > 1
+      ? CreateObject(kPlayerObject)
+      : -1;
   for (int32_t index = 0; index < count; ++index) {
     g_voxel_object[index] = -1;
     g_next_object_voxel[index] = -1;
+    if (voxels[index].role == kPlayerRole && player_object >= 0) {
+      AddVoxelToObject(index, player_object);
+      continue;
+    }
     if (voxels[index].role == kPushableRole) {
       AddVoxelToObject(index, CreateObject(kNormalObject));
       continue;
@@ -39,15 +50,17 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       ActiveWorkspace().scene_has_orange_mechanisms = true;
       continue;
     }
-    if (voxels[index].role != kWeightlessPushableRole) continue;
+    if (voxels[index].role != kWeightlessPushableRole &&
+        voxels[index].role != kCloneRole) continue;
 
     const uint64_t object_key =
         (static_cast<uint64_t>(voxels[index].role) << 32u) |
         static_cast<uint32_t>(voxels[index].generic_id);
     int32_t object = HashFind(object_key);
     if (object < 0) {
-      object = CreateObject(kWeightlessObject);
-      ++g_weightless_object_count;
+      const bool clone = voxels[index].role == kCloneRole;
+      object = CreateObject(clone ? kCloneObject : kWeightlessObject);
+      if (!clone) ++g_weightless_object_count;
       HashInsert(object_key, object);
     }
     AddVoxelToObject(index, object);
@@ -701,6 +714,8 @@ int32_t BuildVerticalComponent(
         const int32_t other = g_voxel_object[neighbor];
         if (other >= 0 && other != object &&
             (g_object_kind[other] == kWeightlessObject ||
+             g_object_kind[other] == kCloneObject ||
+             g_object_kind[other] == kPlayerObject ||
              g_object_kind[other] == kMechanismObject) &&
             g_component_objects[other] == 0) {
           g_component_objects[other] = 1;
@@ -820,9 +835,11 @@ void SettleFlaggedObjects(
       if (g_moving_objects[object] == 0 ||
           g_fell_objects[object] != 0 ||
           (g_object_kind[object] != kWeightlessObject &&
+           g_object_kind[object] != kCloneObject &&
+           g_object_kind[object] != kPlayerObject &&
            g_object_kind[object] != kMechanismObject) ||
-          (g_weightless_object_count <= 1 &&
-           g_object_kind[object] != kMechanismObject) ||
+          (g_object_kind[object] == kWeightlessObject &&
+           g_weightless_object_count <= 1) ||
           !ObjectIsActive(voxels, object, width, height)) {
         continue;
       }

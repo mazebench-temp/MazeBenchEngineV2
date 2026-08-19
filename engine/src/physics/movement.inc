@@ -179,6 +179,11 @@ void BuildCarriedObjects(
     changed = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_moving_objects[object] != 0 || g_rejected_carriers[object] != 0 ||
+          (carry_from_player &&
+           ActiveWorkspace().clone_command_tick_active &&
+           (g_object_kind[object] == kCloneObject ||
+            g_object_kind[object] == kPlayerObject) &&
+           g_clone_command_moved[object] != 0) ||
           !ObjectIsActive(voxels, object, width, height)) {
         continue;
       }
@@ -350,6 +355,8 @@ void AdvanceUnmovedGravityOneStep(
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_pending_fall[object] = 0;
     if (g_moving_objects[object] != 0 ||
+        (ActiveWorkspace().clone_command_tick_active &&
+         g_clone_command_moved[object] != 0) ||
         (g_carrier_parent[object] == -2 &&
          g_rejected_carriers[object] == 0) ||
         !ObjectIsActive(voxels, object, width, height) ||
@@ -739,7 +746,9 @@ bool TranslateMovingObjects(
         continue;
       }
       if (allow_push &&
-          g_object_kind[object] == kWeightlessObject && other_object >= 0 &&
+          (g_object_kind[object] == kWeightlessObject ||
+           g_object_kind[object] == kCloneObject ||
+           g_object_kind[object] == kPlayerObject) && other_object >= 0 &&
           g_object_kind[other_object] == kWeightlessObject) {
         AddMandatoryObject(other_object, queue_end);
         continue;
@@ -791,7 +800,9 @@ bool TranslateMovingObjects(
             continue;
           }
           if (allow_push &&
-              g_object_kind[object] == kWeightlessObject && other >= 0 &&
+              (g_object_kind[object] == kWeightlessObject ||
+               g_object_kind[object] == kCloneObject ||
+               g_object_kind[object] == kPlayerObject) && other >= 0 &&
               g_object_kind[other] == kWeightlessObject) {
             AddMandatoryObject(other, queue_end);
             continue;

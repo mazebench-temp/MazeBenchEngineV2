@@ -14,6 +14,7 @@ constexpr uint32_t HashRoleLiteral(const char* value, uint32_t hash = 2166136261
 }
 
 constexpr uint32_t kPlayerRole = HashRoleLiteral("player");
+constexpr uint32_t kCloneRole = HashRoleLiteral("clone");
 constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
@@ -117,7 +118,7 @@ uint64_t Mix64(uint64_t value) {
 }
 
 bool IsDynamic(uint32_t role) {
-  return role == kPlayerRole || role == kPushableRole ||
+  return role == kPlayerRole || role == kCloneRole || role == kPushableRole ||
       role == kWeightlessPushableRole || role == kPlayerLiftRole ||
       role == kOrangeButtonRole;
 }
@@ -994,7 +995,9 @@ SearchResult search_shortest(
     const int32_t target = data->dynamic_voxel_count++;
     data->scene[target] = voxels[source];
     int32_t entity = -1;
-    if (voxels[source].role == kWeightlessPushableRole) {
+    if (voxels[source].role == kWeightlessPushableRole ||
+        voxels[source].role == kCloneRole ||
+        voxels[source].role == kPlayerRole) {
       for (int32_t candidate = 0; candidate < data->entity_count; ++candidate) {
         if (data->entity_roles[candidate] == voxels[source].role &&
             data->entity_generic_ids[candidate] == voxels[source].generic_id) {
@@ -1018,9 +1021,10 @@ SearchResult search_shortest(
     data->base_offsets[target][1] = voxels[source].y - anchor.y;
     data->base_offsets[target][2] = voxels[source].z - anchor.z;
     if (voxels[source].role == kPlayerRole) {
-      if (data->player_index >= 0) return InvalidResult();
-      data->player_index = target;
-      data->player_entity = entity;
+      if (data->player_index < 0) {
+        data->player_index = target;
+        data->player_entity = entity;
+      }
     }
   }
   // Orange-wall anchors never translate, but their compact lowering depth is
