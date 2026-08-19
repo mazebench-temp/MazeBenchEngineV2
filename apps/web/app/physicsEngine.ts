@@ -123,6 +123,84 @@ async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
   return codes;
 }
 
+type PhysicsAdapterContext = {
+  blockRole: (voxel: Voxel) => number;
+  blocks: BlockDefinition[];
+  blocksById: Map<string, BlockDefinition>;
+  buttonBlockIds: { visible?: string; hidden?: string };
+  genericBlockIds: Set<string>;
+  mechanismValue: (voxel: Voxel) => number;
+  physics: PhysicsExports;
+  roles: PhysicsRole[];
+};
+
+let cachedAdapterContext: PhysicsAdapterContext | null = null;
+
+async function physicsAdapterContext(
+  blocks: BlockDefinition[],
+  roles: PhysicsRole[],
+) {
+  const physics = await loadPhysics();
+  if (cachedAdapterContext?.physics === physics &&
+      cachedAdapterContext.blocks === blocks &&
+      cachedAdapterContext.roles === roles) {
+    return cachedAdapterContext;
+  }
+
+  const rolesById = await roleCodesById(physics, roles);
+  const blocksById = new Map(blocks.map((block) => [block.id, block]));
+  const slopeDirections = ["up", "right", "down", "left"];
+  const blockRole = (voxel: Voxel) => {
+    const block = blocksById.get(voxel.blockId);
+    if (!block) return 0;
+    if (block.visual?.kind === "slope") {
+      const orientation = slopeDirections.includes(voxel.orientation ?? "")
+        ? voxel.orientation
+        : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
+      return rolesById.get(slopePhysicsRoleId(block.roleId, orientation)) ?? 0;
+    }
+    return rolesById.get(block.roleId) ?? 0;
+  };
+  const genericRoleIds = new Set(
+    roles.filter((role) => role.generic).map((role) => role.id));
+  const genericBlockIds = new Set(
+    blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id),
+  );
+  const buttonBlockIds = {
+    visible: blocks.find((block) =>
+      block.visual?.kind === "button" && block.visual.buttonForm !== "hidden")?.id,
+    hidden: blocks.find((block) =>
+      block.visual?.kind === "button" && block.visual.buttonForm === "hidden")?.id,
+  };
+  const mechanismValue = (voxel: Voxel) => {
+    const visual = blocksById.get(voxel.blockId)?.visual;
+    if (visual?.kind === "button") {
+      return buttonMechanismId(
+        normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+        visual.buttonForm === "hidden",
+      );
+    }
+    if (visual?.kind === "orange-wall") {
+      return orangeWallMechanismValue(voxel, blocksById);
+    }
+    return genericBlockIds.has(voxel.blockId)
+      ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
+      : -1;
+  };
+
+  cachedAdapterContext = {
+    blockRole,
+    blocks,
+    blocksById,
+    buttonBlockIds,
+    genericBlockIds,
+    mechanismValue,
+    physics,
+    roles,
+  };
+  return cachedAdapterContext;
+}
+
 export async function simulateTurnWithCpp(
   frame: Frame,
   direction: Direction,
@@ -145,7 +223,15 @@ export async function simulateCommandWithCpp(
   frames: Frame[];
   cycle?: { startTick: number; repeatTick: number; onCycle: "rollback-command" };
 }> {
-  const physics = await loadPhysics();
+  const context = await physicsAdapterContext(blocks, roles);
+  const {
+    blockRole,
+    blocksById,
+    buttonBlockIds,
+    genericBlockIds,
+    mechanismValue,
+    physics,
+  } = context;
   if (physics.physics_abi_version() !== 4 || physics.voxel_stride() !== 5) {
     throw new Error("The web app and C++ physics engine use different ABI versions");
   }
@@ -153,46 +239,6 @@ export async function simulateCommandWithCpp(
     throw new Error(`The C++ engine supports up to ${physics.voxel_capacity()} voxels per frame`);
   }
 
-  const rolesById = await roleCodesById(physics, roles);
-  const blocksById = new Map(blocks.map((block) => [block.id, block]));
-  const slopeDirections = ["up", "right", "down", "left"];
-  const blockRole = (voxel: Voxel) => {
-    const block = blocksById.get(voxel.blockId);
-    if (!block) return 0;
-    if (block.visual?.kind === "slope") {
-      const orientation = slopeDirections.includes(voxel.orientation ?? "")
-        ? voxel.orientation
-        : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
-      return rolesById.get(slopePhysicsRoleId(block.roleId, orientation)) ?? 0;
-    }
-    return rolesById.get(block.roleId) ?? 0;
-  };
-  const genericRoleIds = new Set(roles.filter((role) => role.generic).map((role) => role.id));
-  const genericBlockIds = new Set(
-    blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id),
-  );
-  const buttonBlockIds = {
-    visible: blocks.find((block) =>
-      block.visual?.kind === "button" && block.visual.buttonForm !== "hidden")?.id,
-    hidden: blocks.find((block) =>
-      block.visual?.kind === "button" && block.visual.buttonForm === "hidden")?.id,
-  };
-  const mechanismValue = (voxel: Voxel) => {
-    const visual = blocksById.get(voxel.blockId)?.visual;
-    const visualKind = visual?.kind;
-    if (visualKind === "button") {
-      return buttonMechanismId(
-        normalizeButtonOrientation(voxel.orientation, voxel.variantId),
-        visual.buttonForm === "hidden",
-      );
-    }
-    if (visualKind === "orange-wall") {
-      return orangeWallMechanismValue(voxel, blocksById);
-    }
-    return genericBlockIds.has(voxel.blockId)
-      ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
-      : -1;
-  };
   const stride = physics.voxel_stride();
   const voxelBuffer = new Int32Array(
     physics.memory.buffer,

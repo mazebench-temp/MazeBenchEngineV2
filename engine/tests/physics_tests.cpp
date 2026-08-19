@@ -1408,6 +1408,37 @@ void TestOrangeWallCarriesItsMountedButtonInTheSameTick() {
         "the mounted button should rise with the wall after pressure is released");
 }
 
+void TestOrangeWallCarriesItsMountedLiftInTheSameTick() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 5, 1, Role("player"), -1},
+      {1, 4, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {1, 1, 2, Role("orange-wall"), 0},
+      // Raised east-facing lift attached to the upper wall's east face.
+      {2, 1, 2, Role("player-lift"), 5},
+      {1, 5, 0, Role("floor"), -1},
+      {1, 4, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 9, 3, 6, 0) ==
+            voxelbench::TickResult::kMore,
+        "entering a button should precede attached-lift wall motion");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 9, 3, 6, 0) ==
+            voxelbench::TickResult::kComplete,
+        "an Orange Wall and its mounted lift should share one mechanism tick");
+  Check(state.tick == 2 && voxels[2].generic_id == 1 &&
+            voxels[3].generic_id == 1 && voxels[4].z == 1 &&
+            voxels[4].generic_id == 5,
+        "a side-mounted lift should descend with its wall and retain its state");
+}
+
 void TestMovingPolycubeCarriesButtonsMountedOnEveryFace() {
   voxelbench::Voxel voxels[] = {
       {1, 5, 1, Role("player"), -1},
@@ -1624,6 +1655,7 @@ int main() {
   TestSearchTracksPlayerLiftState();
   TestOrangeButtonUsesASeparateWallTick();
   TestOrangeWallCarriesItsMountedButtonInTheSameTick();
+  TestOrangeWallCarriesItsMountedLiftInTheSameTick();
   TestMovingPolycubeCarriesButtonsMountedOnEveryFace();
   TestReleasedOrangeColumnRaisesEveryVoxelAfterJoining();
   TestOrangeWallsCountEveryPressedButton();
@@ -1635,6 +1667,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 63 C++ physics/search tests passed\n";
+  std::cout << "all 64 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

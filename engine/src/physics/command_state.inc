@@ -431,13 +431,13 @@ void CollectGoalsAtActors(
   }
 }
 
-bool OrangeButtonRidesWallSurface(
-    const Voxel& button,
+bool OrangeFixtureRidesWallSurface(
+    const Voxel& fixture,
     const Voxel& wall,
     int32_t wall_surface_z);
 
-bool OrangeButtonTracksWall(
-    const Voxel& button,
+bool OrangeFixtureTracksWall(
+    const Voxel& fixture,
     const Voxel& wall,
     int32_t wall_surface_z);
 
@@ -459,7 +459,7 @@ bool RefreshOrangeButtonVisibility(
       if (voxels[wall_index].role != kOrangeWallRole) continue;
       const int32_t surface = OrangeWallSurfaceZForDepth(
           voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
-      if (!OrangeButtonTracksWall(
+      if (!OrangeFixtureTracksWall(
               button, voxels[wall_index], surface)) {
         continue;
       }
@@ -507,7 +507,7 @@ bool OrangeButtonShouldBePressed(
           OrangeWallDepth(voxels[index]));
       const int32_t support = OrangeWallSupportZ(
           voxels, g_spatial_voxel_count, index);
-      if (OrangeButtonTracksWall(button, voxels[index], surface) &&
+      if (OrangeFixtureTracksWall(button, voxels[index], surface) &&
           support != INT32_MIN && button.z <= support) {
         return false;
       }
@@ -584,65 +584,73 @@ bool OrangeMechanismsNeedTick(
   return false;
 }
 
-bool OrangeButtonRidesWallSurface(
-    const Voxel& button,
+bool OrangeFixtureRidesWallSurface(
+    const Voxel& fixture,
     const Voxel& wall,
     int32_t wall_surface_z) {
-  if (button.role != kOrangeButtonRole || button.generic_id < 0) return false;
-  const int32_t orientation = button.generic_id / 2;
+  if ((fixture.role != kOrangeButtonRole &&
+       fixture.role != kPlayerLiftRole) ||
+      fixture.generic_id < 0) {
+    return false;
+  }
+  const int32_t orientation = fixture.generic_id / 2;
   if (orientation == 0) {
-    return button.x == wall.x && button.y == wall.y &&
-        button.z == wall_surface_z;
+    return fixture.x == wall.x && fixture.y == wall.y &&
+        fixture.z == wall_surface_z;
   }
   if (orientation == 1) {
-    return button.x == wall.x && button.y + 1 == wall.y &&
-        button.z + 1 == wall_surface_z;
+    return fixture.x == wall.x && fixture.y + 1 == wall.y &&
+        fixture.z + 1 == wall_surface_z;
   }
   if (orientation == 2) {
-    return button.x - 1 == wall.x && button.y == wall.y &&
-        button.z + 1 == wall_surface_z;
+    return fixture.x - 1 == wall.x && fixture.y == wall.y &&
+        fixture.z + 1 == wall_surface_z;
   }
   if (orientation == 3) {
-    return button.x == wall.x && button.y - 1 == wall.y &&
-        button.z + 1 == wall_surface_z;
+    return fixture.x == wall.x && fixture.y - 1 == wall.y &&
+        fixture.z + 1 == wall_surface_z;
   }
   if (orientation == 4) {
-    return button.x + 1 == wall.x && button.y == wall.y &&
-        button.z + 1 == wall_surface_z;
+    return fixture.x + 1 == wall.x && fixture.y == wall.y &&
+        fixture.z + 1 == wall_surface_z;
   }
-  return orientation == 5 && button.x == wall.x && button.y == wall.y &&
-      button.z + 2 == wall_surface_z;
+  return fixture.role == kOrangeButtonRole && orientation == 5 &&
+      fixture.x == wall.x && fixture.y == wall.y &&
+      fixture.z + 2 == wall_surface_z;
 }
 
 // Once an Orange Wall is below its support plane it deliberately has no
-// physical surface. Its mounted button nevertheless remains attached to the
-// same authored raised-anchor face and must continue travelling underground.
-// Reconstructing the button's raised coordinate from the wall depth preserves
-// that relationship without introducing a separate attachment identifier.
-bool OrangeButtonTracksWall(
-    const Voxel& button,
+// physical surface. A mounted fixture nevertheless remains attached to the
+// same authored raised-anchor face and must continue travelling with it.
+// Reconstructing the fixture's raised coordinate from the wall depth preserves
+// that relationship without an attachment identifier or per-fixture hidden
+// block type. Rendering may occlude the unchanged fixture when it is buried.
+bool OrangeFixtureTracksWall(
+    const Voxel& fixture,
     const Voxel& wall,
     int32_t wall_surface_z) {
-  if (OrangeButtonRidesWallSurface(button, wall, wall_surface_z)) return true;
-  if (button.role != kOrangeButtonRole || wall.role != kOrangeWallRole ||
-      button.generic_id < 0) {
+  if (OrangeFixtureRidesWallSurface(fixture, wall, wall_surface_z)) return true;
+  if ((fixture.role != kOrangeButtonRole &&
+       fixture.role != kPlayerLiftRole) ||
+      wall.role != kOrangeWallRole || fixture.generic_id < 0) {
     return false;
   }
-  const int32_t orientation = button.generic_id / 2;
-  const int64_t raised_button_z = static_cast<int64_t>(button.z) +
+  const int32_t orientation = fixture.generic_id / 2;
+  const int64_t raised_fixture_z = static_cast<int64_t>(fixture.z) +
       OrangeWallDepth(wall);
   if (orientation == 0) {
-    return button.x == wall.x && button.y == wall.y &&
-        raised_button_z == static_cast<int64_t>(wall.z) + 1;
+    return fixture.x == wall.x && fixture.y == wall.y &&
+        raised_fixture_z == static_cast<int64_t>(wall.z) + 1;
   }
   const bool matching_side =
-      (orientation == 1 && button.x == wall.x && button.y + 1 == wall.y) ||
-      (orientation == 2 && button.x - 1 == wall.x && button.y == wall.y) ||
-      (orientation == 3 && button.x == wall.x && button.y - 1 == wall.y) ||
-      (orientation == 4 && button.x + 1 == wall.x && button.y == wall.y);
-  if (matching_side) return raised_button_z == wall.z;
-  return orientation == 5 && button.x == wall.x && button.y == wall.y &&
-      raised_button_z == static_cast<int64_t>(wall.z) - 1;
+      (orientation == 1 && fixture.x == wall.x && fixture.y + 1 == wall.y) ||
+      (orientation == 2 && fixture.x - 1 == wall.x && fixture.y == wall.y) ||
+      (orientation == 3 && fixture.x == wall.x && fixture.y - 1 == wall.y) ||
+      (orientation == 4 && fixture.x + 1 == wall.x && fixture.y == wall.y);
+  if (matching_side) return raised_fixture_z == wall.z;
+  return fixture.role == kOrangeButtonRole && orientation == 5 &&
+      fixture.x == wall.x && fixture.y == wall.y &&
+      raised_fixture_z == static_cast<int64_t>(wall.z) - 1;
 }
 
 bool OrangeWallsShareFace(const Voxel& left, const Voxel& right) {
@@ -731,7 +739,7 @@ void PreflightOrangeWallComponents(
         for (int32_t object = 0; object < g_object_count; ++object) {
           if (g_object_kind[object] == kMechanismObject) {
             const int32_t fixture = g_object_head[object];
-            if (fixture >= 0 && OrangeButtonTracksWall(
+            if (fixture >= 0 && OrangeFixtureTracksWall(
                     voxels[fixture], wall, old_surface)) {
               g_mandatory_objects[object] = 1;
               g_moving_objects[object] = 1;
@@ -911,7 +919,7 @@ bool AdvanceOrangeMechanismsOneTick(
             continue;
           }
           const int32_t member = g_object_head[object];
-          if (member < 0 || !OrangeButtonTracksWall(
+          if (member < 0 || !OrangeFixtureTracksWall(
                   voxels[member], wall, old_surface)) {
             continue;
           }
@@ -935,7 +943,7 @@ bool AdvanceOrangeMechanismsOneTick(
       if (g_clone_command_processed[object] != 0) continue;
       if (g_object_kind[object] == kMechanismObject) {
         const int32_t member = g_object_head[object];
-        if (member >= 0 && OrangeButtonTracksWall(
+        if (member >= 0 && OrangeFixtureTracksWall(
                 voxels[member], wall, old_surface)) {
           g_mandatory_objects[object] = 1;
           g_moving_objects[object] = 1;

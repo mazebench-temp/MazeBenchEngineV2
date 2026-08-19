@@ -52,7 +52,7 @@ import {
   blockCanShareCell,
   cellObjectSelectionKey,
   cellObjectSemanticKey,
-  diffObjectMultisets,
+  createCellObjectMultisetDiffer,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
   objectCanShareCell,
@@ -194,6 +194,10 @@ type FrameComparison = {
   pass: boolean;
   missing: Voxel[];
   unexpected: Voxel[];
+};
+type FrameComparisonContext = {
+  blocksById: Map<string, BlockDefinition>;
+  differ: ReturnType<typeof createCellObjectMultisetDiffer>;
 };
 
 type RotationDegrees = 0 | 90 | 180 | 270;
@@ -856,13 +860,29 @@ function cropTestsToWorld(tests: TestCase[]) {
   return tests.map((test) => cropTestToWorld(test));
 }
 
-function compareFrames(expected: Frame, actual: Frame, world: WorldSettings, definitions: BlockDefinition[]): FrameComparison {
-  const blocksById = new Map(definitions.map((definition) => [definition.id, definition]));
+function createFrameComparisonContext(
+  definitions: BlockDefinition[],
+): FrameComparisonContext {
+  return {
+    blocksById: new Map(definitions.map((definition) => [definition.id, definition])),
+    differ: createCellObjectMultisetDiffer(),
+  };
+}
+
+function compareFrames(
+  expected: Frame,
+  actual: Frame,
+  world: WorldSettings,
+  definitions: BlockDefinition[],
+  context: FrameComparisonContext = createFrameComparisonContext(definitions),
+): FrameComparison {
   const boundedExpected = cropFrameToWorld(expected, world);
   const boundedActual = cropFrameToWorld(actual, world);
-  const visibleExpected = orangeWallVisualFrame(boundedExpected, blocksById) as Frame;
-  const visibleActual = orangeWallVisualFrame(boundedActual, blocksById) as Frame;
-  const { missing, unexpected } = diffObjectMultisets(
+  const visibleExpected = orangeWallVisualFrame(
+    boundedExpected, context.blocksById) as Frame;
+  const visibleActual = orangeWallVisualFrame(
+    boundedActual, context.blocksById) as Frame;
+  const { missing, unexpected } = context.differ(
     visibleExpected.voxels,
     visibleActual.voxels,
   ) as { missing: Voxel[]; unexpected: Voxel[] };
@@ -877,6 +897,8 @@ async function runRotationalTest(
   test: TestCase,
   definitions: BlockDefinition[],
   roles: PhysicsRoleDefinition[],
+  comparisonContext = createFrameComparisonContext(definitions),
+  compactPassingResult = false,
 ): Promise<TestResult> {
   const world = test.world;
   const canonicalTest = cropTestToWorld(test);
@@ -909,11 +931,16 @@ async function runRotationalTest(
         const expectedFrame = expectedFrames[index] ?? { voxels: [] };
         const actualFrame = actualFrames[index] ?? { voxels: [] };
         const comparison = compareFrames(
-          expectedFrame, actualFrame, rotatedWorld, definitions);
+          expectedFrame,
+          actualFrame,
+          rotatedWorld,
+          definitions,
+          comparisonContext,
+        );
         return {
           ...comparison,
           actualPresent,
-          expected: cropFrameToWorld(expectedFrame, rotatedWorld),
+          expected: expectedFrame,
           expectedPresent,
           pass: expectedPresent && actualPresent && comparison.pass,
         };
@@ -937,11 +964,21 @@ async function runRotationalTest(
     });
   }
   const representative = checks.find((check) => !check.pass) ?? checks[0];
-  return {
+  const result: TestResult = {
     ...representative,
     checks,
     pass: checks.every((check) => check.pass),
   };
+  if (!compactPassingResult || !result.pass) return result;
+  const compactChecks = checks.map((check) => ({
+    ...check,
+    actual: { voxels: [] },
+    expected: { voxels: [] },
+    missing: [],
+    trace: [],
+    unexpected: [],
+  }));
+  return { ...compactChecks[0], checks: compactChecks };
 }
 
 function DirectionIcon({ direction }: { direction: Direction }) {
@@ -1946,7 +1983,16 @@ export default function VoxelBench() {
     setToast(`Running ${tests.length * 4} rotated checks through the C++ engine…`);
     try {
       const nextResults: Record<string, TestResult> = {};
-      for (const test of tests) nextResults[test.id] = await runRotationalTest(test, blocks, roles);
+      const comparisonContext = createFrameComparisonContext(blocks);
+      for (const test of tests) {
+        nextResults[test.id] = await runRotationalTest(
+          test,
+          blocks,
+          roles,
+          comparisonContext,
+          true,
+        );
+      }
       setResults(nextResults);
       const passed = Object.values(nextResults).filter((result) => result.pass).length;
       setShowResult(shouldShowResultComparison(nextResults[activeId]));

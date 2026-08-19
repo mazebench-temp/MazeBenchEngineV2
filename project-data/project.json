@@ -395,7 +395,7 @@
       "parentId": "ice-slopes-3d-boxes"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "lift",
       "locked": false,
       "name": "Lift"
@@ -575,6 +575,20 @@
       "locked": false,
       "name": "lift attachments",
       "parentId": "orange-walls"
+    },
+    {
+      "collapsed": false,
+      "id": "and-box-2",
+      "locked": false,
+      "name": "and box",
+      "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "stacked-2",
+      "locked": false,
+      "name": "stacked",
+      "parentId": "lift"
     }
   ],
   "searches": [
@@ -21233,7 +21247,7 @@
       "name": "Untitled test 256",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-256.json"
     },
@@ -21242,7 +21256,7 @@
       "name": "Untitled test 256 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-256-copy.json"
     },
@@ -21251,7 +21265,7 @@
       "name": "Untitled test 258",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258.json"
     },
@@ -21260,7 +21274,7 @@
       "name": "Untitled test 258 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy.json"
     },
@@ -21269,7 +21283,7 @@
       "name": "Untitled test 258 copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy-copy.json"
     },
@@ -21278,7 +21292,7 @@
       "name": "Untitled test 258 copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy-copy-copy.json"
     },
@@ -21287,7 +21301,7 @@
       "name": "Untitled test 258 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy-copy-copy-copy.json"
     },
@@ -21296,7 +21310,7 @@
       "name": "Untitled test 258 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy-copy-copy-copy-copy.json"
     },
@@ -21305,7 +21319,7 @@
       "name": "Untitled test 258 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-258-copy-copy-copy-copy-copy-copy.json"
     },
@@ -22165,6 +22179,18 @@
       "file": "test-332-copy-2-copy-copy.json"
     },
     {
+      "id": "test-332-copy-2-copy-copy-copy",
+      "name": "Untitled test 332 copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "multiple-buttons",
+        "buttons-on-ice",
+        "orange-walls-boxes",
+        "sideways-button"
+      ],
+      "file": "test-332-copy-2-copy-copy-copy.json"
+    },
+    {
       "id": "test-332-copy",
       "name": "Slide off ice onto button",
       "groupTagId": "orange-walls",
@@ -22645,6 +22671,106 @@
         "lift-attachments"
       ],
       "file": "test-413.json"
+    },
+    {
+      "id": "test-413-copy-2",
+      "name": "Lift is attached to orange wall copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-2.json"
+    },
+    {
+      "id": "test-413-copy",
+      "name": "Lift is attached to orange wall copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy-2",
+      "name": "Lift is attached to orange wall copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-2.json"
+    },
+    {
+      "id": "test-413-copy-copy-2-copy",
+      "name": "Lift is attached to orange wall copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-2-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy",
+      "name": "Lift is attached to orange wall copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy",
+      "name": "Lift is attached to orange wall copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy-copy-2",
+      "name": "Lift is attached to orange wall copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-copy-copy-2.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy-copy-2-copy",
+      "name": "Lift is attached to orange wall copy copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-copy-copy-2-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy-copy-2-copy-2",
+      "name": "Lift is attached to orange wall copy copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-copy-copy-2-copy-2.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy-copy-2-copy-copy",
+      "name": "Lift is attached to orange wall copy copy copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413-copy-copy-copy-copy-2-copy-copy.json"
+    },
+    {
+      "id": "test-413-copy-copy-copy-copy",
+      "name": "Lift is attached to orange wall copy copy copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments",
+        "orange-walls-boxes"
+      ],
+      "file": "test-413-copy-copy-copy-copy.json"
     }
   ]
 }

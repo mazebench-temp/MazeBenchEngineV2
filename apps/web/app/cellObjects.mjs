@@ -121,6 +121,123 @@ export function diffObjectMultisets(expected, actual, identity = cellObjectSeman
   };
 }
 
+function normalizedObjectField(value, fallback) {
+  return Number.isInteger(value) ? value : fallback;
+}
+
+/**
+ * Creates an exact multiset differ for the hot visual-suite path. The regular
+ * helper above intentionally accepts any string identity function; this one
+ * avoids allocating a seven-field identity string for every voxel in every
+ * tick. A compact numeric hash selects a tiny bucket and direct field checks
+ * preserve exact behavior even if two objects happen to share a hash.
+ */
+export function createCellObjectMultisetDiffer() {
+  const tokenIds = new Map();
+  let nextTokenId = 1;
+  const tokenId = (value) => {
+    const token = String(value);
+    const cached = tokenIds.get(token);
+    if (cached !== undefined) return cached;
+    const id = nextTokenId++;
+    tokenIds.set(token, id);
+    return id;
+  };
+  const groupId = (object) => Number.isInteger(object.groupId)
+    ? object.groupId
+    : normalizedObjectField(object.genericId, -1);
+  const hashObject = (object) => {
+    let hash = 0x811c9dc5;
+    const mix = (value) => {
+      hash = Math.imul(hash ^ (Number(value) | 0), 0x01000193);
+    };
+    mix(object.x);
+    mix(object.y);
+    mix(object.z);
+    mix(tokenId(object.blockId));
+    mix(groupId(object));
+    mix(normalizedObjectField(object.variantId, 0));
+    mix(normalizedObjectField(object.stateId, 0));
+    mix(normalizedObjectField(object.mechanismDepth, -1));
+    mix(tokenId(object.orientation ?? "none"));
+    return hash >>> 0;
+  };
+  const sameObject = (left, right) =>
+    left.x === right.x && left.y === right.y && left.z === right.z &&
+    left.blockId === right.blockId && groupId(left) === groupId(right) &&
+    normalizedObjectField(left.variantId, 0) ===
+      normalizedObjectField(right.variantId, 0) &&
+    normalizedObjectField(left.stateId, 0) ===
+      normalizedObjectField(right.stateId, 0) &&
+    normalizedObjectField(left.mechanismDepth, -1) ===
+      normalizedObjectField(right.mechanismDepth, -1) &&
+    String(left.orientation ?? "none") === String(right.orientation ?? "none");
+
+  return (expected, actual) => {
+    if (expected.length === actual.length) {
+      let orderedMatch = true;
+      for (let index = 0; index < expected.length; ++index) {
+        if (!sameObject(expected[index], actual[index])) {
+          orderedMatch = false;
+          break;
+        }
+      }
+      if (orderedMatch) return { missing: [], unexpected: [] };
+    }
+
+    const remainingActual = new Map();
+    for (const value of actual) {
+      const hash = hashObject(value);
+      const existing = remainingActual.get(hash);
+      if (existing === undefined) remainingActual.set(hash, value);
+      else if (Array.isArray(existing)) existing.push(value);
+      else remainingActual.set(hash, [existing, value]);
+    }
+
+    const missing = [];
+    for (const value of expected) {
+      const hash = hashObject(value);
+      const existing = remainingActual.get(hash);
+      if (existing === undefined) {
+        missing.push(value);
+        continue;
+      }
+      if (!Array.isArray(existing)) {
+        if (sameObject(value, existing)) {
+          remainingActual.delete(hash);
+        } else {
+          missing.push(value);
+        }
+        continue;
+      }
+      let match = -1;
+      for (let index = existing.length - 1; index >= 0; --index) {
+        if (sameObject(value, existing[index])) {
+          match = index;
+          break;
+        }
+      }
+      if (match < 0) {
+        missing.push(value);
+        continue;
+      }
+      existing[match] = existing[existing.length - 1];
+      existing.pop();
+      if (existing.length === 1) remainingActual.set(hash, existing[0]);
+    }
+
+    const unexpected = [];
+    for (const remaining of remainingActual.values()) {
+      if (Array.isArray(remaining)) unexpected.push(...remaining);
+      else unexpected.push(remaining);
+    }
+    return {
+      missing,
+      unexpected,
+    };
+  };
+}
+
 /**
  * Adds or replaces a placement according to editor occupancy. A solid volume
  * replaces only other solid volumes at the target cell; sensors, supports,

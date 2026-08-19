@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   blockCanShareCell,
   cellObjectSemanticKey,
+  createCellObjectMultisetDiffer,
   diffObjectMultisets,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
@@ -125,6 +126,27 @@ test("frame differences count duplicate occupants instead of collapsing them", (
   const difference = diffObjectMultisets([gem, { ...gem }], [gem]);
   assert.deepEqual(difference.missing, [gem]);
   assert.deepEqual(difference.unexpected, []);
+});
+
+test("the numeric suite differ preserves exact semantic multiset behavior", () => {
+  const differ = createCellObjectMultisetDiffer();
+  const expected = [
+    at("box", { groupId: 7, orientation: "east", stateId: 2 }),
+    at("gem"),
+    at("gem"),
+    at("orange-wall", { mechanismDepth: 3, stateId: 1 }),
+  ];
+  const actual = [
+    at("gem"),
+    at("box", { genericId: 7, orientation: "east", stateId: 2 }),
+    at("orange-wall", { mechanismDepth: 4, stateId: 1 }),
+    at("button", { orientation: "north" }),
+  ];
+  assert.deepEqual(differ(expected, actual), diffObjectMultisets(expected, actual));
+  assert.deepEqual(differ(expected, [...expected].reverse()), {
+    missing: [],
+    unexpected: [],
+  });
 });
 
 test("erase removes one occupant and preserves the rest of the cell", () => {

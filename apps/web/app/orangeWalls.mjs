@@ -145,6 +145,10 @@ export function orangeWallDepthForState(wall, voxels, definitions, stateId) {
 }
 
 export function normalizeOrangeWallFrame(frame, definitions) {
+  if (!frame.voxels.some((voxel) =>
+    definitionFor(definitions, voxel.blockId)?.visual?.kind === "orange-wall")) {
+    return frame;
+  }
   const voxels = frame.voxels.map((voxel) => ({ ...voxel }));
   return {
     ...frame,
@@ -183,6 +187,10 @@ export function orangeWallEngineAnchorZ(wall) {
 }
 
 export function orangeWallFrameFromEngine(frame, definitions) {
+  if (!frame.voxels.some((voxel) =>
+    definitionFor(definitions, voxel.blockId)?.roleId === "orange-wall")) {
+    return frame;
+  }
   const engineVoxels = frame.voxels.map((voxel) => ({ ...voxel }));
   const visualVoxels = engineVoxels.map((voxel) => {
       const definition = definitionFor(definitions, voxel.blockId);
