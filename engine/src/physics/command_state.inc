@@ -431,6 +431,53 @@ void CollectGoalsAtActors(
   }
 }
 
+bool OrangeButtonRidesWallSurface(
+    const Voxel& button,
+    const Voxel& wall,
+    int32_t wall_surface_z);
+
+bool OrangeButtonTracksWall(
+    const Voxel& button,
+    const Voxel& wall,
+    int32_t wall_surface_z);
+
+bool OrangeButtonIsHidden(const Voxel& button) {
+  return button.role == kOrangeButtonRole &&
+      button.generic_id >= 0 && (button.generic_id & 1) != 0;
+}
+
+bool RefreshOrangeButtonVisibility(
+    Voxel* voxels,
+    int32_t count) {
+  bool changed = false;
+  for (int32_t button_index = 0; button_index < count; ++button_index) {
+    Voxel& button = voxels[button_index];
+    if (button.role != kOrangeButtonRole || button.generic_id < 0) continue;
+    bool rides_wall = false;
+    bool folded_into_support = false;
+    for (int32_t wall_index = 0; wall_index < count; ++wall_index) {
+      if (voxels[wall_index].role != kOrangeWallRole) continue;
+      const int32_t surface = OrangeWallSurfaceZForDepth(
+          voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
+      if (!OrangeButtonTracksWall(
+              button, voxels[wall_index], surface)) {
+        continue;
+      }
+      rides_wall = true;
+      const int32_t support = OrangeWallSupportZ(voxels, count, wall_index);
+      folded_into_support |= support != INT32_MIN && button.z <= support;
+    }
+    if (!rides_wall) continue;
+    const int32_t next_id = (button.generic_id & ~1) |
+        (folded_into_support ? 1 : 0);
+    if (button.generic_id != next_id) {
+      button.generic_id = next_id;
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 bool OrangeButtonShouldBePressed(
     Voxel* voxels,
     int32_t button_index,
@@ -438,12 +485,42 @@ bool OrangeButtonShouldBePressed(
     int32_t height) {
   const Voxel& button = voxels[button_index];
   if (button.role != kOrangeButtonRole ||
+      OrangeButtonIsHidden(button) ||
       !IsInsideRoom(button.x, button.y, width, height) ||
       button.z == INT32_MIN) {
     return false;
   }
-  return FindVoxelAt(
-      voxels, button.x, button.y, button.z, width, height) >= 0;
+  const int32_t occupant = FindVoxelAt(
+      voxels, button.x, button.y, button.z, width, height);
+  if (occupant < 0) return false;
+  if (voxels[occupant].role == kPlayerRole) return true;
+  const int32_t object = g_voxel_object[occupant];
+  if (object < 0) {
+    // Static geometry can press a button which its movable carrier drives
+    // into that geometry. The exception is a wall-mounted sensor currently
+    // folded into terrain by the Orange Wall itself; that face is invisible,
+    // and therefore contributes no pressure.
+    for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
+      if (voxels[index].role != kOrangeWallRole) continue;
+      const int32_t surface = OrangeWallSurfaceZForDepth(
+          voxels, g_spatial_voxel_count, index,
+          OrangeWallDepth(voxels[index]));
+      const int32_t support = OrangeWallSupportZ(
+          voxels, g_spatial_voxel_count, index);
+      if (OrangeButtonTracksWall(button, voxels[index], surface) &&
+          support != INT32_MIN && button.z <= support) {
+        return false;
+      }
+    }
+    return true;
+  }
+  // Static terrain and the mechanism's own mount do not press a sensor when
+  // the face is folded into them. Only an actor or movable rigid body applies
+  // pressure; other mechanism fixtures remain freely overlappable.
+  return g_object_kind[object] == kNormalObject ||
+      g_object_kind[object] == kWeightlessObject ||
+      g_object_kind[object] == kCloneObject ||
+      g_object_kind[object] == kPlayerObject;
 }
 
 int32_t PressedOrangeButtonCount(
@@ -468,9 +545,9 @@ bool NormalizeInitialOrangeWallAnchors(
     int32_t width,
     int32_t height) {
   if (!ActiveWorkspace().scene_has_orange_mechanisms) return false;
+  bool changed = RefreshOrangeButtonVisibility(voxels, count);
   const int32_t pressed = PressedOrangeButtonCount(
       voxels, count, width, height);
-  bool changed = false;
   for (int32_t index = 0; index < count; ++index) {
     Voxel& wall = voxels[index];
     if (wall.role != kOrangeWallRole) continue;
@@ -535,6 +612,37 @@ bool OrangeButtonRidesWallSurface(
   }
   return orientation == 5 && button.x == wall.x && button.y == wall.y &&
       button.z + 2 == wall_surface_z;
+}
+
+// Once an Orange Wall is below its support plane it deliberately has no
+// physical surface. Its mounted button nevertheless remains attached to the
+// same authored raised-anchor face and must continue travelling underground.
+// Reconstructing the button's raised coordinate from the wall depth preserves
+// that relationship without introducing a separate attachment identifier.
+bool OrangeButtonTracksWall(
+    const Voxel& button,
+    const Voxel& wall,
+    int32_t wall_surface_z) {
+  if (OrangeButtonRidesWallSurface(button, wall, wall_surface_z)) return true;
+  if (button.role != kOrangeButtonRole || wall.role != kOrangeWallRole ||
+      button.generic_id < 0) {
+    return false;
+  }
+  const int32_t orientation = button.generic_id / 2;
+  const int64_t raised_button_z = static_cast<int64_t>(button.z) +
+      OrangeWallDepth(wall);
+  if (orientation == 0) {
+    return button.x == wall.x && button.y == wall.y &&
+        raised_button_z == static_cast<int64_t>(wall.z) + 1;
+  }
+  const bool matching_side =
+      (orientation == 1 && button.x == wall.x && button.y + 1 == wall.y) ||
+      (orientation == 2 && button.x - 1 == wall.x && button.y == wall.y) ||
+      (orientation == 3 && button.x == wall.x && button.y - 1 == wall.y) ||
+      (orientation == 4 && button.x + 1 == wall.x && button.y == wall.y);
+  if (matching_side) return raised_button_z == wall.z;
+  return orientation == 5 && button.x == wall.x && button.y == wall.y &&
+      raised_button_z == static_cast<int64_t>(wall.z) - 1;
 }
 
 bool OrangeWallsShareFace(const Voxel& left, const Voxel& right) {
@@ -623,7 +731,7 @@ void PreflightOrangeWallComponents(
         for (int32_t object = 0; object < g_object_count; ++object) {
           if (g_object_kind[object] == kMechanismObject) {
             const int32_t fixture = g_object_head[object];
-            if (fixture >= 0 && OrangeButtonRidesWallSurface(
+            if (fixture >= 0 && OrangeButtonTracksWall(
                     voxels[fixture], wall, old_surface)) {
               g_mandatory_objects[object] = 1;
               g_moving_objects[object] = 1;
@@ -759,6 +867,13 @@ bool AdvanceOrangeMechanismsOneTick(
   PreflightOrangeWallComponents(
       voxels, count, player_index, width, height, target_depth);
   bool changed = false;
+  bool player_moved_with_wall_component = false;
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    // Scratch ownership for this actuator pass. A rigid rider may touch more
+    // than one face of the same connected Orange Wall component, but the
+    // component changes height only once per tick.
+    g_clone_command_processed[object] = 0;
+  }
 
   for (int32_t index = 0; index < count; ++index) {
     Voxel& wall = voxels[index];
@@ -783,6 +898,27 @@ bool AdvanceOrangeMechanismsOneTick(
         ? 0
         : new_surface - old_surface;
     if (wall_delta == 0) {
+      // A flat-to-hidden (or hidden-to-flat) transition has no rigid surface
+      // to carry an ordinary body, but a face-mounted button remains attached
+      // to the authored Orange Wall and advances one depth unit with it.
+      const int32_t fixture_delta = component_shift != 0
+          ? component_shift
+          : old_depth == new_depth ? 0 : old_depth < new_depth ? -1 : 1;
+      if (fixture_delta != 0) {
+        for (int32_t object = 0; object < g_object_count; ++object) {
+          if (g_clone_command_processed[object] != 0 ||
+              g_object_kind[object] != kMechanismObject) {
+            continue;
+          }
+          const int32_t member = g_object_head[object];
+          if (member < 0 || !OrangeButtonTracksWall(
+                  voxels[member], wall, old_surface)) {
+            continue;
+          }
+          voxels[member].z += fixture_delta;
+          g_clone_command_processed[object] = 1;
+        }
+      }
       SetOrangeWallDepth(&wall, new_depth);
       changed = true;
       BuildSpatialIndex(voxels, count, width, height);
@@ -793,12 +929,13 @@ bool AdvanceOrangeMechanismsOneTick(
     const RiderSnapshot player_rider = CapturePlayerRider(
         voxels, player_index, width, height);
     const Voxel& player = voxels[player_index];
-    const bool player_rides_wall =
+    const bool player_rides_wall = !player_moved_with_wall_component &&
         player.x == wall.x && player.y == wall.y && player.z == old_surface;
     for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_clone_command_processed[object] != 0) continue;
       if (g_object_kind[object] == kMechanismObject) {
         const int32_t member = g_object_head[object];
-        if (member >= 0 && OrangeButtonRidesWallSurface(
+        if (member >= 0 && OrangeButtonTracksWall(
                 voxels[member], wall, old_surface)) {
           g_mandatory_objects[object] = 1;
           g_moving_objects[object] = 1;
@@ -908,10 +1045,18 @@ bool AdvanceOrangeMechanismsOneTick(
     if (player_rides_wall && !player_rode_object) {
       voxels[player_index].z += wall_delta;
     }
+    player_moved_with_wall_component |=
+        player_rides_wall || player_rode_object;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (g_moving_objects[object] != 0) {
+        g_clone_command_processed[object] = 1;
+      }
+    }
     changed = true;
     BuildSpatialIndex(voxels, count, width, height);
   }
 
+  changed |= RefreshOrangeButtonVisibility(voxels, count);
   if (!changed) return false;
   BuildSpatialIndex(voxels, count, width, height);
   MarkObjectsForDeferredGravity(voxels, width, height, false);

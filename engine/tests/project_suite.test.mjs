@@ -8,6 +8,7 @@ import {
   rotateWorldClockwise,
 } from "../../apps/web/app/worldBounds.mjs";
 import {
+  buttonIsHiddenMechanismId,
   buttonMechanismId,
   normalizeButtonOrientation,
 } from "../../apps/web/app/visualVariants.mjs";
@@ -45,6 +46,12 @@ for (const direction of ["up", "right", "down", "left"]) {
   }
 }
 const blocksById = new Map(project.blocks.map((block) => [block.id, block]));
+const buttonBlockIds = {
+  visible: project.blocks.find((block) =>
+    block.visual?.kind === "button" && block.visual.buttonForm !== "hidden")?.id,
+  hidden: project.blocks.find((block) =>
+    block.visual?.kind === "button" && block.visual.buttonForm === "hidden")?.id,
+};
 const slopeDirections = ["up", "right", "down", "left"];
 function slopePhysicsRoleId(baseRoleId, direction) {
   if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
@@ -71,6 +78,7 @@ function voxelMechanismId(voxel) {
   if (block?.visual?.kind === "button") {
     return buttonMechanismId(
       normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+      block.visual.buttonForm === "hidden",
     );
   }
   if (block?.visual?.kind === "orange-wall") {
@@ -103,20 +111,31 @@ function simulateFrames(voxels, direction, world) {
     ], index * stride);
   });
   const readFrame = () => orangeWallFrameFromEngine({
-    voxels: voxels.map((voxel, index) => ({
+    voxels: voxels.map((voxel, index) => {
+      const mechanismId = buffer[index * stride + 4];
+      const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;
+      return ({
       ...voxel,
+      ...(visualKind === "button"
+        ? {
+            blockId: buttonIsHiddenMechanismId(mechanismId)
+              ? buttonBlockIds.hidden ?? voxel.blockId
+              : buttonBlockIds.visible ?? voxel.blockId,
+          }
+        : {}),
       x: buffer[index * stride],
       y: buffer[index * stride + 1],
       z: buffer[index * stride + 2],
-      ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
+      ...(visualKind === "button"
         ? { stateId: 0 }
-        : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
-          ? { mechanismDepth: orangeWallDepthFromMechanismValue(buffer[index * stride + 4]) }
+        : visualKind === "orange-wall"
+          ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)
-        ? { genericId: buffer[index * stride + 4] }
+        ? { genericId: mechanismId }
         : {}),
-    })),
+      });
+    }),
   }, blocksById).voxels;
   const frames = [];
   const sameCoordinates = (left, right) => left.length === right.length &&
@@ -175,20 +194,31 @@ function simulateFinal(voxels, direction, world) {
     0,
   );
   return orangeWallFrameFromEngine({
-    voxels: voxels.map((voxel, index) => ({
+    voxels: voxels.map((voxel, index) => {
+      const mechanismId = buffer[index * stride + 4];
+      const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;
+      return ({
       ...voxel,
+      ...(visualKind === "button"
+        ? {
+            blockId: buttonIsHiddenMechanismId(mechanismId)
+              ? buttonBlockIds.hidden ?? voxel.blockId
+              : buttonBlockIds.visible ?? voxel.blockId,
+          }
+        : {}),
       x: buffer[index * stride],
       y: buffer[index * stride + 1],
       z: buffer[index * stride + 2],
-      ...(blocksById.get(voxel.blockId)?.visual?.kind === "button"
+      ...(visualKind === "button"
         ? { stateId: 0 }
-        : blocksById.get(voxel.blockId)?.visual?.kind === "orange-wall"
-          ? { mechanismDepth: orangeWallDepthFromMechanismValue(buffer[index * stride + 4]) }
+        : visualKind === "orange-wall"
+          ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)
-        ? { genericId: buffer[index * stride + 4] }
+        ? { genericId: mechanismId }
         : {}),
-    })),
+      });
+    }),
   }, blocksById).voxels;
 }
 

@@ -145,6 +145,46 @@ int32_t MechanismAttachmentVoxel(
   return support == g_ignored_support_voxel ? -1 : support;
 }
 
+bool OrangeButtonIsMountedToWall(
+    Voxel* voxels,
+    int32_t object) {
+  if (object < 0 || g_object_kind[object] != kMechanismObject) return false;
+  const int32_t button_index = g_object_head[object];
+  if (button_index < 0 ||
+      voxels[button_index].role != kOrangeButtonRole ||
+      voxels[button_index].generic_id < 0) {
+    return false;
+  }
+  const Voxel& button = voxels[button_index];
+  const int32_t orientation = button.generic_id / 2;
+  for (int32_t wall_index = 0; wall_index < g_spatial_voxel_count;
+       ++wall_index) {
+    const Voxel& wall = voxels[wall_index];
+    if (wall.role != kOrangeWallRole) continue;
+    const int64_t raised_button_z = static_cast<int64_t>(button.z) +
+        OrangeWallDepth(wall);
+    if (orientation == 0 && button.x == wall.x && button.y == wall.y &&
+        raised_button_z == static_cast<int64_t>(wall.z) + 1) {
+      return true;
+    }
+    const bool matching_side =
+        (orientation == 1 && button.x == wall.x &&
+         button.y + 1 == wall.y) ||
+        (orientation == 2 && button.x - 1 == wall.x &&
+         button.y == wall.y) ||
+        (orientation == 3 && button.x == wall.x &&
+         button.y - 1 == wall.y) ||
+        (orientation == 4 && button.x + 1 == wall.x &&
+         button.y == wall.y);
+    if (matching_side && raised_button_z == wall.z) return true;
+    if (orientation == 5 && button.x == wall.x && button.y == wall.y &&
+        raised_button_z == static_cast<int64_t>(wall.z) - 1) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool PlayerLiftIsAttachedToObject(
     Voxel* voxels,
     int32_t lift_object,
@@ -167,6 +207,10 @@ bool AttachedPlayerLiftHasDirectSupport(
     int32_t height,
     bool require_stable) {
   for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    const int32_t fixture = g_object_head[lift_object];
+    if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+      continue;
+    }
     if (!PlayerLiftIsAttachedToObject(
             voxels, lift_object, object, width, height)) {
       continue;
@@ -201,6 +245,10 @@ bool AddAttachedPlayerLiftIceSupports(
     bool flat_only,
     bool& found_support) {
   for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    const int32_t fixture = g_object_head[lift_object];
+    if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+      continue;
+    }
     if (!PlayerLiftIsAttachedToObject(
             voxels, lift_object, object, width, height)) {
       continue;
@@ -387,6 +435,7 @@ bool ObjectHasDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
+  if (OrangeButtonIsMountedToWall(voxels, object)) return true;
   const int32_t attachment = MechanismAttachmentVoxel(
       voxels, object, width, height);
   if (attachment >= 0 && g_voxel_object[attachment] != object) return true;
@@ -410,6 +459,7 @@ bool ObjectHasStableDirectSupport(
     int32_t object,
     int32_t width,
     int32_t height) {
+  if (OrangeButtonIsMountedToWall(voxels, object)) return true;
   const int32_t attachment = MechanismAttachmentVoxel(
       voxels, object, width, height);
   if (attachment >= 0) {
@@ -701,6 +751,14 @@ int32_t BuildVerticalComponent(
         g_object_queue[queue_end++] = lift_object;
       }
     }
+    const int32_t object_fixture = g_object_head[object];
+    if (object_fixture >= 0 &&
+        voxels[object_fixture].role == kOrangeButtonRole) {
+      // A sensor joins a vertical fall component only through its encoded
+      // face attachment. Its pass-through face may overlap or sit beside a
+      // body without mechanically latching onto that body.
+      continue;
+    }
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       const Voxel& voxel = voxels[member];
@@ -757,6 +815,12 @@ bool SettleSupportComponent(
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       const Voxel& voxel = voxels[member];
+      if (voxel.role == kOrangeButtonRole) {
+        // A button is attached to the falling component and translates with
+        // it, but its zero-volume face cannot prop the component up when it
+        // overlaps terrain below.
+        continue;
+      }
       const int32_t support = FindNearestVoxelBelowComponent(
           voxels, count, voxel.x, voxel.y, voxel.z, width);
       if (support < 0) continue;

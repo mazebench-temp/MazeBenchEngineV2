@@ -73,7 +73,7 @@
     {
       "id": "orange-wall",
       "name": "Orange Wall",
-      "description": "The shared mechanism for Orange Face and Orange Cube objects. Each stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.",
+      "description": "One mechanism with visible and editor-only invisible wall forms. Both may share a cell with anything and store a nonnegative remaining-rise number.",
       "generic": false
     },
     {
@@ -213,7 +213,19 @@
       "roleId": "orange-wall",
       "occupancy": "inactive",
       "visual": {
-        "kind": "orange-wall"
+        "kind": "orange-wall",
+        "orangeForm": "visible"
+      }
+    },
+    {
+      "id": "orange-wall-hidden",
+      "name": "Invisible orange wall",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "orange-wall",
+        "orangeForm": "hidden"
       }
     },
     {
@@ -224,7 +236,20 @@
       "occupancy": "sensor",
       "variantMax": 5,
       "visual": {
-        "kind": "button"
+        "kind": "button",
+        "buttonForm": "visible"
+      }
+    },
+    {
+      "id": "orange-button-hidden",
+      "name": "Invisible orange button",
+      "color": "#F59E0B",
+      "roleId": "orange-button",
+      "occupancy": "inactive",
+      "variantMax": 5,
+      "visual": {
+        "kind": "button",
+        "buttonForm": "hidden"
       }
     }
   ],
@@ -517,7 +542,7 @@
       "parentId": "clone"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "box-slopes",
       "locked": false,
       "name": "Box Slopes"
@@ -531,7 +556,7 @@
       "parentId": "box-slopes"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "clone-slopes",
       "locked": false,
       "name": "Clone Slopes"
@@ -543,6 +568,13 @@
       "locked": false,
       "name": "Default",
       "parentId": "clone-slopes"
+    },
+    {
+      "collapsed": false,
+      "id": "lift-attachments",
+      "locked": false,
+      "name": "lift attachments",
+      "parentId": "orange-walls"
     }
   ],
   "searches": [

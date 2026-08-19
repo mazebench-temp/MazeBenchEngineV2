@@ -100,11 +100,16 @@ export function buttonOrientationIndex(orientation) {
   return BUTTON_ORIENTATIONS.indexOf(normalizeButtonOrientation(orientation));
 }
 
-// The compact C++ ABI carries mechanism metadata in one integer. Keep the
-// established even-numbered orientation encoding, but pressure is derived
-// entirely from cell occupancy and is not a button state or visual variant.
-export function buttonMechanismId(orientation) {
-  return buttonOrientationIndex(orientation) * 2;
+// The compact C++ ABI carries mechanism metadata in one integer. The upper
+// bits preserve the established orientation encoding; the low bit records
+// whether the sensor is folded into geometry and therefore invisible/inert.
+export function buttonMechanismId(orientation, hidden = false) {
+  return buttonOrientationIndex(orientation) * 2 + (hidden ? 1 : 0);
+}
+
+export function buttonIsHiddenMechanismId(mechanismId = 0) {
+  const id = Math.max(0, Math.min(11, Math.floor(Number(mechanismId) || 0)));
+  return (id & 1) === 1;
 }
 
 export function buttonOrientationFromMechanismId(mechanismId = 0) {
@@ -186,7 +191,7 @@ export function rotateButtonMetadata(voxel, quarterTurns) {
 export function rotateVoxelVisualMetadata(voxel, quarterTurns) {
   return voxel?.blockId === "player-lift"
     ? rotateLiftMetadata(voxel, quarterTurns)
-    : voxel?.blockId === "orange-button"
+    : voxel?.blockId === "orange-button" || voxel?.blockId === "orange-button-hidden"
       ? rotateButtonMetadata(voxel, quarterTurns)
     : rotateSlopeMetadata(voxel, quarterTurns);
 }

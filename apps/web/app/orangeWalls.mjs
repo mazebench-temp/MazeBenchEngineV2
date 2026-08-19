@@ -1,4 +1,4 @@
-import { liftIsRaised } from "./visualVariants.mjs";
+import { liftIsRaised, normalizeButtonOrientation } from "./visualVariants.mjs";
 
 function nonnegativeInteger(value, fallback = 0) {
   const number = Number(value);
@@ -15,8 +15,9 @@ export function orangeWallIsDedicatedFace(wall) {
   return Number(wall?.stateId) === 0;
 }
 
-export function orangeWallIsHiddenVolume(wall) {
-  return Number(wall?.stateId) === 2;
+export function orangeWallIsHiddenVolume(wall, definitions) {
+  return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "hidden" ||
+    Number(wall?.stateId) === 2;
 }
 
 export function orangeWallMechanismValue(wall) {
@@ -154,12 +155,21 @@ export function normalizeOrangeWallFrame(frame, definitions) {
       return {
         ...voxel,
         mechanismDepth: state.mechanismDepth,
-        // Legacy face/hidden IDs migrate to this internal physical-state bit.
-        // It is not an editor object type and does not alter the cube visual.
-        stateId: storedState === 0 || storedState === 2 ? storedState : 1,
+        stateId: orangeWallIsHiddenVolume(voxel, definitions)
+          ? 2
+          : storedState === 0 ? 0 : 1,
       };
     }),
   };
+}
+
+function orangeWallBlockIdForForm(wall, definitions, form) {
+  const all = definitions instanceof Map
+    ? [...definitions.values()]
+    : definitions ?? [];
+  return all.find((definition) =>
+    definition?.roleId === "orange-wall" &&
+    (definition.visual?.orangeForm ?? "visible") === form)?.id ?? wall.blockId;
 }
 
 // C++ stores a stable fully-raised anchor for each Orange Wall voxel. Authored
@@ -174,9 +184,7 @@ export function orangeWallEngineAnchorZ(wall) {
 
 export function orangeWallFrameFromEngine(frame, definitions) {
   const engineVoxels = frame.voxels.map((voxel) => ({ ...voxel }));
-  return {
-    ...frame,
-    voxels: engineVoxels.map((voxel) => {
+  const visualVoxels = engineVoxels.map((voxel) => {
       const definition = definitionFor(definitions, voxel.blockId);
       if (definition?.roleId !== "orange-wall") return voxel;
       const depth = orangeWallMechanismDepth(voxel);
@@ -188,12 +196,76 @@ export function orangeWallFrameFromEngine(frame, definitions) {
         : Number.isFinite(supportZ) && desiredZ < supportZ ? 2 : 1;
       return {
         ...voxel,
-        blockId: "orange-wall",
+        blockId: orangeWallBlockIdForForm(
+          voxel,
+          definitions,
+          stateId === 2 ? "hidden" : "visible",
+        ),
         mechanismDepth: depth,
         stateId,
         z: stateId === 0 ? supportZ + 1 : desiredZ,
       };
-    }),
+    });
+
+  // A wall-mounted side button has one compact engine record for its active
+  // face. Below the support plane, the editor/test timeline also visualizes
+  // the buried attachment column as transparent, inert button volumes. Derive
+  // those cells here so the C++ ABI stays fixed-size and search states do not
+  // pay for editor-only geometry.
+  const buriedButtons = [];
+  for (const button of visualVoxels) {
+    const definition = definitionFor(definitions, button.blockId);
+    if (definition?.visual?.kind !== "button" ||
+        definition.visual.buttonForm !== "hidden") {
+      continue;
+    }
+    const orientation = normalizeButtonOrientation(
+      button.orientation,
+      button.variantId,
+    );
+    for (const wall of engineVoxels) {
+      if (definitionFor(definitions, wall.blockId)?.roleId !== "orange-wall") {
+        continue;
+      }
+      const depth = orangeWallMechanismDepth(wall);
+      const raisedButtonZ = button.z + depth;
+      const mounted =
+        (orientation === "top" && button.x === wall.x &&
+          button.y === wall.y && raisedButtonZ === wall.z + 1) ||
+        (orientation === "north" && button.x === wall.x &&
+          button.y + 1 === wall.y && raisedButtonZ === wall.z) ||
+        (orientation === "east" && button.x - 1 === wall.x &&
+          button.y === wall.y && raisedButtonZ === wall.z) ||
+        (orientation === "south" && button.x === wall.x &&
+          button.y - 1 === wall.y && raisedButtonZ === wall.z) ||
+        (orientation === "west" && button.x + 1 === wall.x &&
+          button.y === wall.y && raisedButtonZ === wall.z) ||
+        (orientation === "bottom" && button.x === wall.x &&
+          button.y === wall.y && raisedButtonZ === wall.z - 1);
+      if (!mounted) continue;
+      const supportZ = orangeWallSupportZFromEngineAnchors(
+        wall,
+        engineVoxels,
+        definitions,
+      );
+      if (Number.isFinite(supportZ)) {
+        for (let z = button.z + 1; z <= supportZ; z += 1) {
+          buriedButtons.push({
+            ...button,
+            z,
+            ...(button.instanceId === undefined
+              ? {}
+              : { instanceId: `${button.instanceId}:buried:${z}` }),
+          });
+        }
+      }
+      break;
+    }
+  }
+
+  return {
+    ...frame,
+    voxels: [...visualVoxels, ...buriedButtons],
   };
 }
 

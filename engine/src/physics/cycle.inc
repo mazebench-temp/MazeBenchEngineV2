@@ -26,6 +26,9 @@ struct CommandCycleTracker {
   bool replay_workspace_initialized;
   bool enabled;
   bool pending_rollback;
+  bool wait_for_orange_transition;
+  bool orange_transition_started;
+  int64_t last_orange_depth_sum;
 };
 
 #if defined(__wasm__)
@@ -39,6 +42,16 @@ uint64_t CycleHashMix(uint64_t hash, uint32_t value) {
   hash *= UINT64_C(1099511628211);
   hash ^= hash >> 32u;
   return hash;
+}
+
+int64_t OrangeDepthSum(const Voxel* voxels, int32_t count) {
+  int64_t total = 0;
+  for (int32_t index = 0; index < count; ++index) {
+    if (voxels[index].role == kOrangeWallRole) {
+      total += OrangeWallDepth(voxels[index]);
+    }
+  }
+  return total;
 }
 
 uint64_t CycleStateHash(
@@ -130,6 +143,9 @@ void BeginCommandCycleTracking(
   CommandCycleTracker& tracker = g_command_cycle_tracker;
   tracker.enabled = false;
   tracker.pending_rollback = false;
+  tracker.wait_for_orange_transition = false;
+  tracker.orange_transition_started = false;
+  tracker.last_orange_depth_sum = OrangeDepthSum(voxels, count);
   tracker.source_voxels = voxels;
   tracker.source_state = state;
   tracker.count = count;
@@ -138,6 +154,7 @@ void BeginCommandCycleTracking(
   tracker.initial_direction = direction;
 
   bool has_slope = false;
+  bool has_orange_mechanism = false;
   const WorkspaceData* workspace_data = workspace == nullptr
       ? nullptr
       : WorkspaceStorage(workspace);
@@ -146,15 +163,18 @@ void BeginCommandCycleTracking(
       workspace_data->prepared_width == width &&
       workspace_data->prepared_height == height) {
     has_slope = workspace_data->prepared_has_ice_slopes;
+    has_orange_mechanism =
+        workspace_data->prepared_has_orange_mechanisms;
   } else {
     for (int32_t index = 0; index < count; ++index) {
-      if (IsIceSlopeRole(voxels[index].role)) {
-        has_slope = true;
-        break;
-      }
+      has_slope |= IsIceSlopeRole(voxels[index].role);
+      has_orange_mechanism |=
+          voxels[index].role == kOrangeButtonRole ||
+          voxels[index].role == kOrangeWallRole;
     }
   }
-  if (!has_slope) return;
+  if (!has_slope && !has_orange_mechanism) return;
+  tracker.wait_for_orange_transition = has_orange_mechanism && !has_slope;
 
   for (int32_t index = 0; index < count; ++index) {
     tracker.baseline[index] = voxels[index];
@@ -211,6 +231,13 @@ int32_t FindOrRecordCycleState(
     Voxel* voxels,
     MotionState* state) {
   if (BaselineCycleStateMatches(tracker, voxels, state)) return 0;
+  if (state->tick == 1) {
+    // Tick one contains the commanded actor transition. A level-wide
+    // autonomous cycle begins only after that input has seeded the motion;
+    // otherwise an actuator which revisits the post-input state reports a
+    // cycle one tick earlier than the repeating autonomous interval.
+    return -1;
+  }
   const uint64_t hash = CycleStateHash(voxels, tracker.count, state);
   int32_t slot = static_cast<int32_t>(
       hash & static_cast<uint64_t>(kCycleHistoryMask));

@@ -20,7 +20,13 @@ const definitions = new Map([
     id: "orange-wall",
     occupancy: "inactive",
     roleId: "orange-wall",
-    visual: { kind: "orange-wall" },
+    visual: { kind: "orange-wall", orangeForm: "visible" },
+  }],
+  ["orange-wall-hidden", {
+    id: "orange-wall-hidden",
+    occupancy: "inactive",
+    roleId: "orange-wall",
+    visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
 ]);
 
@@ -33,7 +39,7 @@ test("all Orange Walls use the same nonnegative mechanism depth", () => {
   assert.equal(orangeWallPhysicalState(wall, [wall], definitions).stateId, 0);
 });
 
-test("internal wall state preserves old ABI anchors without creating object types", () => {
+test("invisible wall state preserves hidden volumes and ABI anchors", () => {
   const floor = { x: 2, y: 3, z: 0, blockId: "floor" };
   const cube = { x: 2, y: 3, z: 4, blockId: "orange-wall", mechanismDepth: 2, stateId: 1 };
   const surface = { ...cube, z: 1, mechanismDepth: 4, stateId: 0 };
@@ -81,6 +87,17 @@ test("engine frames always return the one canonical Orange Wall ID", () => {
   assert.deepEqual(
     orangeWallFrameFromEngine({ voxels: [floor, engineWall] }, definitions).voxels[1],
     { ...engineWall, z: 1 },
+  );
+});
+
+test("engine frames select the invisible wall form below solid support", () => {
+  const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
+  const engineWall = {
+    x: 1, y: 1, z: 3, blockId: "orange-wall", stateId: 1, mechanismDepth: 5,
+  };
+  assert.deepEqual(
+    orangeWallFrameFromEngine({ voxels: [floor, engineWall] }, definitions).voxels[1],
+    { ...engineWall, blockId: "orange-wall-hidden", stateId: 2, z: -2 },
   );
 });
 

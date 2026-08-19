@@ -119,8 +119,10 @@ type BlockDefinition = {
 
 type OccupancyProfile = "solid" | "sensor" | "support" | "decoration" | "inactive";
 type BlockVisualDefinition = {
+  buttonForm?: "visible" | "hidden";
   kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
   modelUrl?: string;
+  orangeForm?: "visible" | "hidden";
 };
 
 type StoredBlockDefinition = Omit<BlockDefinition, "roleId" | "occupancy" | "visual"> & {
@@ -250,8 +252,8 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "weightless-pushable", name: "Weightless Pushable", description: "A numbered rigid polycube family that can push other weightless bodies.", generic: true },
   { id: "clone", name: "Clone", description: "A numbered rigid polycube family that receives the player's command.", generic: true },
   { id: "player-lift", name: "Player Lift", description: "A numbered purple lift family: 0/1 Up, 2/3 Front, 4/5 Right, 6/7 Back, and 8/9 Left. Even IDs are lowered and odd IDs are raised.", generic: true },
-  { id: "orange-button", name: "Orange Button", description: "A six-face pressure sensor. Every independently pressed button lowers every Orange Wall by one additional unit.", generic: false },
-  { id: "orange-wall", name: "Orange Wall", description: "A single movable editor object that may share a cell with anything. Each wall stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.", generic: false },
+  { id: "orange-button", name: "Orange Button", description: "A six-face pressure sensor with visible and editor-only invisible forms. Every independently pressed button lowers every Orange Wall by one additional unit.", generic: false },
+  { id: "orange-wall", name: "Orange Wall", description: "One mechanism with visible and editor-only invisible wall forms. Both may share a cell with anything and store a nonnegative remaining-rise number.", generic: false },
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
@@ -267,8 +269,10 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "yellow-clone-slope", name: "Yellow clone slope", color: "#A0A244", roleId: "clone", occupancy: "solid", visual: { kind: "slope" } },
   { id: "goal", name: "Gem collectible", color: "#48A985", roleId: "goal", occupancy: "sensor", visual: { kind: "gem", modelUrl: "/assets/objects/gem.glb" } },
   { id: "player-lift", name: "Player lift", color: "#8A63D2", roleId: "player-lift", occupancy: "sensor", genericMax: LIFT_GENERIC_MAX, visual: { kind: "lift" } },
-  { id: "orange-wall", name: "Orange wall", color: "#B85F16", roleId: "orange-wall", occupancy: "inactive", visual: { kind: "orange-wall" } },
-  { id: "orange-button", name: "Orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "sensor", variantMax: 5, visual: { kind: "button" } },
+  { id: "orange-wall", name: "Orange wall", color: "#B85F16", roleId: "orange-wall", occupancy: "inactive", visual: { kind: "orange-wall", orangeForm: "visible" } },
+  { id: "orange-wall-hidden", name: "Invisible orange wall", color: "#B85F16", roleId: "orange-wall", occupancy: "inactive", visual: { kind: "orange-wall", orangeForm: "hidden" } },
+  { id: "orange-button", name: "Orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "sensor", variantMax: 5, visual: { kind: "button", buttonForm: "visible" } },
+  { id: "orange-button-hidden", name: "Invisible orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "inactive", variantMax: 5, visual: { kind: "button", buttonForm: "hidden" } },
 ];
 
 const SLOPE_DIRECTION_OPTIONS = [
@@ -282,8 +286,8 @@ function visualDefinitionForKind(kind: string): BlockVisualDefinition {
   if (kind === "gem") return { kind: "gem", modelUrl: "/assets/objects/gem.glb" };
   if (kind === "lift") return { kind: "lift" };
   if (kind === "slope") return { kind: "slope" };
-  if (kind === "button") return { kind: "button" };
-  if (kind === "orange-wall") return { kind: "orange-wall" };
+  if (kind === "button") return { kind: "button", buttonForm: "visible" };
+  if (kind === "orange-wall") return { kind: "orange-wall", orangeForm: "visible" };
   return { kind: "cube" };
 }
 
@@ -358,9 +362,17 @@ function normalizeBlocks(
           : visualKind === "lift"
             ? { kind: "lift" }
           : visualKind === "button"
-            ? { kind: "button" }
+            ? {
+                kind: "button",
+                buttonForm: block.id === "orange-button-hidden" ||
+                  block.visual?.buttonForm === "hidden" ? "hidden" : "visible",
+              }
           : visualKind === "orange-wall"
-            ? { kind: "orange-wall" }
+            ? {
+                kind: "orange-wall",
+                orangeForm: block.id === "orange-wall-hidden" ||
+                  block.visual?.orangeForm === "hidden" ? "hidden" : "visible",
+              }
           : { kind: "cube" },
       };
     });
@@ -416,36 +428,54 @@ function normalizeBlocks(
       visual: { kind: "lift" },
     });
   }
-  const mechanismDefinitions = new Map<string, BlockDefinition>();
+  const mechanismDefinitions: BlockDefinition[] = [];
   if (roleIds.has("orange-wall")) {
-    const source = normalized.find((block) => block.id === "orange-wall") ??
-      normalized.find((block) => block.roleId === "orange-wall");
-    mechanismDefinitions.set("orange-wall", {
+    const visible = normalized.find((block) =>
+      block.roleId === "orange-wall" && block.visual.orangeForm !== "hidden");
+    const hidden = normalized.find((block) =>
+      block.roleId === "orange-wall" && block.visual.orangeForm === "hidden");
+    mechanismDefinitions.push({
       id: "orange-wall",
-      name: "Orange wall",
-      color: source?.color ?? "#B85F16",
+      name: visible?.name ?? "Orange wall",
+      color: visible?.color ?? "#B85F16",
       roleId: "orange-wall",
-      // The single wall tool deliberately shares cells with every object.
       occupancy: "inactive",
-      visual: { kind: "orange-wall" },
+      visual: { kind: "orange-wall", orangeForm: "visible" },
+    }, {
+      id: "orange-wall-hidden",
+      name: hidden?.name ?? "Invisible orange wall",
+      color: hidden?.color ?? visible?.color ?? "#B85F16",
+      roleId: "orange-wall",
+      occupancy: "inactive",
+      visual: { kind: "orange-wall", orangeForm: "hidden" },
     });
   }
   if (roleIds.has("orange-button")) {
-    const source = normalized.find((block) => block.id === "orange-button") ??
-      normalized.find((block) => block.roleId === "orange-button");
-    mechanismDefinitions.set("orange-button", {
+    const visible = normalized.find((block) =>
+      block.roleId === "orange-button" && block.visual.buttonForm !== "hidden");
+    const hidden = normalized.find((block) =>
+      block.roleId === "orange-button" && block.visual.buttonForm === "hidden");
+    mechanismDefinitions.push({
       id: "orange-button",
-      name: "Orange button",
-      color: source?.color ?? "#F59E0B",
+      name: visible?.name ?? "Orange button",
+      color: visible?.color ?? "#F59E0B",
       roleId: "orange-button",
       occupancy: "sensor",
       variantMax: 5,
-      visual: { kind: "button" },
+      visual: { kind: "button", buttonForm: "visible" },
+    }, {
+      id: "orange-button-hidden",
+      name: hidden?.name ?? "Invisible orange button",
+      color: hidden?.color ?? visible?.color ?? "#F59E0B",
+      roleId: "orange-button",
+      occupancy: "inactive",
+      variantMax: 5,
+      visual: { kind: "button", buttonForm: "hidden" },
     });
   }
   const collapsed = normalized.filter((block) =>
     block.roleId !== "orange-wall" && block.roleId !== "orange-button");
-  for (const definition of mechanismDefinitions.values()) collapsed.push(definition);
+  collapsed.push(...mechanismDefinitions);
   const familyCubeColors = new Map(
     ["weightless-pushable", "clone"].flatMap((roleId) => {
       const cube = normalized.find((block) =>
@@ -523,12 +553,19 @@ function normalizeGenericIds(
     voxels: enforceFloorLayer(frame.voxels, floorBlockIds).map((storedVoxel) => {
       const legacy = legacyDefinitions.get(storedVoxel.blockId);
       const legacyRoleId = legacy?.roleId ?? legacy?.behavior;
-      const canonicalBlockId = storedVoxel.blockId === "orange-wall-face" ||
-        storedVoxel.blockId === "orange-wall-hidden" || legacyRoleId === "orange-wall"
-        ? "orange-wall"
-        : storedVoxel.blockId === "orange-button-hidden" || legacyRoleId === "orange-button"
-          ? "orange-button"
-          : storedVoxel.blockId;
+      const legacyOrangeForm = legacy?.visual?.orangeForm;
+      const legacyButtonForm = legacy?.visual?.buttonForm;
+      const canonicalBlockId = storedVoxel.blockId === "orange-wall-hidden" ||
+        legacyOrangeForm === "hidden" ||
+        (legacyRoleId === "orange-wall" && Number(storedVoxel.stateId) === 2)
+        ? "orange-wall-hidden"
+        : storedVoxel.blockId === "orange-wall-face" || legacyRoleId === "orange-wall"
+          ? "orange-wall"
+          : storedVoxel.blockId === "orange-button-hidden" || legacyButtonForm === "hidden"
+            ? "orange-button-hidden"
+            : legacyRoleId === "orange-button"
+              ? "orange-button"
+              : storedVoxel.blockId;
       const voxel = canonicalBlockId === storedVoxel.blockId
         ? storedVoxel
         : { ...storedVoxel, blockId: canonicalBlockId };
@@ -1742,7 +1779,7 @@ export default function VoxelBench() {
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
     : null;
   const selectedOrangeWallState = selectedDefinition?.visual.kind === "orange-wall"
-    ? 1
+    ? selectedDefinition.visual.orangeForm === "hidden" ? 2 : 1
     : null;
   const selectedOrangeWallDepth = selectedDefinition?.visual.kind === "orange-wall"
     ? selectedOrangeWallDepths[selectedDefinition.id] ?? 0
@@ -2584,7 +2621,9 @@ export default function VoxelBench() {
     const buttonOrientation = blockDefinition?.visual.kind === "button"
       ? buttonOrientationFromPaintFace(surface)
       : null;
-    const orangeWallState = blockDefinition?.visual.kind === "orange-wall" ? 1 : null;
+    const orangeWallState = blockDefinition?.visual.kind === "orange-wall"
+      ? blockDefinition.visual.orangeForm === "hidden" ? 2 : 1
+      : null;
     if (blockDefinition?.visual.kind === "lift" && liftOrientation === null) {
       setToast("Downward-facing lifts are not part of the 0–9 lift family yet");
       return;
@@ -3506,6 +3545,10 @@ export default function VoxelBench() {
                   const orangeWallDepth = block.visual.kind === "orange-wall"
                     ? selectedOrangeWallDepths[block.id] ?? 0
                     : null;
+                  const hiddenButton = block.visual.kind === "button" &&
+                    block.visual.buttonForm === "hidden";
+                  const hiddenOrangeWall = block.visual.kind === "orange-wall" &&
+                    block.visual.orangeForm === "hidden";
                   const slopeDirection = block.visual.kind === "slope"
                     ? cameraFacingSlopeDirection(cameraQuarterTurns)
                     : null;
@@ -3523,9 +3566,9 @@ export default function VoxelBench() {
                       ? undefined
                       : String(orangeWallDepth);
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallDepth !== null ? `${orangeWallDepth} remaining rise · may overlap any cell · ←/→ changes remaining rise` : liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0}${slopeOption ? ` · ${slopeOption.label} · camera-facing` : ""} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · camera-facing · rotate camera to change direction · ←/→ chooses tools` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallDepth !== null ? `${hiddenOrangeWall ? "invisible" : "visible"} · ${orangeWallDepth} remaining rise · may overlap any cell · ←/→ changes remaining rise` : hiddenButton ? "invisible editor-only pressure sensor · ←/→ chooses tools" : liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0}${slopeOption ? ` · ${slopeOption.label} · camera-facing` : ""} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · camera-facing · rotate camera to change direction · ←/→ chooses tools` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
-                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? "pressure-button pressure-button--visible" : ""} ${block.visual.kind === "orange-wall" ? "orange-wall orange-wall--cube" : ""} ${liftId === null ? "" : `lift lift--${liftRaised ? "raised" : "lowered"} lift--top`} ${generic ? "generic" : orangeWallDepth === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
+                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? `pressure-button pressure-button--${hiddenButton ? "hidden" : "visible"}` : ""} ${block.visual.kind === "orange-wall" ? `orange-wall orange-wall--${hiddenOrangeWall ? "hidden" : "cube"}` : ""} ${liftId === null ? "" : `lift lift--${liftRaised ? "raised" : "lowered"} lift--top`} ${generic ? "generic" : orangeWallDepth === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
                     </button>
                   );
                 })}
@@ -3608,14 +3651,14 @@ export default function VoxelBench() {
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? "pressure-button pressure-button--visible" : ""} ${selectedDefinition.visual.kind === "orange-wall" ? "orange-wall orange-wall--cube stateful" : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallDepth ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? `pressure-button pressure-button--${selectedDefinition.visual.buttonForm === "hidden" ? "hidden" : "visible"}` : ""} ${selectedDefinition.visual.kind === "orange-wall" ? `orange-wall orange-wall--${selectedDefinition.visual.orangeForm === "hidden" ? "hidden" : "cube"} stateful` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallDepth ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                   <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
                   {selectedDefinition.visual.kind === "slope" && <p className="engine-role-note"><b>Painting follows the camera.</b> Every slope faces the far side of the current view, regardless of which cube face you click. Rotate the camera to choose another direction.</p>}
                   {selectedDefinition.visual.kind === "lift" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click a cube’s top or one of its four side faces. The toolbar state stays 0 (lowered) or 1 (raised), while the saved lift receives the matching directional ID from 0–9.</p>}
-                  {selectedDefinition.visual.kind === "button" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click any top, bottom, or side face. A rigid occupant sharing the button’s cell activates it internally. The button always remains the same visible cylinder.</p>}
-                  {selectedDefinition.visual.kind === "orange-wall" && <><label className="field"><span>Remaining rise</span><input type="number" min={0} step={1} value={selectedOrangeWallDepth ?? 0} onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 0) setSelectedOrangeWallDepths((current) => ({ ...current, [selectedDefinition.id]: value })); }} /></label><p className="engine-role-note"><b>One Orange Wall tool.</b> It is always a visible cube and may be painted or moved into any occupied cell. Zero will not rise; N means it still needs to rise N mechanism steps.</p></>}
+                  {selectedDefinition.visual.kind === "button" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click any top, bottom, or side face. A rigid occupant sharing the button’s cell activates it internally. {selectedDefinition.visual.buttonForm === "hidden" ? "This form is shown at 50% opacity in the editor and is invisible during play." : "This form is the visible cylinder."}</p>}
+                  {selectedDefinition.visual.kind === "orange-wall" && <><label className="field"><span>Remaining rise</span><input type="number" min={0} step={1} value={selectedOrangeWallDepth ?? 0} onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 0) setSelectedOrangeWallDepths((current) => ({ ...current, [selectedDefinition.id]: value })); }} /></label><p className="engine-role-note"><b>{selectedDefinition.visual.orangeForm === "hidden" ? "Invisible" : "Visible"} Orange Wall.</b> It may be painted or moved into any occupied cell. {selectedDefinition.visual.orangeForm === "hidden" ? "It is shown at 50% opacity in the editor and is invisible during play. " : ""}Zero will not rise; N means it still needs to rise N mechanism steps.</p></>}
                   <p className="engine-role-note"><b>Occupancy is editor metadata.</b> Sensors and decorations may share a cell with solid bodies. Physics behavior still comes from the C++ role until the generalized state ABI phase.</p>
                 </div>
               ) : null}

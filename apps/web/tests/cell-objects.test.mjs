@@ -16,10 +16,20 @@ const definitions = new Map([
   ["wall", { roleId: "solid", occupancy: "solid" }],
   ["gem", { roleId: "goal", occupancy: "sensor" }],
   ["button", { roleId: "button", occupancy: "sensor" }],
+  ["orange-button-hidden", {
+    roleId: "orange-button",
+    occupancy: "inactive",
+    visual: { kind: "button", buttonForm: "hidden" },
+  }],
   ["orange-wall", {
     roleId: "orange-wall",
     occupancy: "inactive",
-    visual: { kind: "orange-wall" },
+    visual: { kind: "orange-wall", orangeForm: "visible" },
+  }],
+  ["orange-wall-hidden", {
+    roleId: "orange-wall",
+    occupancy: "inactive",
+    visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
 ]);
 
@@ -62,7 +72,7 @@ test("differently oriented buttons may share one cell", () => {
   assert.deepEqual(result.objects, [north, east]);
 });
 
-test("the one Orange Wall may share any occupied cell regardless of state", () => {
+test("visible and invisible Orange Walls may share any occupied cell", () => {
   const definition = definitions.get("orange-wall");
   assert.equal(objectCanShareCell(definition, at("orange-wall", { stateId: 0 })), true);
   assert.equal(objectCanShareCell(definition, at("orange-wall", { stateId: 1 })), true);
@@ -79,6 +89,16 @@ test("the one Orange Wall may share any occupied cell regardless of state", () =
   const buried = at("orange-wall", { stateId: 2, mechanismDepth: 4 });
   const buriedResult = placeObjectInCell([at("wall")], buried, definitions);
   assert.deepEqual(buriedResult.objects, [at("wall"), buried]);
+
+  const hiddenWall = at("orange-wall-hidden", { stateId: 2, mechanismDepth: 4 });
+  const hiddenResult = placeObjectInCell([at("box")], hiddenWall, definitions);
+  assert.deepEqual(hiddenResult.objects, [at("box"), hiddenWall]);
+});
+
+test("the invisible Orange Button may share a solid object's cell", () => {
+  const hidden = at("orange-button-hidden", { orientation: "east", variantId: 2 });
+  const result = placeObjectInCell([at("box")], hidden, definitions);
+  assert.deepEqual(result.objects, [at("box"), hidden]);
 });
 
 test("repainting an Orange Wall replaces its remaining-rise number", () => {

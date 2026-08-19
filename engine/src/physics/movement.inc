@@ -95,6 +95,10 @@ int32_t MovingSupportBelowObject(
   // transmits the carry even when another part of the assembly also has a
   // stationary foothold.
   for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
+    const int32_t fixture = g_object_head[lift_object];
+    if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+      continue;
+    }
     if (!PlayerLiftIsAttachedToObject(
             voxels, lift_object, object, width, height)) {
       continue;
@@ -226,6 +230,12 @@ bool ResolveCarriedCollisions(
           voxels, next_x, next_y, voxel.z + dz, width, height);
       if (occupant < 0 || occupant == player_index ||
           g_voxel_object[occupant] == object) {
+        continue;
+      }
+      if (voxel.role == kOrangeButtonRole) {
+        // Orange Buttons are face sensors, not rigid voxels. A mounted button
+        // may ride its carrier into a cell occupied by the floor, a wall, or
+        // another body while remaining independently pressable by overlap.
         continue;
       }
       if (g_object_kind[object] == kMechanismObject &&
@@ -537,6 +547,10 @@ void MarkObjectsForDeferredGravity(
     bool attached_fixture_is_grounded = false;
     for (int32_t lift_object = 0; lift_object < g_object_count &&
          !attached_fixture_is_grounded; ++lift_object) {
+      const int32_t fixture = g_object_head[lift_object];
+      if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+        continue;
+      }
       if (!PlayerLiftIsAttachedToObject(
               voxels, lift_object, object, width, height)) {
         continue;
@@ -600,6 +614,10 @@ void MarkObjectsForDeferredGravity(
       bool supported_by_attached_fixture = false;
       for (int32_t lift_object = 0; lift_object < g_object_count;
            ++lift_object) {
+        const int32_t fixture = g_object_head[lift_object];
+        if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+          continue;
+        }
         if (g_component_objects[lift_object] != 0 &&
             PlayerLiftIsAttachedToObject(
                 voxels, lift_object, object, width, height)) {
@@ -679,6 +697,7 @@ bool TranslateMovingObjects(
       const int32_t next_x = voxel.x + dx;
       const int32_t next_y = voxel.y + dy;
       if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+      if (voxel.role == kOrangeButtonRole) continue;
       const int32_t occupant = FindVoxelAt(
           voxels, next_x, next_y, voxel.z + dz, width, height);
       if (occupant >= 0) {
@@ -720,6 +739,7 @@ bool TranslateMovingObjects(
       const int32_t next_x = voxel.x + dx;
       const int32_t next_y = voxel.y + dy;
       if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+      if (voxel.role == kOrangeButtonRole) continue;
       const int32_t occupant = FindVoxelAt(
           voxels, next_x, next_y, voxel.z + dz, width, height);
       if (occupant < 0) continue;
@@ -791,6 +811,7 @@ bool TranslateMovingObjects(
           const int32_t next_x = voxel.x + dx;
           const int32_t next_y = voxel.y + dy;
           if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+          if (voxel.role == kOrangeButtonRole) continue;
           const int32_t occupant = FindVoxelAt(
               voxels, next_x, next_y, voxel.z + dz, width, height);
           if (occupant < 0 || occupant == player_index) continue;
@@ -1612,6 +1633,19 @@ bool AddAutonomousSlopeObjects(
       }
     }
     if (supports_player_target) continue;
+    if (MovingSupportBelowObject(
+            voxels,
+            object,
+            player_index,
+            false,
+            width,
+            height) >= 0) {
+      // Carrier motion wins for this synchronized tick. A rider resting on a
+      // movable ramp follows that ramp's exact 3D proposal first; after the
+      // commit PreserveMovableSlopeRiderMomentum may arm the rider's own
+      // downhill motion for the following tick.
+      continue;
+    }
     const int32_t downhill = ObjectDownhillSlopeDirection(
         voxels, object, width, height);
     if (downhill < 0 || downhill != player_direction ||
@@ -1653,6 +1687,7 @@ bool AddAutonomousSlopeObjects(
       const int32_t downhill = ObjectDownhillSlopeDirection(
           voxels, object, width, height);
       if (downhill < 0) continue;
+      const uint8_t previous_direction = g_object_direction[object];
       g_object_direction[object] = static_cast<uint8_t>(downhill);
       PrepareSlopeObjectProposal(voxels, object, width, height, false);
       bool enters_vacated_source = false;
@@ -1683,7 +1718,15 @@ bool AddAutonomousSlopeObjects(
               g_deferred_slope_objects[other] != 0;
         }
       }
-      if (!enters_vacated_source) continue;
+      if (!enters_vacated_source) {
+        // Computing an autonomous proposal is speculative. Leaving the
+        // downhill direction behind on an object that was not recruited
+        // makes the carrier pass mistake an ordinary ramp rider for a body
+        // with independent latent momentum, so it gets left behind when its
+        // movable ramp translates on another axis.
+        g_object_direction[object] = previous_direction;
+        continue;
+      }
       if (vacating_is_deferred || downhill != vacating_direction) {
         // The source cell is available only after the other body's proposal
         // commits. Preserve this body's own downhill direction as momentum
@@ -1932,11 +1975,24 @@ void AddSlopeCarriedObjects(
     promoted = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_carried_objects[object] == 0) continue;
+      const int32_t carrier = g_carrier_parent[object];
+      bool carrier_is_movable_ramp = false;
+      if (carrier >= 0) {
+        for (int32_t member = g_object_head[carrier]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          carrier_is_movable_ramp |=
+              IsBlueBoxSlopeRole(voxels[member].role) ||
+              IsYellowCloneSlopeRole(voxels[member].role);
+        }
+      }
       if (g_object_falling[object] != 0 ||
-          g_object_direction[object] <= 3) {
-        // A body already committed to gravity or holding latent slope
-        // momentum keeps its own proposal as support departs. It is not a
-        // stationary rider to be dragged along the carrier's axis.
+          (g_object_direction[object] <= 3 &&
+           !carrier_is_movable_ramp)) {
+        // A body already committed to gravity keeps its own proposal as
+        // support departs. A latent-direction stack above an ordinary body
+        // also keeps its synchronized fall/slide proposal. A movable ramp is
+        // the exception: it transports its stationary rider first, and the
+        // rider acquires downhill momentum from the ramp after the commit.
         g_carried_objects[object] = 0;
         g_moving_objects[object] = g_mandatory_objects[object];
         g_carrier_parent[object] = -1;
@@ -1945,7 +2001,6 @@ void AddSlopeCarriedObjects(
       if (g_mandatory_objects[object] != 0) {
         continue;
       }
-      const int32_t carrier = g_carrier_parent[object];
       if (carrier < 0 || g_mandatory_objects[carrier] == 0) continue;
       g_mandatory_objects[object] = 1;
       g_moving_objects[object] = 1;
@@ -2179,8 +2234,19 @@ bool TranslateSlopeMomentumObjects(
         // Automatic momentum does so only while descending a ramp: that is a
         // synchronized landing/contact, whereas a body already sliding on a
         // level surface stops when it reaches a stationary body.
+        bool source_is_movable_ramp = false;
+        for (int32_t source_member = g_object_head[object];
+             source_member >= 0;
+             source_member = g_next_object_voxel[source_member]) {
+          source_is_movable_ramp |=
+              IsBlueBoxSlopeRole(voxels[source_member].role) ||
+              IsYellowCloneSlopeRole(voxels[source_member].role);
+        }
+        const bool slope_derived_contact = source_is_movable_ramp &&
+            ObjectDownhillSlopeDirection(
+                voxels, object, width, height) >= 0;
         const bool deliberate_contact_push = allow_push &&
-            (!pushed_targets_require_ice ||
+            ((!pushed_targets_require_ice && !slope_derived_contact) ||
              ObjectIsFullyOnIce(voxels, other, width, height));
         const bool downhill_ice_contact_push =
             allow_downhill_contact_push && g_component_objects[object] != 0 &&
@@ -2198,6 +2264,36 @@ bool TranslateSlopeMomentumObjects(
         }
       }
     }
+  }
+
+  // Autonomous downhill motion is discovered before the deliberate contact
+  // closure knows every body that the command will move. Once that closure
+  // is complete, a moving support takes precedence for this synchronized
+  // tick: demote its horizontally armed rider so AddSlopeCarriedObjects can
+  // copy the carrier's exact 3D proposal. This is a support-graph rule, not a
+  // role-specific exception: a body resting on another moving body rides it
+  // before acquiring any new downhill momentum from the resulting support.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0) continue;
+    bool rider_is_movable_ramp = false;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      rider_is_movable_ramp |=
+          IsBlueBoxSlopeRole(voxels[member].role) ||
+          IsYellowCloneSlopeRole(voxels[member].role);
+    }
+    if (!rider_is_movable_ramp) continue;
+    if (MovingSupportBelowObject(
+            voxels,
+            object,
+            player_index,
+            false,
+            width,
+            height) < 0) {
+      continue;
+    }
+    g_mandatory_objects[object] = 0;
+    g_moving_objects[object] = 0;
   }
 
   // A slope reflection propagates through exact head-on contacts. Recompute
@@ -2454,7 +2550,43 @@ bool TranslateSlopeMomentumObjects(
       // blocked. It must not inherit the ramp body's horizontal command as a
       // new Ice-momentum tick.
       g_moving_objects[object] = 0;
+      bool lifted_body_is_movable_ramp = false;
+      for (int32_t member = g_object_head[object]; member >= 0;
+           member = g_next_object_voxel[member]) {
+        lifted_body_is_movable_ramp |=
+            IsBlueBoxSlopeRole(voxels[member].role) ||
+            IsYellowCloneSlopeRole(voxels[member].role);
+      }
+      if (lifted_body_is_movable_ramp &&
+          !DeferredSlopeProposalIsClear(
+              voxels, object, player_index, width, height)) {
+        g_mandatory_objects[object] = 0;
+      }
       g_object_redirected[object] = 0;
+    }
+  }
+  // A lifted ramp stack may leave several members marked mandatory even
+  // though only the exposed top member has a clear downhill continuation.
+  // Prune each blocked ramp now so one stale proposal cannot cancel an
+  // otherwise independent free ramp on the following tick.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] == 0 &&
+        g_inherited_support_motion[object] == 0) {
+      continue;
+    }
+    bool object_is_movable_ramp = false;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      object_is_movable_ramp |=
+          IsBlueBoxSlopeRole(voxels[member].role) ||
+          IsYellowCloneSlopeRole(voxels[member].role);
+    }
+    if (object_is_movable_ramp &&
+        !DeferredSlopeProposalIsClear(
+            voxels, object, player_index, width, height)) {
+      g_mandatory_objects[object] = 0;
+      g_moving_objects[object] = 0;
+      g_inherited_support_motion[object] = 0;
     }
   }
   return true;

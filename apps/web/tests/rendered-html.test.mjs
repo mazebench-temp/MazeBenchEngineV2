@@ -195,28 +195,27 @@ test("non-cube hover and selection are drawn on their real geometry", async () =
   assert.match(canvas, /selected,\s*selectionKey: cellObjectSelectionKey\(voxel\)/);
 });
 
-test("the single Orange Wall renders as a cube at its authored position", async () => {
+test("visible and invisible Orange Walls render at their authored positions", async () => {
   const canvas = await readFile(
     new URL("../app/MazeBenchCanvas.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(canvas, /orangeForm: "cube" as const/);
+  assert.match(canvas, /hiddenOrangeWall \? "hidden" as const : "cube" as const/);
   assert.match(canvas, /elevation: voxel\.z \+ layerOffset/);
-  assert.doesNotMatch(canvas, /orangeForm === "hidden"/);
-  assert.doesNotMatch(canvas, /orangeForm !== "face"/);
+  assert.match(canvas, /editorOnly: true, editorOpacity: 0\.5/);
 });
 
-test("the editor exposes exactly one Orange Wall and one Orange Button", async () => {
+test("the editor exposes visible and invisible Orange Walls and Buttons", async () => {
   const editor = await readFile(
     new URL("../app/VoxelBench.tsx", import.meta.url),
     "utf8",
   );
   assert.match(editor, /id: "orange-wall", name: "Orange wall"[\s\S]*?occupancy: "inactive"/);
+  assert.match(editor, /id: "orange-wall-hidden", name: "Invisible orange wall"[\s\S]*?orangeForm: "hidden"/);
   assert.match(editor, /id: "orange-button", name: "Orange button"[\s\S]*?occupancy: "sensor"/);
+  assert.match(editor, /id: "orange-button-hidden", name: "Invisible orange button"[\s\S]*?buttonForm: "hidden"/);
   assert.doesNotMatch(editor, /id: "orange-wall-face"/);
-  assert.doesNotMatch(editor, /id: "orange-wall-hidden"/);
-  assert.doesNotMatch(editor, /id: "orange-button-hidden"/);
-  assert.doesNotMatch(editor, /buttonForm/);
+  assert.match(editor, /pressure-button--\$\{hiddenButton \? "hidden" : "visible"\}/);
 });
 
 test("the cell inspector imports its Orange Wall number formatter", async () => {

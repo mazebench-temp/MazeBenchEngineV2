@@ -1,4 +1,8 @@
-import { buttonMechanismId, normalizeButtonOrientation } from "./visualVariants.mjs";
+import {
+  buttonIsHiddenMechanismId,
+  buttonMechanismId,
+  normalizeButtonOrientation,
+} from "./visualVariants.mjs";
 import {
   orangeWallDepthFromMechanismValue,
   orangeWallEngineAnchorZ,
@@ -12,7 +16,9 @@ type BlockDefinition = {
   id: string;
   roleId: string;
   visual?: {
+    buttonForm?: "visible" | "hidden";
     kind?: string;
+    orangeForm?: "visible" | "hidden";
   };
 };
 type Voxel = {
@@ -165,11 +171,19 @@ export async function simulateCommandWithCpp(
   const genericBlockIds = new Set(
     blocks.filter((block) => genericRoleIds.has(block.roleId)).map((block) => block.id),
   );
+  const buttonBlockIds = {
+    visible: blocks.find((block) =>
+      block.visual?.kind === "button" && block.visual.buttonForm !== "hidden")?.id,
+    hidden: blocks.find((block) =>
+      block.visual?.kind === "button" && block.visual.buttonForm === "hidden")?.id,
+  };
   const mechanismValue = (voxel: Voxel) => {
-    const visualKind = blocksById.get(voxel.blockId)?.visual?.kind;
+    const visual = blocksById.get(voxel.blockId)?.visual;
+    const visualKind = visual?.kind;
     if (visualKind === "button") {
       return buttonMechanismId(
         normalizeButtonOrientation(voxel.orientation, voxel.variantId),
+        visual.buttonForm === "hidden",
       );
     }
     if (visualKind === "orange-wall") {
@@ -203,6 +217,13 @@ export async function simulateCommandWithCpp(
       const mechanismId = voxelBuffer[offset + 4];
       return {
         ...voxel,
+        ...(visualKind === "button"
+          ? {
+              blockId: buttonIsHiddenMechanismId(mechanismId)
+                ? buttonBlockIds.hidden ?? voxel.blockId
+                : buttonBlockIds.visible ?? voxel.blockId,
+            }
+          : {}),
         x: voxelBuffer[offset],
         y: voxelBuffer[offset + 1],
         z: voxelBuffer[offset + 2],
