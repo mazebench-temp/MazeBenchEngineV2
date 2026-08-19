@@ -467,7 +467,13 @@ bool RefreshOrangeButtonVisibility(
       const int32_t support = OrangeWallSupportZ(voxels, count, wall_index);
       folded_into_support |= support != INT32_MIN && button.z <= support;
     }
-    if (!rides_wall) continue;
+    bool rides_lift = false;
+    for (int32_t lift_index = 0; lift_index < count; ++lift_index) {
+      if (!OrangeButtonTracksPlayerLift(button, voxels[lift_index])) continue;
+      rides_lift = true;
+      folded_into_support |= !PlayerLiftIsRaised(voxels[lift_index]);
+    }
+    if (!rides_wall && !rides_lift) continue;
     const int32_t next_id = (button.generic_id & ~1) |
         (folded_into_support ? 1 : 0);
     if (button.generic_id != next_id) {
@@ -517,6 +523,11 @@ bool OrangeButtonShouldBePressed(
   // Static terrain and the mechanism's own mount do not press a sensor when
   // the face is folded into them. Only an actor or movable rigid body applies
   // pressure; other mechanism fixtures remain freely overlappable.
+  if (g_object_kind[object] == kMechanismObject) {
+    const int32_t fixture = g_object_head[object];
+    return fixture >= 0 && voxels[fixture].role == kPlayerLiftRole &&
+        PlayerLiftIsRaised(voxels[fixture]);
+  }
   return g_object_kind[object] == kNormalObject ||
       g_object_kind[object] == kWeightlessObject ||
       g_object_kind[object] == kCloneObject ||

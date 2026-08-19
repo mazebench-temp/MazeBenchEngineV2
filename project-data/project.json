@@ -589,6 +589,34 @@
       "locked": false,
       "name": "stacked",
       "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "attach-to-player",
+      "locked": false,
+      "name": "attach to player",
+      "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "side-lift",
+      "locked": false,
+      "name": "side lift",
+      "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "stuck-lift",
+      "locked": false,
+      "name": "stuck lift",
+      "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "and-ice",
+      "locked": false,
+      "name": "and ice",
+      "parentId": "lift"
     }
   ],
   "searches": [
@@ -21225,6 +21253,51 @@
       "file": "test-254.json"
     },
     {
+      "id": "test-254-copy-3",
+      "name": "Untitled test 254 copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-3.json"
+    },
+    {
+      "id": "test-254-copy-3-copy",
+      "name": "Untitled test 254 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-3-copy.json"
+    },
+    {
+      "id": "test-254-copy-3-copy-2",
+      "name": "Untitled test 254 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-3-copy-2.json"
+    },
+    {
+      "id": "test-254-copy-3-copy-2-copy",
+      "name": "Untitled test 254 copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-3-copy-2-copy.json"
+    },
+    {
+      "id": "test-254-copy-2",
+      "name": "Untitled test 254 copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-2.json"
+    },
+    {
       "id": "test-254-copy",
       "name": "Untitled test 254 copy",
       "groupTagId": "lift",
@@ -21328,7 +21401,7 @@
       "name": "Untitled test 265",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-ice"
       ],
       "file": "test-265.json"
     },
@@ -21337,7 +21410,8 @@
       "name": "Untitled test 266",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-266.json"
     },
@@ -21346,7 +21420,7 @@
       "name": "Untitled test 266 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "stuck-lift"
       ],
       "file": "test-266-copy.json"
     },
@@ -21364,7 +21438,7 @@
       "name": "Untitled test 269",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-ice"
       ],
       "file": "test-269.json"
     },
@@ -21373,7 +21447,7 @@
       "name": "Untitled test 271",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift"
       ],
       "file": "test-271.json"
     },
@@ -21382,7 +21456,7 @@
       "name": "Untitled test 272",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift"
       ],
       "file": "test-272.json"
     },
@@ -21391,7 +21465,7 @@
       "name": "Untitled test 272 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift"
       ],
       "file": "test-272-copy.json"
     },
@@ -21400,7 +21474,7 @@
       "name": "Untitled test 272 copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift"
       ],
       "file": "test-272-copy-copy.json"
     },
@@ -21409,7 +21483,8 @@
       "name": "Untitled test 272 copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy.json"
     },
@@ -21418,7 +21493,8 @@
       "name": "Untitled test 272 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy.json"
     },
@@ -21427,7 +21503,8 @@
       "name": "Untitled test 272 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy.json"
     },
@@ -21436,7 +21513,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-2.json"
     },
@@ -21445,7 +21523,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-2-copy.json"
     },
@@ -21454,7 +21533,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21463,7 +21543,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy-2.json"
     },
@@ -21472,7 +21553,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21481,7 +21563,8 @@
       "name": "Untitled test 272 copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-272-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21490,7 +21573,7 @@
       "name": "Untitled test 284",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-284.json"
     },
@@ -21499,7 +21582,7 @@
       "name": "Untitled test 284 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2"
       ],
       "file": "test-284-copy-2.json"
     },
@@ -21508,7 +21591,7 @@
       "name": "Untitled test 284 copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "stuck-lift"
       ],
       "file": "test-284-copy.json"
     },
@@ -21517,7 +21600,7 @@
       "name": "Untitled test 284 copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "stuck-lift"
       ],
       "file": "test-284-copy-copy.json"
     },
@@ -21526,7 +21609,8 @@
       "name": "Untitled test 284 copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-284-copy-copy-copy-2.json"
     },
@@ -21535,16 +21619,28 @@
       "name": "Untitled test 284 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy.json"
+    },
+    {
+      "id": "test-284-copy-copy-copy-2-copy-copy-copy-3",
+      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift",
+        "and-box-2"
+      ],
+      "file": "test-284-copy-copy-copy-2-copy-copy-copy-3.json"
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-2",
       "name": "Untitled test 284 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-2.json"
     },
@@ -21553,7 +21649,8 @@
       "name": "Untitled test 284 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "and-box-2",
+        "side-lift"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy.json"
     },
@@ -21562,7 +21659,8 @@
       "name": "Untitled test 284 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-284-copy-copy-copy-2-copy.json"
     },
@@ -21571,7 +21669,8 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy.json"
     },
@@ -21580,7 +21679,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy.json"
     },
@@ -21589,7 +21690,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21598,7 +21701,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21607,7 +21712,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2.json"
     },
@@ -21616,7 +21723,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2-copy.json"
     },
@@ -21625,7 +21734,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21634,7 +21745,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21643,7 +21756,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21652,7 +21767,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21661,7 +21778,9 @@
       "name": "Untitled test 284 copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy.json"
     },
@@ -21670,7 +21789,9 @@
       "name": "Untitled test 284 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-4.json"
     },
@@ -21679,7 +21800,9 @@
       "name": "Untitled test 284 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-3.json"
     },
@@ -21688,7 +21811,9 @@
       "name": "Untitled test 284 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy.json"
     },
@@ -21697,7 +21822,9 @@
       "name": "Untitled test 284 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-copy.json"
     },
@@ -21706,7 +21833,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21715,7 +21844,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21724,7 +21855,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21733,7 +21866,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     },
@@ -21742,7 +21877,9 @@
       "name": "Untitled test 284 copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-2.json"
     },
@@ -21751,7 +21888,9 @@
       "name": "Untitled test 284 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-2.json"
     },
@@ -21760,7 +21899,9 @@
       "name": "Untitled test 284 copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy.json"
     },
@@ -21769,7 +21910,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-copy.json"
     },
@@ -21778,7 +21921,9 @@
       "name": "Untitled test 284 copy copy copy copy copy copy copy",
       "groupTagId": "lift",
       "tagIds": [
-        "lift-default"
+        "side-lift",
+        "and-box-2",
+        "and-ice"
       ],
       "file": "test-284-copy-copy-copy-copy-2-copy-copy-copy.json"
     },
@@ -22771,6 +22916,114 @@
         "orange-walls-boxes"
       ],
       "file": "test-413-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-426",
+      "name": "Untitled test 426",
+      "groupTagId": "lift",
+      "tagIds": [
+        "stacked-2"
+      ],
+      "file": "test-426.json"
+    },
+    {
+      "id": "test-426-copy",
+      "name": "Untitled test 426 copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "stacked-2"
+      ],
+      "file": "test-426-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-2",
+      "name": "Untitled test 426 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-2",
+      "name": "Untitled test 426 copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-2.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy",
+      "name": "Untitled test 426 copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-copy-2",
+      "name": "Untitled test 426 copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-copy-2.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-copy",
+      "name": "Untitled test 426 copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-copy-copy",
+      "name": "Untitled test 426 copy copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-copy-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-copy-copy-copy",
+      "name": "Untitled test 426 copy copy copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-2-copy-copy-copy-copy-copy",
+      "name": "Untitled test 426 copy copy copy copy copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "attach-to-player"
+      ],
+      "file": "test-426-copy-copy-2-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy",
+      "name": "Untitled test 426 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "stacked-2"
+      ],
+      "file": "test-426-copy-copy.json"
+    },
+    {
+      "id": "test-426-copy-copy-copy",
+      "name": "Untitled test 426 copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "stacked-2"
+      ],
+      "file": "test-426-copy-copy-copy.json"
     }
   ]
 }

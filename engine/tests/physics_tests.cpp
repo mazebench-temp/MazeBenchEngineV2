@@ -1439,6 +1439,112 @@ void TestOrangeWallCarriesItsMountedLiftInTheSameTick() {
         "a side-mounted lift should descend with its wall and retain its state");
 }
 
+void TestLoweredWallMountedLiftMayOverlapTerrain() {
+  voxelbench::Voxel voxels[] = {
+      {1, 5, 1, Role("player"), -1},
+      {1, 4, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {1, 1, 2, Role("orange-wall"), 0},
+      {2, 1, 2, Role("player-lift"), 4},
+      {2, 1, 1, Role("wall"), -1},
+      {1, 5, 0, Role("floor"), -1},
+      {1, 4, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 10, 3, 6, 0) == 0,
+        "a lowered wall-mounted lift may enter occupied terrain");
+  Check(voxels[2].generic_id == 1 && voxels[3].generic_id == 1 &&
+            voxels[4].z == 1 && voxels[4].generic_id == 4,
+        "a lowered lift should remain attached while overlapping a solid cube");
+}
+
+void TestWallMountedLiftCannotDescendIntoFloor() {
+  voxelbench::Voxel voxels[] = {
+      {1, 5, 1, Role("player"), -1},
+      {1, 4, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {2, 1, 1, Role("player-lift"), 4},
+      {1, 5, 0, Role("floor"), -1},
+      {1, 4, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 8, 3, 6, 0) == 0,
+        "a wall-mounted lift blocked by Row-0 Floor should finish safely");
+  Check(voxels[2].generic_id == 0 && voxels[2].z == 1 &&
+            voxels[3].z == 1,
+        "Row-0 Floor should hold both the wall and its mounted lift in place");
+}
+
+void TestOrangeWallDeliversPlayerOntoMountedLift() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {2, 2, 1, Role("player"), -1},
+      {2, 1, 1, Role("orange-button"), 0},
+      {1, 1, 1, Role("orange-wall"), 0},
+      {1, 1, 2, Role("orange-wall"), 0},
+      {2, 1, 2, Role("player-lift"), 4},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {3, 1, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 9, 4, 4, 0) ==
+            voxelbench::TickResult::kMore,
+        "the player should first enter the wall button");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 9, 4, 4, 0) ==
+            voxelbench::TickResult::kMore,
+        "the wall should next lower its mounted lift onto the player");
+  Check(state.tick == 2 && voxels[4].z == 1 && voxels[4].generic_id == 4,
+        "the wall tick should expose the lowered side lift frame");
+  const auto lift_tick = voxelbench::step_tick(
+      &workspace, &state, voxels, 9, 4, 4, 0);
+  if (lift_tick != voxelbench::TickResult::kComplete) {
+    std::cerr << "lift delivery diagnostic: result="
+              << static_cast<int32_t>(lift_tick) << " tick=" << state.tick
+              << " phase=" << static_cast<int32_t>(state.phase)
+              << " player=" << voxels[0].x << ',' << voxels[0].y << ','
+              << voxels[0].z << " lift=" << voxels[4].z << '#'
+              << voxels[4].generic_id << " wall=" << voxels[2].generic_id
+              << ',' << voxels[3].generic_id << '\n';
+  }
+  Check(lift_tick == voxelbench::TickResult::kComplete,
+        "a lift delivered onto the player should actuate on the next tick");
+  Check(state.tick == 3 && voxels[0].x == 3 &&
+            voxels[4].generic_id == 5,
+        "the delivered side lift should raise and eject the player outward");
+}
+
+void TestOrangeButtonRidesTopLiftAndChangesVisibility() {
+  voxelbench::Voxel voxels[] = {
+      {1, 2, 2, Role("player"), -1},
+      {1, 1, 1, Role("player-lift"), 1},
+      {2, 1, 1, Role("orange-button"), 4},
+      {1, 2, 1, Role("wall"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 0) == 0,
+        "entering a raised lift with an attached button should run");
+  Check(voxels[0].z == 1 && voxels[1].generic_id == 0 &&
+            voxels[2].z == 0 && voxels[2].generic_id == 5,
+        "the attached button should lower with the lift and become hidden");
+  voxels[0].y = 2;
+  voxels[3].x = -1;
+  Check(voxelbench::simulate_turn(voxels, 7, 3, 3, 0) == 0,
+        "re-entering the lowered lift should run");
+  Check(voxels[0].z == 2 && voxels[1].generic_id == 1 &&
+            voxels[2].z == 1 && voxels[2].generic_id == 4,
+        "the attached button should rise with the lift and become visible");
+}
+
 void TestMovingPolycubeCarriesButtonsMountedOnEveryFace() {
   voxelbench::Voxel voxels[] = {
       {1, 5, 1, Role("player"), -1},
@@ -1656,6 +1762,10 @@ int main() {
   TestOrangeButtonUsesASeparateWallTick();
   TestOrangeWallCarriesItsMountedButtonInTheSameTick();
   TestOrangeWallCarriesItsMountedLiftInTheSameTick();
+  TestLoweredWallMountedLiftMayOverlapTerrain();
+  TestWallMountedLiftCannotDescendIntoFloor();
+  TestOrangeWallDeliversPlayerOntoMountedLift();
+  TestOrangeButtonRidesTopLiftAndChangesVisibility();
   TestMovingPolycubeCarriesButtonsMountedOnEveryFace();
   TestReleasedOrangeColumnRaisesEveryVoxelAfterJoining();
   TestOrangeWallsCountEveryPressedButton();
@@ -1667,6 +1777,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 64 C++ physics/search tests passed\n";
+  std::cout << "all 68 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

@@ -200,6 +200,37 @@ bool PlayerLiftIsAttachedToObject(
   return support >= 0 && g_voxel_object[support] == support_object;
 }
 
+// A top lift stores both of its states at the same authored cell. Its raised
+// cube occupies that cell, while fixtures fastened to the cube ride one row
+// lower when the lift is collapsed. Reconstruct the raised arrangement so an
+// attached Orange Button remains identifiable after it has become hidden in
+// the floor (where an ordinary spatial attachment query would find Floor
+// instead of the lift).
+bool OrangeButtonTracksPlayerLift(
+    const Voxel& button,
+    const Voxel& lift) {
+  if (button.role != kOrangeButtonRole || button.generic_id < 0 ||
+      lift.role != kPlayerLiftRole || lift.generic_id < 0 ||
+      lift.generic_id > 1) {
+    return false;
+  }
+  const int32_t orientation = button.generic_id / 2;
+  const int64_t raised_button_z = static_cast<int64_t>(button.z) +
+      (PlayerLiftIsRaised(lift) ? 0 : 1);
+  if (orientation == 0) {
+    return button.x == lift.x && button.y == lift.y &&
+        raised_button_z == static_cast<int64_t>(lift.z) + 1;
+  }
+  const bool matching_side =
+      (orientation == 1 && button.x == lift.x && button.y + 1 == lift.y) ||
+      (orientation == 2 && button.x - 1 == lift.x && button.y == lift.y) ||
+      (orientation == 3 && button.x == lift.x && button.y - 1 == lift.y) ||
+      (orientation == 4 && button.x + 1 == lift.x && button.y == lift.y);
+  if (matching_side) return raised_button_z == lift.z;
+  return orientation == 5 && button.x == lift.x && button.y == lift.y &&
+      raised_button_z == static_cast<int64_t>(lift.z) - 1;
+}
+
 bool AttachedPlayerLiftHasDirectSupport(
     Voxel* voxels,
     int32_t object,

@@ -491,6 +491,21 @@ TickResult step_tick(
         state, voxels, count, player_index, width, height);
     state->phase = resume_phase;
     if (resume_phase == kMotionComplete) {
+      bool lift_will_raise = false;
+      const int32_t lift_index = PlayerLiftAtPlayer(
+          voxels,
+          count,
+          player_index,
+          width,
+          height,
+          lift_will_raise);
+      const int32_t lift_object = lift_index >= 0
+          ? g_voxel_object[lift_index]
+          : -1;
+      if (orange_advanced_this_tick && lift_object >= 0 &&
+          g_clone_command_processed[lift_object] != 0) {
+        return store_and_finish(kMotionPlayerLift, false, true);
+      }
       return store_and_finish(kMotionComplete, false);
     }
   }
@@ -509,6 +524,9 @@ TickResult step_tick(
         : -1;
     const bool toggled = TogglePlayerLiftAtPlayer(
         voxels, count, player_index, width, height);
+    if (toggled) {
+      (void)RefreshOrangeButtonVisibility(voxels, count);
+    }
     BuildSpatialIndex(voxels, count, width, height);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
     const bool object_gravity_continues = ObjectsNeedGravityTick(
