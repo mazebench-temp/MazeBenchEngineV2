@@ -11,15 +11,15 @@ function definitionFor(definitions, blockId) {
     : definitions?.find?.((definition) => definition.id === blockId);
 }
 
-export function orangeWallIsDedicatedFace(wall, definitions) {
-  return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "face";
+export function orangeWallIsDedicatedFace(wall) {
+  return Number(wall?.stateId) === 0;
 }
 
-export function orangeWallIsHiddenVolume(wall, definitions) {
-  return definitionFor(definitions, wall?.blockId)?.visual?.orangeForm === "hidden";
+export function orangeWallIsHiddenVolume(wall) {
+  return Number(wall?.stateId) === 2;
 }
 
-export function orangeWallMechanismValue(wall, definitions) {
+export function orangeWallMechanismValue(wall) {
   return orangeWallMechanismDepth(wall);
 }
 
@@ -150,39 +150,25 @@ export function normalizeOrangeWallFrame(frame, definitions) {
       const definition = definitionFor(definitions, voxel.blockId);
       if (definition?.visual?.kind !== "orange-wall") return voxel;
       const state = orangeWallPhysicalState(voxel, voxels, definitions);
+      const storedState = Number(voxel.stateId);
       return {
         ...voxel,
         mechanismDepth: state.mechanismDepth,
-        stateId: orangeWallIsHiddenVolume(voxel, definitions)
-          ? 2
-          : orangeWallIsDedicatedFace(voxel, definitions) ? 0 : 1,
+        // Legacy face/hidden IDs migrate to this internal physical-state bit.
+        // It is not an editor object type and does not alter the cube visual.
+        stateId: storedState === 0 || storedState === 2 ? storedState : 1,
       };
     }),
   };
-}
-
-function orangeWallForm(wall, definitions) {
-  const form = definitionFor(definitions, wall?.blockId)?.visual?.orangeForm;
-  return form === "face" || form === "hidden" ? form : "cube";
-}
-
-function orangeWallBlockIdForForm(wall, definitions, form) {
-  const all = definitions instanceof Map
-    ? [...definitions.values()]
-    : definitions ?? [];
-  return all.find((definition) =>
-    definition?.roleId === "orange-wall" &&
-    (definition.visual?.orangeForm ?? "cube") === form)?.id ?? wall.blockId;
 }
 
 // C++ stores a stable fully-raised anchor for each Orange Wall voxel. Authored
 // frames instead store exactly what the editor displays. Converting at the ABI
 // boundary keeps C++ state fixed-size while allowing cube/face/hidden records
 // to change form at every mechanism tick.
-export function orangeWallEngineAnchorZ(wall, definitions) {
+export function orangeWallEngineAnchorZ(wall) {
   const depth = orangeWallMechanismDepth(wall);
-  const form = orangeWallForm(wall, definitions);
-  if (form === "face") return wall.z + Math.max(0, depth - 1);
+  if (Number(wall?.stateId) === 0) return wall.z + Math.max(0, depth - 1);
   return wall.z + depth;
 }
 
@@ -197,51 +183,20 @@ export function orangeWallFrameFromEngine(frame, definitions) {
       const supportZ = orangeWallSupportZFromEngineAnchors(
         voxel, engineVoxels, definitions);
       const desiredZ = voxel.z - depth;
-      const form = Number.isFinite(supportZ) && desiredZ === supportZ
-        ? "face"
-        : Number.isFinite(supportZ) && desiredZ < supportZ
-          ? "hidden"
-          : "cube";
+      const stateId = Number.isFinite(supportZ) && desiredZ === supportZ
+        ? 0
+        : Number.isFinite(supportZ) && desiredZ < supportZ ? 2 : 1;
       return {
         ...voxel,
-        blockId: orangeWallBlockIdForForm(voxel, definitions, form),
+        blockId: "orange-wall",
         mechanismDepth: depth,
-        stateId: form === "hidden" ? 2 : form === "face" ? 0 : 1,
-        z: form === "face" ? supportZ + 1 : desiredZ,
+        stateId,
+        z: stateId === 0 ? supportZ + 1 : desiredZ,
       };
     }),
   };
 }
 
 export function orangeWallVisualFrame(frame, definitions) {
-  const normalized = normalizeOrangeWallFrame(frame, definitions);
-  const visibleVoxels = normalized.voxels.map((voxel) => ({ ...voxel }));
-  const brickCells = new Set(visibleVoxels.flatMap((voxel) => {
-    const definition = definitionFor(definitions, voxel.blockId);
-    return definition?.visual?.kind === "orange-wall" &&
-      (definition.visual.orangeForm ?? "cube") === "cube"
-      ? [`${voxel.x},${voxel.y},${voxel.z}`]
-      : [];
-  }));
-  const retainedBrickCells = new Set();
-  const retainedSurfaceCells = new Set();
-  return {
-    ...normalized,
-    voxels: visibleVoxels.filter((voxel) => {
-      const definition = definitionFor(definitions, voxel.blockId);
-      if (definition?.visual?.kind !== "orange-wall") {
-        return true;
-      }
-      if (orangeWallIsHiddenVolume(voxel, definitions)) return true;
-      const cell = `${voxel.x},${voxel.y},${voxel.z}`;
-      if ((definition.visual.orangeForm ?? "cube") === "cube") {
-        if (retainedBrickCells.has(cell)) return false;
-        retainedBrickCells.add(cell);
-        return true;
-      }
-      if (brickCells.has(cell) || retainedSurfaceCells.has(cell)) return false;
-      retainedSurfaceCells.add(cell);
-      return true;
-    }),
-  };
+  return normalizeOrangeWallFrame(frame, definitions);
 }

@@ -195,72 +195,28 @@ test("non-cube hover and selection are drawn on their real geometry", async () =
   assert.match(canvas, /selected,\s*selectionKey: cellObjectSelectionKey\(voxel\)/);
 });
 
-test("lowered orange walls are zero-thickness, paintable support faces", async () => {
-  const renderer = await readFile(
-    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
-    "utf8",
-  );
-  assert.match(renderer, /isLoweredOrangeSurface\s*\n\s*\? 0/);
-  assert.match(renderer, /supportSurface: descriptor\.isLoweredOrangeSurface/);
-  assert.match(renderer, /rightSurface - leftSurface/);
-});
-
-test("lowered Orange Face numbers are drawn inside their top surfaces", async () => {
-  const renderer = await readFile(
-    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
-    "utf8",
-  );
-  assert.match(renderer, /function addFlatOrangeSurfaceLabels/);
-  assert.match(
-    renderer,
-    /descriptor\.isLoweredOrangeSurface[\s\S]*?addFlatOrangeSurfaceLabels\([\s\S]*?descriptor\.layer\.genericLabel/,
-  );
-  assert.match(renderer, /topY \+ normalOffset/);
-});
-
-test("Orange Face and Orange Cube rendering ignores remaining-rise depth", async () => {
+test("the single Orange Wall renders as a cube at its authored position", async () => {
   const canvas = await readFile(
     new URL("../app/MazeBenchCanvas.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(
-    canvas,
-    /definition\.visual\.kind === "orange-wall"[\s\S]*?orangeForm !== "face"/,
-  );
+  assert.match(canvas, /orangeForm: "cube" as const/);
   assert.match(canvas, /elevation: voxel\.z \+ layerOffset/);
-  assert.doesNotMatch(canvas, /elevation: \(orangeWall\?\.physicalZ \?\? voxel\.z\)/);
+  assert.doesNotMatch(canvas, /orangeForm === "hidden"/);
+  assert.doesNotMatch(canvas, /orangeForm !== "face"/);
 });
 
-test("hidden Orange Wall volumes are translucent only in editor rendering", async () => {
-  const [canvas, renderer] = await Promise.all([
-    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  assert.match(canvas, /orangeForm === "hidden"[\s\S]*?editorOnly: true[\s\S]*?editorOpacity/);
-  assert.match(renderer, /layer\?\.editorOnly !== true \|\| isEditorRenderMode\(\)/);
-  assert.match(renderer, /descriptor\.layer\?\.editorOpacity/);
-});
-
-test("hidden Orange Buttons are translucent editor-only pressure sensors", async () => {
-  const [editor, canvas, renderer] = await Promise.all([
-    readFile(new URL("../app/VoxelBench.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
-    readFile(
-      new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
-      "utf8",
-    ),
-  ]);
-  assert.match(editor, /id: "orange-button-hidden"[\s\S]*?roleId: "orange-button"[\s\S]*?occupancy: "inactive"/);
-  assert.match(editor, /buttonForm: block\.visual\?\.buttonForm === "hidden" \? "hidden" : "visible"/);
-  assert.match(canvas, /hiddenButton[\s\S]*?editorOnly: true[\s\S]*?editorOpacity/);
-  assert.match(renderer, /actor\.editorOnly !== true \|\| isEditorRenderMode\(\)/);
-  assert.match(canvas, /hiddenButton[\s\S]*?editorOpacity: 0\.5/);
-  assert.match(canvas, /orangeForm === "hidden"[\s\S]*?editorOpacity: 0\.5/);
-  assert.match(renderer, /actor\.editorOpacity \?\? 0\.5/);
-  assert.match(renderer, /actor\.editorOnly === true \? opacity : fade \* visibility/);
+test("the editor exposes exactly one Orange Wall and one Orange Button", async () => {
+  const editor = await readFile(
+    new URL("../app/VoxelBench.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(editor, /id: "orange-wall", name: "Orange wall"[\s\S]*?occupancy: "inactive"/);
+  assert.match(editor, /id: "orange-button", name: "Orange button"[\s\S]*?occupancy: "sensor"/);
+  assert.doesNotMatch(editor, /id: "orange-wall-face"/);
+  assert.doesNotMatch(editor, /id: "orange-wall-hidden"/);
+  assert.doesNotMatch(editor, /id: "orange-button-hidden"/);
+  assert.doesNotMatch(editor, /buttonForm/);
 });
 
 test("the cell inspector imports its Orange Wall number formatter", async () => {

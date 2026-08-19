@@ -26,10 +26,8 @@ type BlockDefinition = {
   roleId: string;
   occupancy: string;
   visual: {
-    buttonForm?: "visible" | "hidden";
     kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
     modelUrl?: string;
-    orangeForm?: "cube" | "face" | "hidden";
   };
 };
 
@@ -172,8 +170,6 @@ type TerrainCell = {
 type RenderActor = {
   collectionId: string;
   direction?: string;
-  editorOnly?: boolean;
-  editorOpacity?: number;
   elevation: number;
   groupId?: string;
   label: string;
@@ -416,8 +412,6 @@ function frameToPlayData(
     const genericId = Math.max(0, Math.floor(Number(voxel.groupId ?? voxel.genericId) || 0));
     const groupId = rigidFamilyType === "clone" ? `c${genericId}` : `M${genericId}`;
     const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
-    const hiddenButton = definition.visual.kind === "button" &&
-      definition.visual.buttonForm === "hidden";
     return [{
       collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
       ...(isRigidFamilyMember
@@ -434,9 +428,6 @@ function frameToPlayData(
           }
         : {}),
       elevation: voxel.z + layerOffset,
-      ...(hiddenButton
-        ? { editorOnly: true, editorOpacity: 0.5 }
-        : {}),
       label: definition.name,
       ...(definition.visual.kind === "gem"
         ? { modelUrl: definition.visual.modelUrl }
@@ -467,9 +458,6 @@ function frameToPlayData(
           ) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
-          const orangeForm = definition.visual.kind === "orange-wall"
-            ? definition.visual.orangeForm ?? "cube"
-            : null;
           return {
             ...(definition.visual.kind === "slope"
               ? { direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId) }
@@ -481,9 +469,6 @@ function frameToPlayData(
             // at consecutive rows must stay stacked even when their numbers
             // differ or are nonzero.
             elevation: voxel.z + layerOffset,
-            ...(orangeForm === "hidden"
-              ? { editorOnly: true, editorOpacity: 0.5 }
-              : {}),
             genericLabel: definition.visual.kind === "orange-wall"
               ? String(orangeWallMechanismDepth(voxel))
               : genericBlockIds.has(definition.id) && !isLift
@@ -492,13 +477,10 @@ function frameToPlayData(
             label: definition.name,
             raised: isLift
               ? liftIsRaised(voxel.genericId)
-              : definition.visual.kind === "orange-wall"
-                // Orange Face and Orange Cube are permanent editor forms.
-                // Remaining-rise depth may move the mechanism, but it must
-                // never swap item 10 and item 11's rendered geometry.
-                ? orangeForm !== "face"
-                : true,
-            ...(orangeForm === null ? {} : { orangeForm }),
+              : true,
+            ...(definition.visual.kind === "orange-wall"
+              ? { orangeForm: "cube" as const }
+              : {}),
             selectionKey: cellObjectSelectionKey(voxel),
             type: definition.visual.kind === "slope"
               ? "ice_slope"

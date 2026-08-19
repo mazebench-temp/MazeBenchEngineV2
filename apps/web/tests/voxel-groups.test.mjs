@@ -25,18 +25,8 @@ const definitions = new Map([
   ["clone-slope", { roleId: "clone", occupancy: "solid", visual: { kind: "slope" } }],
   ["orange-wall", {
     roleId: "orange-wall",
-    occupancy: "solid",
-    visual: { kind: "orange-wall", orangeForm: "cube" },
-  }],
-  ["orange-face", {
-    roleId: "orange-wall",
-    occupancy: "support",
-    visual: { kind: "orange-wall", orangeForm: "face" },
-  }],
-  ["orange-hidden", {
-    roleId: "orange-wall",
     occupancy: "inactive",
-    visual: { kind: "orange-wall", orangeForm: "hidden" },
+    visual: { kind: "orange-wall" },
   }],
   ["button", { roleId: "orange-button", occupancy: "sensor" }],
 ]);
@@ -132,8 +122,8 @@ test("an exact pick key selects a shareable custom object over its solid cell ma
   );
 });
 
-test("a coordinate tap prefers a body over a flattened orange panel", () => {
-  const panel = { ...voxel(1, 1, 1, "orange-face"), stateId: 0, instanceId: "panel-a" };
+test("a coordinate tap prefers a body over a coincident Orange Wall", () => {
+  const panel = { ...voxel(1, 1, 1, "orange-wall"), stateId: 0, instanceId: "panel-a" };
   const crate = { ...voxel(1, 1, 1, "crate"), instanceId: "crate-a" };
   assert.deepEqual(
     selectConnectedVoxelGroup(
@@ -280,10 +270,10 @@ test("moves a solid body onto a sensor without deleting either occupant", () => 
   assert.deepEqual(result.voxels, [{ ...body, x: 2 }, sensor]);
 });
 
-test("moves a body onto a flattened orange panel but not a raised wall", () => {
+test("moves a body onto the one shareable Orange Wall at every state", () => {
   const crate = { ...voxel(1, 1, 1, "crate"), instanceId: "crate-a" };
   const lowered = {
-    ...voxel(2, 1, 1, "orange-face"),
+    ...voxel(2, 1, 1, "orange-wall"),
     instanceId: "panel-a",
     mechanismDepth: 1,
     stateId: 0,
@@ -303,7 +293,7 @@ test("moves a body onto a flattened orange panel but not a raised wall", () => {
     allowed.voxels.map(({ x, y, z, blockId, stateId }) => ({ x, y, z, blockId, stateId })),
     [
       { x: 2, y: 1, z: 1, blockId: "crate", stateId: undefined },
-      { x: 2, y: 1, z: 1, blockId: "orange-face", stateId: 0 },
+      { x: 2, y: 1, z: 1, blockId: "orange-wall", stateId: 0 },
     ],
   );
 
@@ -313,7 +303,7 @@ test("moves a body onto a flattened orange panel but not a raised wall", () => {
     mechanismDepth: 0,
     stateId: 1,
   };
-  const blocked = moveVoxelGroup(
+  const raisedResult = moveVoxelGroup(
     [crate, raised],
     ["instance:crate-a"],
     1,
@@ -323,13 +313,13 @@ test("moves a body onto a flattened orange panel but not a raised wall", () => {
     new Set(),
     definitions,
   );
-  assert.equal(blocked.moved, false);
+  assert.equal(raisedResult.moved, true);
 });
 
-test("moves hidden Orange Wall metadata through occupied cells", () => {
+test("moves Orange Wall metadata through occupied cells", () => {
   const wall = { ...voxel(2, 1, -2, "crate"), instanceId: "wall-a" };
   const hidden = {
-    ...voxel(1, 1, -2, "orange-hidden"),
+    ...voxel(1, 1, -2, "orange-wall"),
     instanceId: "hidden-a",
     mechanismDepth: 4,
     stateId: 2,
@@ -347,6 +337,6 @@ test("moves hidden Orange Wall metadata through occupied cells", () => {
   assert.equal(result.moved, true);
   assert.deepEqual(result.voxels.map(({ x, y, z, blockId }) => ({ x, y, z, blockId })), [
     { x: 2, y: 1, z: -2, blockId: "crate" },
-    { x: 2, y: 1, z: -2, blockId: "orange-hidden" },
+    { x: 2, y: 1, z: -2, blockId: "orange-wall" },
   ]);
 });

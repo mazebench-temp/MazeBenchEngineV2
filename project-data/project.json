@@ -187,63 +187,6 @@
       }
     },
     {
-      "id": "orange-wall-face",
-      "name": "Orange face",
-      "color": "#B85F16",
-      "roleId": "orange-wall",
-      "occupancy": "support",
-      "visual": {
-        "kind": "orange-wall",
-        "orangeForm": "face"
-      }
-    },
-    {
-      "id": "orange-wall",
-      "name": "Orange cube",
-      "color": "#B85F16",
-      "roleId": "orange-wall",
-      "occupancy": "solid",
-      "visual": {
-        "kind": "orange-wall",
-        "orangeForm": "cube"
-      }
-    },
-    {
-      "id": "orange-wall-hidden",
-      "name": "Orange hidden cube",
-      "color": "#B85F16",
-      "roleId": "orange-wall",
-      "occupancy": "inactive",
-      "visual": {
-        "kind": "orange-wall",
-        "orangeForm": "hidden"
-      }
-    },
-    {
-      "id": "orange-button",
-      "name": "Orange button",
-      "color": "#F59E0B",
-      "roleId": "orange-button",
-      "variantMax": 5,
-      "occupancy": "sensor",
-      "visual": {
-        "kind": "button",
-        "buttonForm": "visible"
-      }
-    },
-    {
-      "id": "orange-button-hidden",
-      "name": "Orange hidden button",
-      "color": "#F59E0B",
-      "roleId": "orange-button",
-      "variantMax": 5,
-      "occupancy": "inactive",
-      "visual": {
-        "kind": "button",
-        "buttonForm": "hidden"
-      }
-    },
-    {
       "id": "clone",
       "name": "Clone",
       "color": "#a0a244",
@@ -261,6 +204,27 @@
       "occupancy": "solid",
       "visual": {
         "kind": "slope"
+      }
+    },
+    {
+      "id": "orange-wall",
+      "name": "Orange wall",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "orange-wall"
+      }
+    },
+    {
+      "id": "orange-button",
+      "name": "Orange button",
+      "color": "#F59E0B",
+      "roleId": "orange-button",
+      "occupancy": "sensor",
+      "variantMax": 5,
+      "visual": {
+        "kind": "button"
       }
     }
   ],

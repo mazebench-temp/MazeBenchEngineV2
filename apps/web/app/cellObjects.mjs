@@ -30,18 +30,14 @@ export function blockCanShareCell(block) {
 }
 
 /**
- * Orange-wall form belongs to its block definition. Remaining-rise/state data
- * must never turn the dedicated Orange Cube into a shareable face. Orange
- * Faces and editor-visible hidden volumes deliberately share occupied cells.
+ * Orange Walls are one editor object and may be authored inside any occupied
+ * cell. Their remaining-rise/state metadata belongs to physics, not editor
+ * collision handling.
  *
  * @param {{ occupancy?: string, roleId?: string } | undefined} block
- * @param {{ stateId?: number } | undefined} object
  */
-export function objectCanShareCell(block, object) {
-  if (block?.roleId === "orange-wall") {
-    return block?.visual?.orangeForm === "face" ||
-      block?.visual?.orangeForm === "hidden";
-  }
+export function objectCanShareCell(block) {
+  if (block?.roleId === "orange-wall") return true;
   return blockCanShareCell(block);
 }
 

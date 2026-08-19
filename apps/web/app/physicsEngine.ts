@@ -12,9 +12,7 @@ type BlockDefinition = {
   id: string;
   roleId: string;
   visual?: {
-    buttonForm?: "visible" | "hidden";
     kind?: string;
-    orangeForm?: "cube" | "face" | "hidden";
   };
 };
 type Voxel = {
