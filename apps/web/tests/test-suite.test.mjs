@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deleteTestCase } from "../app/testSuite.mjs";
+import { deleteTestCase, runnableTestCases } from "../app/testSuite.mjs";
 
 const tests = [
   { folderId: "movement", id: "wall" },
@@ -29,4 +29,17 @@ test("the final test cannot be deleted", () => {
     removed: null,
     tests: finalTest,
   });
+});
+
+test("hidden cases are retained in the project but excluded from physics runs", () => {
+  const cases = [
+    { id: "implemented", hidden: false },
+    { id: "future", hidden: true },
+    { id: "legacy-without-flag" },
+  ];
+  assert.deepEqual(
+    runnableTestCases(cases).map((item) => item.id),
+    ["implemented", "legacy-without-flag"],
+  );
+  assert.equal(cases.length, 3);
 });

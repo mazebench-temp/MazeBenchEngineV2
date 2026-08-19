@@ -248,7 +248,9 @@ function frameDifference(expected, actual, world) {
 }
 
 for (const authoredTest of project.tests) {
-  test(`authored C++ suite: ${authoredTest.name}`, () => {
+  test(`authored C++ suite: ${authoredTest.name}`, {
+    skip: authoredTest.hidden ? "Hidden by the level author" : false,
+  }, () => {
     const failures = [];
     for (let quarterTurns = 0; quarterTurns < 4; quarterTurns += 1) {
       const world = rotateWorldClockwise(authoredTest.world, quarterTurns);

@@ -16,6 +16,7 @@ function makeTest(id, blockId) {
     description: "",
     folderId: "folder",
     tagIds: ["folder-default"],
+    hidden: false,
     locked: false,
     input: "up",
     world: { width: 16, height: 16, floorLayer: 0 },

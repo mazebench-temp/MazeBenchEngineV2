@@ -169,6 +169,7 @@ export function encodeCompactTest(test) {
     palette,
     frames,
   };
+  if (test.hidden) compact.hidden = true;
   if (test.cycle) compact.cycle = { ...test.cycle };
   return compact;
 }
@@ -202,6 +203,7 @@ export function decodeCompactTest(compact) {
     folderId: compact.groupTagId ?? compact.primaryTagId ?? compact.folderId,
     tagIds: Array.isArray(compact.tagIds) ? [...compact.tagIds] : undefined,
     id: compact.id,
+    hidden: Boolean(compact.hidden),
     locked: Boolean(compact.locked),
     name: compact.name,
     input: compact.input,

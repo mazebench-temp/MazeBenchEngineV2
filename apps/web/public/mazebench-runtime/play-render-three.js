@@ -6674,6 +6674,8 @@
         lower.type !== "tree" &&
         lower.type !== "shrub" &&
         lower.type !== "block_asset" &&
+        lower.type !== "player_lift" &&
+        upper.type !== "player_lift" &&
         !lower.isCollapsingOrangeBase &&
         !lower.isSunkenFloor &&
         !upper.isSunkenFloor &&

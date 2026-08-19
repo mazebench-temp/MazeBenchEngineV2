@@ -90,6 +90,16 @@ test("MazeBench renderer prints each generic ID on exposed polycube faces", asyn
   assert.match(renderer, /modelAssetsFailed/);
 });
 
+test("Player Lifts never merge into neighboring purple solids", async () => {
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(renderer, /lower\.type !== "player_lift"/);
+  assert.match(renderer, /upper\.type !== "player_lift"/);
+  assert.match(renderer, /descriptor\.type === "player_lift" \? `\$\{x\},\$\{y\}` : ""/);
+});
+
 test("the suite uses proper lock icons and one lazy serialized 3D preview renderer", async () => {
   const [component, styles] = await Promise.all([
     readFile(new URL("../app/VoxelBench.tsx", import.meta.url), "utf8"),

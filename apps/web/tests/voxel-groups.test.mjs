@@ -23,6 +23,7 @@ const definitions = new Map([
   ["blue-box-slope", { roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "slope" } }],
   ["clone", { roleId: "clone", occupancy: "solid", visual: { kind: "cube" } }],
   ["clone-slope", { roleId: "clone", occupancy: "solid", visual: { kind: "slope" } }],
+  ["lift", { roleId: "player-lift", occupancy: "sensor", visual: { kind: "lift" } }],
   ["orange-wall", {
     roleId: "orange-wall",
     occupancy: "inactive",
@@ -106,6 +107,37 @@ test("touching Ice cubes and directional slopes form one connected terrain selec
       definitions,
     )),
     new Set(["instance:ice-cube", "instance:ice-slope", "instance:upper-ice"]),
+  );
+});
+
+test("touching purple lifts always remain independent selections", () => {
+  const first = {
+    ...voxel(1, 1, 1, "lift", 1),
+    groupId: 1,
+    instanceId: "lift-a",
+    orientation: "top",
+  };
+  const beside = {
+    ...voxel(2, 1, 1, "lift", 1),
+    groupId: 1,
+    instanceId: "lift-b",
+    orientation: "top",
+  };
+  const above = {
+    ...voxel(1, 1, 2, "lift", 1),
+    groupId: 1,
+    instanceId: "lift-c",
+    orientation: "top",
+  };
+
+  assert.deepEqual(
+    selectConnectedVoxelGroup(
+      [first, beside, above],
+      first,
+      new Set(),
+      definitions,
+    ),
+    ["instance:lift-a"],
   );
 });
 

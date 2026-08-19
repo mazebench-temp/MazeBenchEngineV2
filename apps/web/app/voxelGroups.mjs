@@ -78,6 +78,12 @@ export function selectConnectedVoxelGroup(
   if (!first) return [];
 
   const groupId = genericObjectGroupId(first);
+  const firstDefinition = definitions instanceof Map
+    ? definitions.get(first.blockId)
+    : null;
+  if (firstDefinition?.roleId === "player-lift") {
+    return [cellObjectSelectionKey(first)];
+  }
   const connectedFamily = connectedFamilyIdentity(first, definitions);
   const variantId = Number.isInteger(first.variantId) ? first.variantId : 0;
   const stateId = Number.isInteger(first.stateId) ? first.stateId : 0;

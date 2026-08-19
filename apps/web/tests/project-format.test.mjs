@@ -67,6 +67,7 @@ const project = {
     description: "Preserves overlaps, duplicates, negative rows, and optional fields.",
     folderId: "folder-a",
     tagIds: ["folder-b"],
+    hidden: true,
     locked: true,
     input: "up",
     world: { width: 16, height: 12, floorLayer: 0 },

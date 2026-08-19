@@ -33,3 +33,15 @@ export function deleteTestCase(tests, testId, activeId) {
 
   return { activeId: replacement.id, removed, tests: remaining };
 }
+
+/**
+ * Hidden cases remain authored project data, but are intentionally outside
+ * every physics-engine gate until the author makes them visible again.
+ *
+ * @template {{ hidden?: boolean }} T
+ * @param {T[]} tests
+ * @returns {T[]}
+ */
+export function runnableTestCases(tests) {
+  return tests.filter((test) => test.hidden !== true);
+}

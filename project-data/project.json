@@ -395,7 +395,7 @@
       "parentId": "ice-slopes-3d-boxes"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "lift",
       "locked": false,
       "name": "Lift"
@@ -409,7 +409,7 @@
       "parentId": "lift"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "id": "orange-walls",
       "locked": false,
       "name": "Orange Walls"

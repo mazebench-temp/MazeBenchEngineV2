@@ -3,12 +3,14 @@ import test from "node:test";
 
 import {
   blockCanShareCell,
+  blockUsesPolycubeGroup,
   cellObjectSemanticKey,
   createCellObjectMultisetDiffer,
   diffObjectMultisets,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
   objectCanShareCell,
+  objectPaintsInsideClickedBody,
   placeObjectInCell,
 } from "../app/cellObjects.mjs";
 
@@ -40,6 +42,30 @@ test("legacy goals migrate to pass-through sensors", () => {
   assert.equal(normalizeOccupancyProfile(undefined, "goal"), "sensor");
   assert.equal(normalizeOccupancyProfile(undefined, "solid"), "solid");
   assert.equal(blockCanShareCell({ roleId: "goal" }), true);
+});
+
+test("stateful lift numbers never become polycube group identities", () => {
+  assert.equal(blockUsesPolycubeGroup({ roleId: "player-lift" }), false);
+  assert.equal(blockUsesPolycubeGroup({ roleId: "weightless-pushable" }), true);
+  assert.equal(blockUsesPolycubeGroup({ roleId: "clone" }), true);
+});
+
+test("lifts mount outside a clicked box while pass-through sensors may join its cell", () => {
+  assert.equal(objectPaintsInsideClickedBody({
+    roleId: "player-lift",
+    occupancy: "sensor",
+    visual: { kind: "lift" },
+  }), false);
+  assert.equal(objectPaintsInsideClickedBody({
+    roleId: "orange-button",
+    occupancy: "sensor",
+    visual: { kind: "button" },
+  }), true);
+  assert.equal(objectPaintsInsideClickedBody({
+    roleId: "goal",
+    occupancy: "sensor",
+    visual: { kind: "gem" },
+  }), true);
 });
 
 test("a sensor joins an occupied solid cell without replacing the body", () => {

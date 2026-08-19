@@ -34,7 +34,7 @@ import {
   offsetGenericObjectId,
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
-import { deleteTestCase } from "./testSuite.mjs";
+import { deleteTestCase, runnableTestCases } from "./testSuite.mjs";
 import {
   canonicalTagCombination,
   combinationViewIncludesTest,
@@ -50,12 +50,14 @@ import { enforceFloorLayer, selectionContainsFloor } from "./floorLayer.mjs";
 import {
   OCCUPANCY_PROFILES,
   blockCanShareCell,
+  blockUsesPolycubeGroup,
   cellObjectSelectionKey,
   cellObjectSemanticKey,
   createCellObjectMultisetDiffer,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
   objectCanShareCell,
+  objectPaintsInsideClickedBody,
   placeObjectInCell,
 } from "./cellObjects.mjs";
 import {
@@ -169,6 +171,7 @@ type TestCase = {
   cycle?: CycleExpectation;
   description: string;
   folderId: string;
+  hidden: boolean;
   tagIds: string[];
   id: string;
   locked: boolean;
@@ -179,10 +182,11 @@ type TestCase = {
   expected: Frame;
   world: WorldSettings;
 };
-type StoredTestCase = Omit<TestCase, "description" | "folderId" | "intermediate" | "locked" | "tagIds" | "world"> & {
+type StoredTestCase = Omit<TestCase, "description" | "folderId" | "hidden" | "intermediate" | "locked" | "tagIds" | "world"> & {
   cycle?: Partial<CycleExpectation>;
   description?: string;
   folderId?: string;
+  hidden?: boolean;
   tagIds?: string[];
   intermediate?: Frame[];
   locked?: boolean;
@@ -673,6 +677,7 @@ function normalizeTests(
       ...test,
       description: String(test.description ?? ""),
       folderId: placement.groupTagId,
+      hidden: Boolean(test.hidden),
       tagIds: placement.tagIds,
       locked: Boolean(test.locked),
       intermediate: (test.intermediate ?? []).map((frame) =>
@@ -736,6 +741,7 @@ const DEFAULT_TESTS: StoredTestCase[] = [
     description: "Moving Up pushes the single crate one cell onto the goal, and the player occupies the crate's previous cell.",
     folderId: "push-boxes",
     id: "push-one",
+    hidden: false,
     locked: false,
     name: "Push crate onto goal",
     input: "up",
@@ -754,6 +760,7 @@ const DEFAULT_TESTS: StoredTestCase[] = [
     description: "Moving Up into the basalt wall changes nothing; both the player and wall remain in their starting cells.",
     folderId: "general",
     id: "wall-stop",
+    hidden: false,
     locked: false,
     name: "Wall blocks movement",
     input: "up",
@@ -772,6 +779,7 @@ const DEFAULT_TESTS: StoredTestCase[] = [
     description: "Moving Up cannot push two adjacent crates, so the player and both crates remain unchanged.",
     folderId: "push-boxes",
     id: "double-crate",
+    hidden: false,
     locked: false,
     name: "Two crates cannot be pushed",
     input: "up",
@@ -792,6 +800,7 @@ const DEFAULT_TESTS: StoredTestCase[] = [
     description: "One Up command carries the player across every contiguous Ice tile and stops on the normal floor beyond the strip.",
     folderId: "ice",
     id: "future-ice",
+    hidden: false,
     locked: false,
     name: "Ice continues one command",
     input: "up",
@@ -1227,6 +1236,16 @@ function LockIcon({ open = false }: { open?: boolean }) {
   );
 }
 
+function VisibilityIcon({ hidden = false }: { hidden?: boolean }) {
+  return (
+    <svg className="visibility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {hidden && <path d="m3 3 18 18" />}
+    </svg>
+  );
+}
+
 function suitePreviewKey(testId: string, frameIndex: number) {
   return JSON.stringify([testId, frameIndex]);
 }
@@ -1369,6 +1388,7 @@ function TestSuiteWorkspace({
   onReorderTest,
   onRunTest,
   onToggleFolderCollapsed,
+  onToggleTestHidden,
   onToggleTestLocked,
   onUpdateTest,
   results,
@@ -1390,6 +1410,7 @@ function TestSuiteWorkspace({
   onReorderTest: (testId: string, targetTestId: string) => void;
   onRunTest: (test: TestCase) => void;
   onToggleFolderCollapsed: (folderId: string) => void;
+  onToggleTestHidden: (testId: string) => void;
   onToggleTestLocked: (testId: string) => void;
   onUpdateTest: (testId: string, patch: Partial<Pick<TestCase, "name" | "description">>) => void;
   results: Record<string, TestResult>;
@@ -1398,7 +1419,7 @@ function TestSuiteWorkspace({
   const activeTest = tests.find((test) => test.id === activeId);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(activeTest?.folderId ?? null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "passed" | "untested">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "hidden" | "passed" | "untested">("all");
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
   const [folderRenameDraft, setFolderRenameDraft] = useState<{ id: string; name: string } | null>(null);
   const [previewQueue, setPreviewQueue] = useState<Array<{
@@ -1489,10 +1510,11 @@ function TestSuiteWorkspace({
   }, [aliasesById, foldersById, selectedFolderId, tagOrder]);
 
   const testMatchesFilters = (test: TestCase) => {
-    const result = results[test.id];
+    const result = test.hidden ? undefined : results[test.id];
+    if (statusFilter === "hidden" && !test.hidden) return false;
     if (statusFilter === "passed" && !result?.pass) return false;
     if (statusFilter === "failed" && (!result || result.pass)) return false;
-    if (statusFilter === "untested" && result) return false;
+    if (statusFilter === "untested" && (test.hidden || result)) return false;
     const needle = query.trim().toLowerCase();
     const tagPaths = test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "").join(" ");
     const aliasLabel = combinationAliases.find((alias) =>
@@ -1521,9 +1543,14 @@ function TestSuiteWorkspace({
       setSelectedFolderId(null);
     }
   }, [aliasesById, foldersById, selectedFolderId]);
-  const completed = Object.values(results);
+  const runnableTests = runnableTestCases(tests);
+  const runnableTestIds = new Set(runnableTests.map((test) => test.id));
+  const completed = Object.entries(results)
+    .filter(([testId]) => runnableTestIds.has(testId))
+    .map(([, result]) => result);
   const passed = completed.filter((result) => result.pass).length;
   const failed = completed.length - passed;
+  const hidden = tests.length - runnableTests.length;
   const previewJob = previewQueue.find((job) => {
     const test = tests.find((item) => item.id === job.testId);
     return test && suitePreviewFrames(test)[job.frameIndex];
@@ -1547,13 +1574,13 @@ function TestSuiteWorkspace({
   }, [previewJob]);
 
   const renderTestCard = (test: TestCase, displayIndex: number, scopeTests: TestCase[]) => {
-    const result = results[test.id];
+    const result = test.hidden ? undefined : results[test.id];
     const scopeIndex = scopeTests.findIndex((item) => item.id === test.id);
     const effectiveLocked = test.locked;
     const passedRotations = result?.checks.filter((check) => check.pass).length;
     return (
-      <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""}`} key={test.id} role="listitem">
-        <span className={`test-status ${!result ? "idle" : result.pass ? "pass" : "fail"}`}>{!result ? displayIndex + 1 : result.pass ? "✓" : "!"}</span>
+      <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""} ${test.hidden ? "is-hidden" : ""}`} key={test.id} role="listitem">
+        <span className={`test-status ${test.hidden ? "hidden" : !result ? "idle" : result.pass ? "pass" : "fail"}`}>{test.hidden ? "—" : !result ? displayIndex + 1 : result.pass ? "✓" : "!"}</span>
         <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
         <div className="suite-test-row__details">
           <div className="suite-test-row__identity">
@@ -1567,14 +1594,15 @@ function TestSuiteWorkspace({
             <span>Description</span>
             <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
           </label>
-          <small>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+          <small>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · hidden from physics suite" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
         </div>
         <div className="suite-test-row__actions">
-          <button type="button" onClick={() => onRunTest(test)}>Run</button>
+          <button type="button" disabled={test.hidden} title={test.hidden ? "Unhide this case before running it" : "Run this case"} onClick={() => onRunTest(test)}>Run</button>
           <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
           <button type="button" disabled={scopeIndex === 0} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex - 1].id)}>←</button>
           <button type="button" disabled={scopeIndex === scopeTests.length - 1} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex + 1].id)}>→</button>
           <button type="button" aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
+          <button className={test.hidden ? "is-hidden" : ""} type="button" aria-label={`${test.hidden ? "Unhide" : "Hide"} ${test.name}`} title={test.hidden ? "Include this case in physics runs" : "Hide and ignore this case in physics runs"} onClick={() => onToggleTestHidden(test.id)}><VisibilityIcon hidden={test.hidden} /></button>
           <button className={effectiveLocked ? "is-locked" : ""} type="button" aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
           <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
         </div>
@@ -1649,7 +1677,7 @@ function TestSuiteWorkspace({
           <div className="suite-browser__title">
             <span>{selectedFolder ? folderPaths.get(selectedFolder.id) : selectedAlias ? `${foldersById.get(selectedAlias.groupTagId)?.name ?? "Unknown group"} / Combined subtags` : "Entire project"}</span>
             {selectedFolder ? <input aria-label={`Rename ${selectedFolder.name} tag`} disabled={selectedFolder.default} value={selectedFolder.name} onChange={(event) => onRenameFolder(selectedFolder.id, event.target.value)} /> : <h2>{selectedAlias?.label ?? "All tests"}</h2>}
-            <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {passed} passing · {failed} failing · {tests.length - completed.length} untested</small>
+            <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {passed} passing · {failed} failing · {runnableTests.length - completed.length} untested{hidden ? ` · ${hidden} hidden` : ""}</small>
           </div>
           <div className="suite-browser__actions">
             {!selectedAlias && <button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.parentId ?? selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subtag" : "Tag group"}</button>}
@@ -1658,15 +1686,15 @@ function TestSuiteWorkspace({
         </header>
 
         <div className="suite-summary" aria-label="Suite result summary">
-          <div className="summary-track"><i style={{ width: completed.length ? `${(passed / tests.length) * 100}%` : "0%" }} /></div>
-          <span>{completed.length ? `${passed}/${tests.length} passing` : "Suite has not been run"}</span>
+          <div className="summary-track"><i style={{ width: completed.length && runnableTests.length ? `${(passed / runnableTests.length) * 100}%` : "0%" }} /></div>
+          <span>{completed.length ? `${passed}/${runnableTests.length} passing` : "Suite has not been run"}{hidden ? ` · ${hidden} hidden` : ""}</span>
         </div>
 
         {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag group"}` : "New tag group"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create {folderDraft.parentId ? "subtag" : "group"}</button></form>}
 
         <div className="suite-browser__filters">
           <label><span>Search</span><input type="search" value={query} placeholder="Name, description, or tag…" onChange={(event) => setQuery(event.target.value)} /></label>
-          <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="failed">Failing</option><option value="passed">Passing</option><option value="untested">Untested</option></select></label>
+          <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="failed">Failing</option><option value="passed">Passing</option><option value="untested">Untested</option><option value="hidden">Hidden / ignored</option></select></label>
         </div>
 
         <div className="suite-browser__content">
@@ -1815,16 +1843,11 @@ export default function VoxelBench() {
   const selectedSlopeOption = selectedSlopeDirection
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
     : null;
-  const selectedOrangeWallState = selectedDefinition?.visual.kind === "orange-wall"
-    ? selectedDefinition.visual.orangeForm === "hidden" ? 2 : 1
-    : null;
   const selectedOrangeWallDepth = selectedDefinition?.visual.kind === "orange-wall"
     ? selectedOrangeWallDepths[selectedDefinition.id] ?? 0
     : null;
   const selectedBlockCanShare = selectedDefinition
-    ? objectCanShareCell(selectedDefinition, {
-        stateId: selectedOrangeWallState ?? 0,
-      })
+    ? objectPaintsInsideClickedBody(selectedDefinition)
     : false;
   const selectedToolName = groupSelectionMode
     ? "Select group"
@@ -1963,6 +1986,10 @@ export default function VoxelBench() {
   }, [blocks, folders, projectLoaded, roles, savedSearchLevels, tests]);
 
   const runTest = useCallback(async (test: TestCase) => {
+    if (test.hidden) {
+      setToast(`${test.name} is hidden from physics runs`);
+      return null;
+    }
     setToast(`Running ${test.name} through the C++ engine…`);
     try {
       const result = await runRotationalTest(test, blocks, roles);
@@ -1980,11 +2007,19 @@ export default function VoxelBench() {
   }, [activeId, blocks, roles]);
 
   const runSuite = useCallback(async () => {
-    setToast(`Running ${tests.length * 4} rotated checks through the C++ engine…`);
+    const runnableTests = runnableTestCases(tests);
+    const hiddenCount = tests.length - runnableTests.length;
+    if (!runnableTests.length) {
+      setResults({});
+      setShowResult(false);
+      setToast(`All ${hiddenCount} tests are hidden from physics runs`);
+      return;
+    }
+    setToast(`Running ${runnableTests.length * 4} rotated checks through the C++ engine${hiddenCount ? ` · ignoring ${hiddenCount} hidden` : ""}…`);
     try {
       const nextResults: Record<string, TestResult> = {};
       const comparisonContext = createFrameComparisonContext(blocks);
-      for (const test of tests) {
+      for (const test of runnableTests) {
         nextResults[test.id] = await runRotationalTest(
           test,
           blocks,
@@ -1996,7 +2031,7 @@ export default function VoxelBench() {
       setResults(nextResults);
       const passed = Object.values(nextResults).filter((result) => result.pass).length;
       setShowResult(shouldShowResultComparison(nextResults[activeId]));
-      setToast(`${passed} of ${tests.length} tests passed in C++`);
+      setToast(`${passed} of ${runnableTests.length} active tests passed in C++${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "The C++ physics engine could not run");
     }
@@ -2697,7 +2732,14 @@ export default function VoxelBench() {
           : buttonOrientation
             ? buttonOrientationIndex(buttonOrientation)
           : 0,
-      ...(genericId === undefined ? {} : { genericId, groupId: genericId }),
+      ...(genericId === undefined
+        ? {}
+        : {
+            genericId,
+            ...(blockUsesPolycubeGroup(blockDefinition)
+              ? { groupId: genericId }
+              : {}),
+          }),
     } : null;
     const operation = placement
       ? placeObjectInCell(currentFrame.voxels, placement, blockDefinitionsById)
@@ -2891,6 +2933,24 @@ export default function VoxelBench() {
     setToast(`${test.name} ${locked ? "locked" : "unlocked"}`);
   };
 
+  const toggleTestHidden = (testId: string) => {
+    const test = tests.find((item) => item.id === testId);
+    if (!test) return;
+    const hidden = !test.hidden;
+    setTests((current) => current.map((item) =>
+      item.id === testId ? { ...item, hidden } : item,
+    ));
+    setResults((current) => {
+      const next = { ...current };
+      delete next[testId];
+      return next;
+    });
+    if (testId === activeId) setShowResult(false);
+    setToast(hidden
+      ? `${test.name} hidden · physics runs will ignore it`
+      : `${test.name} restored to physics runs`);
+  };
+
   const updateTestMetadata = (
     testId: string,
     patch: Partial<Pick<TestCase, "name" | "description">>,
@@ -2942,6 +3002,7 @@ export default function VoxelBench() {
       folderId: placement.groupTagId,
       tagIds: placement.tagIds,
       id,
+      hidden: false,
       locked: false,
       name: `Untitled test ${tests.length + 1}`,
       input: "up",
@@ -2991,6 +3052,7 @@ export default function VoxelBench() {
       expected: cloneFrame(source.expected),
       intermediate: source.intermediate.map(cloneFrame),
       id,
+      hidden: false,
       locked: false,
       name: `${source.name} copy`,
       start: cloneFrame(source.start),
@@ -3455,9 +3517,17 @@ export default function VoxelBench() {
   };
 
   const counts = useMemo(() => {
-    const values = Object.values(results);
-    return { passed: values.filter((result) => result.pass).length, failed: values.filter((result) => !result.pass).length };
-  }, [results]);
+    const runnableIds = new Set(runnableTestCases(tests).map((test) => test.id));
+    const values = Object.entries(results)
+      .filter(([testId]) => runnableIds.has(testId))
+      .map(([, result]) => result);
+    return {
+      hidden: tests.length - runnableIds.size,
+      passed: values.filter((result) => result.pass).length,
+      failed: values.filter((result) => !result.pass).length,
+      runnable: runnableIds.size,
+    };
+  }, [results, tests]);
 
   if (!activeTest) return null;
 
@@ -3520,6 +3590,7 @@ export default function VoxelBench() {
           onReorderTest={reorderTest}
           onRunTest={runTest}
           onToggleFolderCollapsed={toggleFolderCollapsed}
+          onToggleTestHidden={toggleTestHidden}
           onToggleTestLocked={toggleTestLocked}
           onUpdateTest={updateTestMetadata}
         />
@@ -3654,14 +3725,15 @@ export default function VoxelBench() {
               <label className="field"><span>Description</span><textarea rows={3} value={activeTest.description} placeholder="Describe the intended transition and invariants for debugging agents." onChange={(event) => updateTestMetadata(activeTest.id, { description: event.target.value })} /></label>
               <div className="field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={activeTest} onChangeGroup={(groupTagId) => changeTestTagGroup(activeTest.id, groupTagId)} onToggle={(tagId) => toggleTestTag(activeTest.id, tagId)} /></div>
               <div className="field"><span>Movement input</span><div className="canonical-input"><strong><DirectionIcon direction="up" /> Up</strong><small>Authored once; automatically checked as ↑ → ↓ ← by rotating the entire level.</small></div></div>
-              <button className="tool-button tool-button--primary full" onClick={() => runTest(activeTest)}>Run test</button>
+              <label className="generic-toggle test-hidden-toggle"><input aria-label={`Hide ${activeTest.name} from physics runs`} type="checkbox" checked={activeTest.hidden} onChange={() => toggleTestHidden(activeTest.id)} /><span><b>Hide from physics suite</b><small>Keep this case and its frames, but ignore it in browser and repository physics runs.</small></span></label>
+              <button className="tool-button tool-button--primary full" disabled={activeTest.hidden} title={activeTest.hidden ? "Unhide this case before running it" : "Run this test"} onClick={() => runTest(activeTest)}>{activeTest.hidden ? "Hidden from suite" : "Run test"}</button>
             </div>
           </details>
 
           <section className="author-panel suite-shortcut" aria-label="Test Suite shortcut">
-            <div className="suite-shortcut__heading"><div><span>Test Suite</span><strong>{Object.keys(results).length ? `${counts.passed}/${tests.length} passing` : `${tests.length} tests`}</strong></div><span className="suite-shortcut__folder">{activeTest.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")}</span></div>
+            <div className="suite-shortcut__heading"><div><span>Test Suite</span><strong>{Object.keys(results).length ? `${counts.passed}/${counts.runnable} passing` : `${counts.runnable} active${counts.hidden ? ` · ${counts.hidden} hidden` : ""}`}</strong></div><span className="suite-shortcut__folder">{activeTest.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")}</span></div>
             <div className="author-panel__body">
-              <div className="summary-track"><i style={{ width: Object.keys(results).length ? `${(counts.passed / tests.length) * 100}%` : "0%" }} /></div>
+              <div className="summary-track"><i style={{ width: Object.keys(results).length && counts.runnable ? `${(counts.passed / counts.runnable) * 100}%` : "0%" }} /></div>
               <p>Browse, search, reorder, and organize the complete test library on its own page.</p>
               <button className="tool-button tool-button--primary full" type="button" onClick={() => setActiveWorkspace("suite")}>Open Test Suite</button>
             </div>

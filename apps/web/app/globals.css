@@ -521,6 +521,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .suite-test-row:hover { border-color: rgba(var(--cyan-rgb),.42); }
 .suite-test-row.is-active { background: rgba(var(--cyan-rgb),.055); border-color: rgba(var(--cyan-rgb),.62); box-shadow: inset 3px 0 var(--cyan); }
 .suite-test-row.is-locked { background: rgba(var(--amber-rgb),.025); border-color: rgba(var(--amber-rgb),.38); }
+.suite-test-row.is-hidden { background: rgba(93,101,139,.035); border-color: rgba(124,143,255,.16); }
+.suite-test-row.is-hidden .suite-test-preview, .suite-test-row.is-hidden .suite-test-row__details { filter: saturate(.4); opacity: .58; }
 .suite-test-row > .test-status { background: rgba(5,8,18,.92); border-radius: 50%; height: 30px; line-height: 1; min-width: 30px; position: absolute; right: 17px; top: 17px; width: 30px; z-index: 3; }
 .suite-test-preview { background: #05060e; border: 1px solid rgba(124,143,255,.28); border-radius: 8px; display: grid; grid-template-rows: minmax(0, 1fr) 34px; height: 190px; min-width: 0; overflow: hidden; position: relative; width: 100%; }
 .suite-test-preview:hover { border-color: rgba(var(--cyan-rgb),.72); box-shadow: 0 0 13px rgba(var(--cyan-rgb),.12); }
@@ -575,12 +577,14 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .test-tag-picker__menu small { color: var(--violet); font: 700 6.5px var(--font-mono); text-transform: uppercase; white-space: nowrap; }
 .test-tag-picker__menu .lock-icon { color: var(--amber); height: 12px; width: 12px; }
 .test-tag-picker__menu input:disabled { cursor: not-allowed; opacity: .5; }
-.suite-test-row__actions { align-self: end; display: grid; gap: 5px; grid-template-columns: repeat(7, minmax(30px, 1fr)); min-width: 0; }
+.suite-test-row__actions { align-self: end; display: grid; gap: 5px; grid-template-columns: repeat(8, minmax(27px, 1fr)); min-width: 0; }
 .suite-test-row__actions button { align-items: center; background: rgba(7,9,22,.78); border: 1px solid rgba(124,143,255,.24); border-radius: 5px; color: var(--muted); cursor: pointer; display: flex; font: 700 8px var(--font-mono); justify-content: center; min-height: 28px; padding: 0 5px; }
 .suite-test-row__actions button:first-child, .suite-test-row__actions button:nth-child(2) { color: var(--cyan); }
 .suite-test-row__actions button:hover:not(:disabled) { background: rgba(var(--cyan-rgb),.09); border-color: rgba(var(--cyan-rgb),.55); color: var(--ink); }
 .suite-test-row__actions button:disabled { cursor: not-allowed; opacity: .25; }
 .suite-test-row__actions .lock-icon { height: 13px; width: 13px; }
+.suite-test-row__actions .visibility-icon { height: 14px; width: 14px; }
+.suite-test-row__actions button.is-hidden { background: rgba(var(--violet-rgb),.1); border-color: rgba(var(--violet-rgb),.55); color: var(--violet); }
 .suite-test-row__actions button.is-locked { background: rgba(var(--amber-rgb),.1); border-color: rgba(var(--amber-rgb),.58); color: var(--amber); }
 .suite-test-row__actions button.is-locked:disabled { opacity: .86; }
 .suite-test-row__actions .suite-test-row__delete { color: var(--red); }
@@ -603,6 +607,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .test-delete-button:hover:not(:disabled) { background: rgba(255,82,109,.09); border-color: rgba(255,82,109,.7); color: var(--red); }
 .test-status { align-items: center; border: 1px solid; border-radius: 50%; display: flex; flex: 0 0 27px; font: 800 10px var(--font-mono); height: 27px; justify-content: center; }
 .test-status.idle { border-color: var(--line-strong); color: var(--muted); }
+.test-status.hidden { background: rgba(var(--violet-rgb),.08); border-color: rgba(var(--violet-rgb),.5); color: var(--violet); }
 .test-status.pass { background: rgba(var(--green-rgb),.14); border-color: rgba(var(--green-rgb),.75); color: var(--green); box-shadow: 0 0 9px rgba(var(--green-rgb),.18); }
 .test-status.fail { background: rgba(255,82,109,.12); border-color: rgba(255,82,109,.75); color: var(--red); box-shadow: 0 0 9px rgba(255,82,109,.18); }
 .test-copy { display: flex; flex: 1; flex-direction: column; min-width: 0; }

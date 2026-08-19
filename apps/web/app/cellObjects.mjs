@@ -41,6 +41,29 @@ export function objectCanShareCell(block) {
   return blockCanShareCell(block);
 }
 
+/**
+ * Cell occupancy and pointer placement are separate concerns. Player Lifts
+ * are non-rigid fixtures, but painting one on a box face mounts it in the
+ * neighboring cell rather than embedding it inside the box. Sensors such as
+ * buttons and gems intentionally keep the occupied-cell behavior.
+ *
+ * @param {{ occupancy?: string, roleId?: string, visual?: { kind?: string } } | undefined} block
+ */
+export function objectPaintsInsideClickedBody(block) {
+  return block?.visual?.kind !== "lift" && objectCanShareCell(block);
+}
+
+/**
+ * Only true polycube actor families share one rigid group number. Stateful
+ * mechanisms such as Player Lifts also use a numeric value, but that number
+ * encodes orientation/state and must never merge neighboring fixtures.
+ *
+ * @param {{ roleId?: string } | undefined} block
+ */
+export function blockUsesPolycubeGroup(block) {
+  return block?.roleId === "weightless-pushable" || block?.roleId === "clone";
+}
+
 /** @param {{ x: number, y: number, z: number }} object */
 export function cellCoordinateKey(object) {
   return `${object.x},${object.y},${object.z}`;
