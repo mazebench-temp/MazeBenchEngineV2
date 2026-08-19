@@ -511,6 +511,13 @@
       "locked": false,
       "name": "on void",
       "parentId": "clone"
+    },
+    {
+      "collapsed": false,
+      "id": "and-box",
+      "locked": false,
+      "name": "and box",
+      "parentId": "clone"
     }
   ],
   "searches": [
@@ -22100,6 +22107,15 @@
         "on-void"
       ],
       "file": "test-351-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-363",
+      "name": "Untitled test 363",
+      "groupTagId": "clone",
+      "tagIds": [
+        "and-box"
+      ],
+      "file": "test-363.json"
     }
   ]
 }
