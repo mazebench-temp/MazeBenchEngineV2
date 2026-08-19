@@ -75,6 +75,12 @@
       "name": "Orange Wall",
       "description": "The shared mechanism for Orange Face and Orange Cube objects. Each stores a nonnegative remaining-rise number; Orange Buttons increase it and released buttons let it decrease one step at a time.",
       "generic": false
+    },
+    {
+      "id": "clone",
+      "name": "Clone",
+      "description": "Moves just like the player",
+      "generic": true
     }
   ],
   "blocks": [
@@ -212,6 +218,16 @@
       "occupancy": "sensor",
       "visual": {
         "kind": "button"
+      }
+    },
+    {
+      "id": "clone",
+      "name": "Clone",
+      "color": "#a0a244",
+      "roleId": "clone",
+      "occupancy": "solid",
+      "visual": {
+        "kind": "cube"
       }
     }
   ],
@@ -467,6 +483,34 @@
       "locked": false,
       "name": "Wrapped",
       "parentId": "3d-boxes"
+    },
+    {
+      "collapsed": false,
+      "id": "clone",
+      "locked": false,
+      "name": "Clone"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "clone-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "clone"
+    },
+    {
+      "collapsed": false,
+      "id": "on-ice-2",
+      "locked": false,
+      "name": "on ice",
+      "parentId": "clone"
+    },
+    {
+      "collapsed": false,
+      "id": "on-void",
+      "locked": false,
+      "name": "on void",
+      "parentId": "clone"
     }
   ],
   "searches": [
@@ -21903,6 +21947,159 @@
         "orange-walls-boxes"
       ],
       "file": "test-345.json"
+    },
+    {
+      "id": "test-346",
+      "name": "Clone",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-346.json"
+    },
+    {
+      "id": "test-346-copy-2",
+      "name": "Clone copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-346-copy-2.json"
+    },
+    {
+      "id": "test-346-copy-2-copy",
+      "name": "Clone copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-346-copy-2-copy.json"
+    },
+    {
+      "id": "test-346-copy",
+      "name": "Untitled test 346 copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "on-ice-2"
+      ],
+      "file": "test-346-copy.json"
+    },
+    {
+      "id": "test-350",
+      "name": "Untitled test 350",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-350.json"
+    },
+    {
+      "id": "test-346-copy-copy",
+      "name": "Untitled test 346 copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "on-ice-2"
+      ],
+      "file": "test-346-copy-copy.json"
+    },
+    {
+      "id": "test-346-copy-copy-copy",
+      "name": "Untitled test 346 copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "on-ice-2"
+      ],
+      "file": "test-346-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351",
+      "name": "Untitled test 351",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351.json"
+    },
+    {
+      "id": "test-351-copy",
+      "name": "Untitled test 351 copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy",
+      "name": "Untitled test 351 copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-351-copy-copy-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-351-copy-copy-copy-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 351 copy copy copy copy copy copy copy copy copy",
+      "groupTagId": "clone",
+      "tagIds": [
+        "on-void"
+      ],
+      "file": "test-351-copy-copy-copy-copy-copy-copy-copy-copy-copy.json"
     }
   ]
 }
