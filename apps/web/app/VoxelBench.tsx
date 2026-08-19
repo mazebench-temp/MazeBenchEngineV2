@@ -11,7 +11,10 @@ import {
 } from "react";
 import MazeBenchCanvas, { type PaintSurface } from "./MazeBenchCanvas";
 import SearchBench, { normalizeSearchLevels, type SearchLevel } from "./SearchBench";
-import { cameraRelativeDirection } from "./cameraNavigation.mjs";
+import {
+  cameraFacingSlopeDirection,
+  cameraRelativeDirection,
+} from "./cameraNavigation.mjs";
 import { simulateCommandWithCpp } from "./physicsEngine";
 import {
   applyWorldToTest,
@@ -79,9 +82,6 @@ import {
   liftOrientationIndex,
   liftOrientationFromPaintFace,
   normalizeLiftOrientation,
-  normalizeSlopeDirection,
-  offsetSlopeDirection,
-  slopeDirectionFromPaintFace,
   slopeDirectionIndex,
 } from "./visualVariants.mjs";
 import {
@@ -1663,7 +1663,6 @@ export default function VoxelBench() {
   const [inspectedCell, setInspectedCell] = useState<{ x: number; y: number; z: number } | null>(null);
   const [selectedGenericIds, setSelectedGenericIds] = useState<Record<string, number>>({});
   const [selectedOrangeWallDepths, setSelectedOrangeWallDepths] = useState<Record<string, number>>({});
-  const [selectedSlopeDirections, setSelectedSlopeDirections] = useState<Record<string, string>>({});
   const [genericPrompt, setGenericPrompt] = useState<{ blockId: string; value: string } | null>(null);
   const [genericPromptError, setGenericPromptError] = useState("");
   const layer = 1;
@@ -1755,7 +1754,7 @@ export default function VoxelBench() {
       : selectedGenericIds[selectedDefinition.id] ?? 0
     : null;
   const selectedSlopeDirection = selectedDefinition?.visual.kind === "slope"
-    ? normalizeSlopeDirection(selectedSlopeDirections[selectedDefinition.id])
+    ? cameraFacingSlopeDirection(cameraQuarterTurns)
     : null;
   const selectedSlopeOption = selectedSlopeDirection
     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === selectedSlopeDirection)
@@ -2054,7 +2053,7 @@ export default function VoxelBench() {
     setGenericPrompt(null);
     setSelectedBlock(blockId);
     const slopeDirection = block.visual.kind === "slope"
-      ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+      ? cameraFacingSlopeDirection(cameraQuarterTurns)
       : null;
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
@@ -2066,7 +2065,7 @@ export default function VoxelBench() {
       ? selectedOrangeWallDepths[block.id] ?? 0
       : null;
     setToast(`${block.name}${wallForm === null ? "" : ` ${wallForm === "hidden" ? "hidden volume" : wallForm} · rise ${wallDepth}`}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" || block.visual.kind === "button" ? " · click a face to choose its mounting" : ""} selected`);
-  }, [blocks, genericRoleIds, selectedGenericIds, selectedOrangeWallDepths, selectedSlopeDirections]);
+  }, [blocks, cameraQuarterTurns, genericRoleIds, selectedGenericIds, selectedOrangeWallDepths]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
     const slots = [DELETE_TOOL_ID, GROUP_TOOL_ID, ...blocks.map((block) => block.id)];
@@ -2098,7 +2097,7 @@ export default function VoxelBench() {
         : selectedGenericIds[block.id] ?? 0
       : null;
     const slopeDirection = block.visual.kind === "slope"
-      ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+      ? cameraFacingSlopeDirection(cameraQuarterTurns)
       : null;
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
@@ -2106,7 +2105,7 @@ export default function VoxelBench() {
     setToast(genericId === null
       ? `${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""} selected`
       : `${block.name} ${genericId}${block.visual.kind === "lift" ? " · face chooses direction" : ""} selected`);
-  }, [blocks, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds, selectedSlopeDirections]);
+  }, [blocks, cameraQuarterTurns, genericBlockIds, groupToolPinned, selectedBlock, selectedGenericIds]);
 
   const handleHorizontalToolbarKey = useCallback((direction: -1 | 1) => {
     if (!groupToolPinned && selectedDefinition && genericBlockIds.has(selectedDefinition.id)) {
@@ -2136,16 +2135,8 @@ export default function VoxelBench() {
         return;
       }
     }
-    if (!groupToolPinned && selectedDefinition?.visual.kind === "slope") {
-      const currentDirection = normalizeSlopeDirection(selectedSlopeDirections[selectedDefinition.id]);
-      const nextDirection = offsetSlopeDirection(currentDirection, direction);
-      const option = SLOPE_DIRECTION_OPTIONS.find((candidate) => candidate.id === nextDirection);
-      setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: nextDirection }));
-      setToast(`${selectedDefinition.name} ${option?.glyph ?? ""} ${option?.label ?? nextDirection} selected`);
-      return;
-    }
     selectToolbarRelative(direction);
-  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds, selectedOrangeWallDepths, selectedSlopeDirections]);
+  }, [genericBlockIds, groupToolPinned, selectToolbarRelative, selectedDefinition, selectedGenericIds, selectedOrangeWallDepths]);
 
   const confirmGenericSelection = () => {
     if (!genericPrompt) return;
@@ -2609,10 +2600,7 @@ export default function VoxelBench() {
       : undefined;
     const blockDefinition = blockId ? blockDefinitionsById.get(blockId) : undefined;
     const slopeDirection = blockDefinition?.visual.kind === "slope"
-      ? slopeDirectionFromPaintFace(
-          surface,
-          normalizeSlopeDirection(selectedSlopeDirections[blockDefinition.id]),
-        )
+      ? cameraFacingSlopeDirection(cameraQuarterTurns)
       : null;
     const liftOrientation = blockDefinition?.visual.kind === "lift"
       ? liftOrientationFromPaintFace(surface)
@@ -3564,7 +3552,7 @@ export default function VoxelBench() {
                     ? block.visual.orangeForm ?? "cube"
                     : null;
                   const slopeDirection = block.visual.kind === "slope"
-                    ? normalizeSlopeDirection(selectedSlopeDirections[block.id])
+                    ? cameraFacingSlopeDirection(cameraQuarterTurns)
                     : null;
                   const slopeOption = slopeDirection
                     ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
@@ -3580,7 +3568,7 @@ export default function VoxelBench() {
                       ? undefined
                       : String(selectedOrangeWallDepths[block.id] ?? 0);
                   return (
-                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallForm === null ? liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · ←/→ changes direction` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state` : `${orangeWallForm === "hidden" ? "Hidden volume" : orangeWallForm === "face" ? "Face" : "Cube"} · ${selectedOrangeWallDepths[block.id] ?? 0} remaining rise · ←/→ changes remaining rise`}`} onClick={() => requestBlockSelection(block.id)}>
+                    <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${orangeWallForm === null ? liftId === null ? generic ? `generic object ${selectedGenericIds[block.id] ?? 0}${slopeOption ? ` · ${slopeOption.label} · camera-facing` : ""} · ←/→ changes ID` : slopeOption ? `${slopeOption.label} · camera-facing · rotate camera to change direction · ←/→ chooses tools` : `${roles.find((role) => role.id === block.roleId)?.name ?? block.roleId} · ←/→ chooses tools` : `State ${liftId} · ${liftRaised ? "raised" : "lowered"} · click face chooses direction · ←/→ toggles state` : `${orangeWallForm === "hidden" ? "Hidden volume" : orangeWallForm === "face" ? "Face" : "Cube"} · ${selectedOrangeWallDepths[block.id] ?? 0} remaining rise · ←/→ changes remaining rise`}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
                       <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? "pressure-button" : ""} ${block.visual.kind === "orange-wall" ? `orange-wall orange-wall--${orangeWallForm === "face" ? "surface" : orangeWallForm}` : ""} ${liftId === null ? "" : `lift lift--${liftRaised ? "raised" : "lowered"} lift--top`} ${generic ? "generic" : orangeWallForm === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : null}</span>
                     </button>
@@ -3669,7 +3657,7 @@ export default function VoxelBench() {
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
                   <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
-                  {selectedDefinition.visual.kind === "slope" && <div className="slope-direction-picker" role="group" aria-label="Slope paint direction">{SLOPE_DIRECTION_OPTIONS.map((option) => <button key={option.id} type="button" className={selectedSlopeDirection === option.id ? "is-active" : ""} aria-pressed={selectedSlopeDirection === option.id} title={`Paint ${option.label.toLowerCase()} slope`} onClick={() => { setSelectedSlopeDirections((current) => ({ ...current, [selectedDefinition.id]: option.id })); setToast(`${selectedDefinition.name} ${option.glyph} ${option.label} selected`); }}><span aria-hidden="true">{option.glyph}</span>{option.label}</button>)}</div>}
+                  {selectedDefinition.visual.kind === "slope" && <p className="engine-role-note"><b>Painting follows the camera.</b> Every slope faces the far side of the current view, regardless of which cube face you click. Rotate the camera to choose another direction.</p>}
                   {selectedDefinition.visual.kind === "lift" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click a cube’s top or one of its four side faces. The toolbar state stays 0 (lowered) or 1 (raised), while the saved lift receives the matching directional ID from 0–9.</p>}
                   {selectedDefinition.visual.kind === "button" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click any top, bottom, or side face. A rigid occupant sharing the button’s cell activates it internally, but the authored and rendered button always remains the same full-height cylinder.</p>}
                   {selectedDefinition.visual.kind === "orange-wall" && <><label className="field"><span>Remaining rise</span><input type="number" min={0} step={1} value={selectedOrangeWallDepth ?? 0} onChange={(event) => { const value = Number(event.target.value); if (Number.isInteger(value) && value >= 0) setSelectedOrangeWallDepths((current) => ({ ...current, [selectedDefinition.id]: value })); }} /></label><p className="engine-role-note"><b>This is a dedicated {selectedOrangeWallForm === "face" ? "flat face" : selectedOrangeWallForm === "hidden" ? "hidden volume" : "solid cube"} tool.</b> {selectedOrangeWallForm === "hidden" ? "It is translucent in the test editor, may overlap any object, and is omitted from gameplay rendering." : "Its visible form is not a toggle."} Zero will not rise; N means it still needs to rise N mechanism steps.</p></>}

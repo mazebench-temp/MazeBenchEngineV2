@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
+  cameraFacingSlopeDirection,
   cameraRelativeDirection,
   cameraYawQuarterTurns,
   stepCameraZoom,
@@ -21,6 +22,13 @@ test("screen arrows follow the rotated camera", () => {
   assert.equal(cameraRelativeDirection("right", 1), "up");
   assert.equal(cameraRelativeDirection("down", 2), "up");
   assert.equal(cameraRelativeDirection("left", 3), "up");
+});
+
+test("slope painting always faces the far side of the camera", () => {
+  assert.deepEqual(
+    [0, 1, 2, 3].map(cameraFacingSlopeDirection),
+    ["up", "left", "down", "right"],
+  );
 });
 
 test("keyboard zoom uses deterministic bounded steps", () => {

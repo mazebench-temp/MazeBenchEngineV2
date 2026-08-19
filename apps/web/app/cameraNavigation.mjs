@@ -27,6 +27,12 @@ export function cameraRelativeDirection(screenDirection, cameraQuarterTurns) {
   return DIRECTIONS[(screenIndex - turns + 4) % 4];
 }
 
+// MazeBench slope authoring always points the ramp toward the far side of the
+// current camera view. This is deliberately independent of the painted face.
+export function cameraFacingSlopeDirection(cameraQuarterTurns) {
+  return cameraRelativeDirection("up", cameraQuarterTurns);
+}
+
 /**
  * Apply one keyboard zoom step. Positive direction zooms in, negative zooms
  * out. Keeping this discrete makes keyboard zoom deterministic across

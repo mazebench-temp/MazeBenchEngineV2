@@ -36,20 +36,6 @@ export function slopeDirectionIndex(direction) {
   return SLOPE_DIRECTIONS.indexOf(normalizeSlopeDirection(direction));
 }
 
-// Like wall-mounted lifts and buttons, a slope painted onto a side face takes
-// its direction from that face's world-space normal. A top/bottom face has no
-// horizontal normal, so it preserves the direction currently selected in the
-// toolbar.
-export function slopeDirectionFromPaintFace(facePick = {}, fallback = "up") {
-  const dx = Math.sign(Number(facePick?.dx) || 0);
-  const dy = Math.sign(Number(facePick?.dy) || 0);
-  if (dx > 0) return "right";
-  if (dx < 0) return "left";
-  if (dy > 0) return "down";
-  if (dy < 0) return "up";
-  return normalizeSlopeDirection(fallback);
-}
-
 export function offsetSlopeDirection(direction, offset) {
   const index = slopeDirectionIndex(direction);
   return SLOPE_DIRECTIONS[((index + offset) % 4 + 4) % 4];
