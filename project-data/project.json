@@ -21926,6 +21926,24 @@
       "file": "test-323-copy-copy-2.json"
     },
     {
+      "id": "test-323-copy-copy-2-copy",
+      "name": "box resting on orange (2) copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "orange-walls-boxes"
+      ],
+      "file": "test-323-copy-copy-2-copy.json"
+    },
+    {
+      "id": "test-323-copy-copy-2-copy-copy",
+      "name": "box resting on orange (2) copy copy",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "orange-walls-boxes"
+      ],
+      "file": "test-323-copy-copy-2-copy-copy.json"
+    },
+    {
       "id": "test-323",
       "name": "Buttons attached to orange (1)",
       "groupTagId": "orange-walls",
@@ -21990,7 +22008,6 @@
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
-        "orange-walls-boxes",
         "sideways-button"
       ],
       "file": "test-323-copy-2-copy.json"
