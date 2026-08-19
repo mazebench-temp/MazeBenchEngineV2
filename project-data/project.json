@@ -22636,6 +22636,15 @@
         "box-slopes-default"
       ],
       "file": "test-382-copy-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-413",
+      "name": "Lift is attached to orange wall",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "lift-attachments"
+      ],
+      "file": "test-413.json"
     }
   ]
 }
