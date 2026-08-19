@@ -4988,6 +4988,10 @@
     }
 
     function actorColor(actor) {
+      if (typeof actor?.voxelColor === "string" && /^#[0-9a-f]{6}$/i.test(actor.voxelColor)) {
+        return actor.voxelColor;
+      }
+
       if (actor?.shape === "slope") {
         const numberedSlopeColor = slopeStyleColor(
           actor.styleKey || actor.groupId,
@@ -9053,6 +9057,7 @@
         logicalSourceFollowsPaint: true,
         topY,
         bottomY: topY - height,
+        selectionKey: actor.selectionKey,
         sourceLayer
       };
 
@@ -9488,6 +9493,7 @@
         actor.groupId || "",
         actor.shape || "",
         actor.styleKey || "",
+        actor.voxelColor || "",
         actor.modelUrl || "",
         actor.direction || actor.facing || "",
         actor.removed ? 1 : 0,

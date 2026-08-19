@@ -40,10 +40,17 @@ function roleCode(roleId) {
 
 const roleCodes = new Map(project.roles.map((role) => [role.id, roleCode(role.id)]));
 for (const direction of ["up", "right", "down", "left"]) {
-  roleCodes.set(`ice-slope-${direction}`, roleCode(`ice-slope-${direction}`));
+  for (const family of ["ice-slope", "blue-box-slope", "yellow-clone-slope"]) {
+    roleCodes.set(`${family}-${direction}`, roleCode(`${family}-${direction}`));
+  }
 }
 const blocksById = new Map(project.blocks.map((block) => [block.id, block]));
 const slopeDirections = ["up", "right", "down", "left"];
+function slopePhysicsRoleId(baseRoleId, direction) {
+  if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
+  if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
+  return `ice-slope-${direction}`;
+}
 function voxelRole(voxel) {
   const block = blocksById.get(voxel.blockId);
   if (!block) return 0;
@@ -51,7 +58,7 @@ function voxelRole(voxel) {
     const direction = slopeDirections.includes(voxel.orientation)
       ? voxel.orientation
       : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
-    return roleCodes.get(`ice-slope-${direction}`) ?? 0;
+    return roleCodes.get(slopePhysicsRoleId(block.roleId, direction)) ?? 0;
   }
   return roleCodes.get(block.roleId) ?? 0;
 }

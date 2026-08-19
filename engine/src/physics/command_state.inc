@@ -410,7 +410,7 @@ void CollectGoalsAtActors(
       return;
     }
     for (int32_t index = 0; index < count; ++index) {
-      if ((voxels[index].role == kCloneRole ||
+      if ((IsCloneObjectRole(voxels[index].role) ||
            voxels[index].role == kPlayerRole) &&
           voxels[index].x == goal.x && voxels[index].y == goal.y &&
           voxels[index].z == goal.z) {

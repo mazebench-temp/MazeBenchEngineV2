@@ -168,6 +168,75 @@ void TestIndependentCloneCommands() {
         "an unblocked clone should still receive the shared command");
 }
 
+void TestBlueSlopeAndBoxShareTheirGenericBody() {
+  voxelbench::Voxel voxels[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("weightless-pushable"), 7},
+      {2, 2, 1, Role("blue-box-slope-left"), 7},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 8, 4, 4, 0) == 0,
+        "a same-ID blue cube and slope push should run");
+  Check(voxels[0].y == 2 && voxels[1].y == 1 && voxels[2].y == 1,
+        "a blue slope should translate as one rigid body with its same-ID box");
+
+  voxelbench::Voxel blocked[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("weightless-pushable"), 7},
+      {2, 2, 1, Role("blue-box-slope-left"), 7},
+      {2, 1, 1, Role("wall"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(blocked, 9, 4, 4, 0) == 0,
+        "a blocked same-ID blue cube and slope push should run");
+  Check(blocked[0].y == 3 && blocked[1].y == 2 && blocked[2].y == 2,
+        "blocking any blue slope voxel should block its complete same-ID body");
+}
+
+void TestYellowSlopeAndCloneShareTheirGenericBody() {
+  voxelbench::Voxel voxels[] = {
+      {0, 2, 1, Role("player"), -1},
+      {1, 2, 1, Role("clone"), 4},
+      {2, 2, 1, Role("yellow-clone-slope-right"), 4},
+      {1, 1, 1, Role("wall"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {1, 1, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 10, 3, 3, 0) == 0,
+        "a same-ID clone cube and yellow slope command should run");
+  Check(voxels[1].y == 2 && voxels[2].y == 2,
+        "blocking a clone cube should also block its same-ID yellow slope");
+
+  voxelbench::Voxel pushing[] = {
+      {0, 5, 1, Role("player"), -1},
+      {2, 4, 1, Role("yellow-clone-slope-down"), 0},
+      {2, 3, 1, Role("weightless-pushable"), 0},
+      {2, 1, 1, Role("wall"), -1},
+      {0, 5, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {2, 4, 0, Role("floor"), -1},
+      {2, 3, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {2, 1, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(pushing, 10, 6, 6, 0) == 0,
+        "a yellow clone slope pushing a weightless body should run");
+  Check(pushing[0].y == 4 && pushing[1].y == 3 && pushing[2].y == 2,
+        "a yellow clone slope should push weightless bodies like a cube clone");
+}
+
 void TestInterlockingCloneCommandComponent() {
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
@@ -1506,6 +1575,8 @@ int main() {
   TestIceStopsAtObstacle();
   TestUnknownRoleBlocks();
   TestIndependentCloneCommands();
+  TestBlueSlopeAndBoxShareTheirGenericBody();
+  TestYellowSlopeAndCloneShareTheirGenericBody();
   TestInterlockingCloneCommandComponent();
   TestExactSearchTracksCloneActors();
   TestPlayerPolycubeMovesAndFallsRigidly();
@@ -1564,6 +1635,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 61 C++ physics/search tests passed\n";
+  std::cout << "all 63 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

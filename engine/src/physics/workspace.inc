@@ -13,6 +13,18 @@ constexpr uint32_t kIceSlopeUpRole = HashRoleLiteral("ice-slope-up");
 constexpr uint32_t kIceSlopeRightRole = HashRoleLiteral("ice-slope-right");
 constexpr uint32_t kIceSlopeDownRole = HashRoleLiteral("ice-slope-down");
 constexpr uint32_t kIceSlopeLeftRole = HashRoleLiteral("ice-slope-left");
+constexpr uint32_t kBlueBoxSlopeUpRole = HashRoleLiteral("blue-box-slope-up");
+constexpr uint32_t kBlueBoxSlopeRightRole = HashRoleLiteral("blue-box-slope-right");
+constexpr uint32_t kBlueBoxSlopeDownRole = HashRoleLiteral("blue-box-slope-down");
+constexpr uint32_t kBlueBoxSlopeLeftRole = HashRoleLiteral("blue-box-slope-left");
+constexpr uint32_t kYellowCloneSlopeUpRole =
+    HashRoleLiteral("yellow-clone-slope-up");
+constexpr uint32_t kYellowCloneSlopeRightRole =
+    HashRoleLiteral("yellow-clone-slope-right");
+constexpr uint32_t kYellowCloneSlopeDownRole =
+    HashRoleLiteral("yellow-clone-slope-down");
+constexpr uint32_t kYellowCloneSlopeLeftRole =
+    HashRoleLiteral("yellow-clone-slope-left");
 constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
@@ -31,9 +43,34 @@ constexpr uint8_t kMechanismObject = 2;
 constexpr uint8_t kCloneObject = 3;
 constexpr uint8_t kPlayerObject = 4;
 
-bool IsIceSlopeRole(uint32_t role) {
+bool IsTerrainIceSlopeRole(uint32_t role) {
   return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||
       role == kIceSlopeDownRole || role == kIceSlopeLeftRole;
+}
+
+bool IsBlueBoxSlopeRole(uint32_t role) {
+  return role == kBlueBoxSlopeUpRole || role == kBlueBoxSlopeRightRole ||
+      role == kBlueBoxSlopeDownRole || role == kBlueBoxSlopeLeftRole;
+}
+
+bool IsYellowCloneSlopeRole(uint32_t role) {
+  return role == kYellowCloneSlopeUpRole ||
+      role == kYellowCloneSlopeRightRole ||
+      role == kYellowCloneSlopeDownRole ||
+      role == kYellowCloneSlopeLeftRole;
+}
+
+bool IsWeightlessObjectRole(uint32_t role) {
+  return role == kWeightlessPushableRole || IsBlueBoxSlopeRole(role);
+}
+
+bool IsCloneObjectRole(uint32_t role) {
+  return role == kCloneRole || IsYellowCloneSlopeRole(role);
+}
+
+bool IsIceSlopeRole(uint32_t role) {
+  return IsTerrainIceSlopeRole(role) || IsBlueBoxSlopeRole(role) ||
+      IsYellowCloneSlopeRole(role);
 }
 
 bool IsIceRole(uint32_t role) {
@@ -105,7 +142,7 @@ int32_t OrangeWallSupportZ(
         voxels[index].y != wall.y || voxels[index].role == kOrangeWallRole ||
         voxels[index].role == kPlayerRole ||
         voxels[index].role == kPushableRole ||
-        voxels[index].role == kWeightlessPushableRole ||
+        IsWeightlessObjectRole(voxels[index].role) ||
         voxels[index].role == kPlayerLiftRole ||
         voxels[index].role == kOrangeButtonRole ||
         IsPassThroughVoxel(voxels[index]) ||
@@ -211,10 +248,14 @@ bool VoxelBlocksSpace(Voxel* voxels, int32_t count, int32_t index) {
 }
 
 int32_t IceSlopeDirection(uint32_t role) {
-  if (role == kIceSlopeUpRole) return 0;
-  if (role == kIceSlopeRightRole) return 1;
-  if (role == kIceSlopeDownRole) return 2;
-  if (role == kIceSlopeLeftRole) return 3;
+  if (role == kIceSlopeUpRole || role == kBlueBoxSlopeUpRole ||
+      role == kYellowCloneSlopeUpRole) return 0;
+  if (role == kIceSlopeRightRole || role == kBlueBoxSlopeRightRole ||
+      role == kYellowCloneSlopeRightRole) return 1;
+  if (role == kIceSlopeDownRole || role == kBlueBoxSlopeDownRole ||
+      role == kYellowCloneSlopeDownRole) return 2;
+  if (role == kIceSlopeLeftRole || role == kBlueBoxSlopeLeftRole ||
+      role == kYellowCloneSlopeLeftRole) return 3;
   return -1;
 }
 

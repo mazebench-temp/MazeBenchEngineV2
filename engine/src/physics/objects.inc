@@ -50,15 +50,16 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       ActiveWorkspace().scene_has_orange_mechanisms = true;
       continue;
     }
-    if (voxels[index].role != kWeightlessPushableRole &&
-        voxels[index].role != kCloneRole) continue;
+    if (!IsWeightlessObjectRole(voxels[index].role) &&
+        !IsCloneObjectRole(voxels[index].role)) continue;
 
+    const bool clone = IsCloneObjectRole(voxels[index].role);
+    const uint32_t family_role = clone ? kCloneRole : kWeightlessPushableRole;
     const uint64_t object_key =
-        (static_cast<uint64_t>(voxels[index].role) << 32u) |
+        (static_cast<uint64_t>(family_role) << 32u) |
         static_cast<uint32_t>(voxels[index].generic_id);
     int32_t object = HashFind(object_key);
     if (object < 0) {
-      const bool clone = voxels[index].role == kCloneRole;
       object = CreateObject(clone ? kCloneObject : kWeightlessObject);
       if (!clone) ++g_weightless_object_count;
       HashInsert(object_key, object);

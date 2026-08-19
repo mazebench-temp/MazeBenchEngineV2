@@ -61,8 +61,9 @@ bool prepare_scene(
   data.prepared_index_active = false;
   for (int32_t index = dynamic_voxel_count; index < count; ++index) {
     const uint32_t role = voxels[index].role;
-    if (role == kPlayerRole || role == kCloneRole || role == kPushableRole ||
-        role == kWeightlessPushableRole || role == kPlayerLiftRole ||
+    if (role == kPlayerRole || IsCloneObjectRole(role) ||
+        role == kPushableRole || IsWeightlessObjectRole(role) ||
+        role == kPlayerLiftRole ||
         role == kOrangeButtonRole || role == kOrangeWallRole) {
       data.prepared_dynamic_voxel_count = -1;
       return false;
@@ -83,7 +84,7 @@ bool prepare_scene(
     data.prepared_has_orange_mechanisms |=
         voxels[index].role == kOrangeButtonRole ||
         voxels[index].role == kOrangeWallRole;
-    data.prepared_has_clones |= voxels[index].role == kCloneRole;
+    data.prepared_has_clones |= IsCloneObjectRole(voxels[index].role);
     player_count += voxels[index].role == kPlayerRole ? 1 : 0;
     if (voxels[index].role == kGoalRole) {
       data.prepared_goal_indices[data.prepared_goal_count++] = index;

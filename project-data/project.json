@@ -552,6 +552,20 @@
       "locked": false,
       "name": "Default",
       "parentId": "box-slopes"
+    },
+    {
+      "collapsed": false,
+      "id": "clone-slopes",
+      "locked": false,
+      "name": "Clone Slopes"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "clone-slopes-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "clone-slopes"
     }
   ],
   "searches": [
@@ -22209,6 +22223,24 @@
       "file": "test-369.json"
     },
     {
+      "id": "test-369-copy-3",
+      "name": "Untitled test 369 copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369-copy-3.json"
+    },
+    {
+      "id": "test-369-copy-2",
+      "name": "Untitled test 369 copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-369-copy-2.json"
+    },
+    {
       "id": "test-369-copy",
       "name": "Untitled test 369 copy",
       "groupTagId": "box-slopes",
@@ -22252,6 +22284,168 @@
         "box-slopes-default"
       ],
       "file": "test-369-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-377",
+      "name": "clone slope object mass",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377.json"
+    },
+    {
+      "id": "test-377-copy-2",
+      "name": "how not to slide up a clone",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-2.json"
+    },
+    {
+      "id": "test-377-copy",
+      "name": "how to slide up a clone",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy.json"
+    },
+    {
+      "id": "test-377-copy-copy",
+      "name": "how to slide up a clone copy",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-copy.json"
+    },
+    {
+      "id": "test-377-copy-copy-copy",
+      "name": "how to slide up a clone copy copy",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-copy-copy.json"
+    },
+    {
+      "id": "test-377-copy-copy-copy-copy",
+      "name": "how to slide up a clone copy copy copy",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-377-copy-copy-copy-copy-copy",
+      "name": "how to slide up a clone copy copy copy copy",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-377-copy-copy-copy-copy-2",
+      "name": "how to slide up a clone copy copy copy",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-default"
+      ],
+      "file": "test-377-copy-copy-copy-copy-2.json"
+    },
+    {
+      "id": "test-382",
+      "name": "Untitled test 382",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382.json"
+    },
+    {
+      "id": "test-383",
+      "name": "Untitled test 383",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-383.json"
+    },
+    {
+      "id": "test-383-copy",
+      "name": "Untitled test 383 copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-383-copy.json"
+    },
+    {
+      "id": "test-388",
+      "name": "Untitled test 388",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-388.json"
+    },
+    {
+      "id": "test-382-copy",
+      "name": "Untitled test 382 copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy.json"
+    },
+    {
+      "id": "test-382-copy-copy",
+      "name": "Untitled test 382 copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy-copy.json"
+    },
+    {
+      "id": "test-382-copy-copy-copy",
+      "name": "Untitled test 382 copy copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy-copy-copy.json"
+    },
+    {
+      "id": "test-382-copy-copy-copy-copy",
+      "name": "Untitled test 382 copy copy copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-382-copy-copy-copy-copy-copy",
+      "name": "Untitled test 382 copy copy copy copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-382-copy-copy-copy-copy-copy-copy",
+      "name": "Untitled test 382 copy copy copy copy copy copy",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-382-copy-copy-copy-copy-copy-copy.json"
     }
   ]
 }

@@ -170,14 +170,19 @@ type TerrainCell = {
 
 type RenderActor = {
   collectionId: string;
+  direction?: string;
   elevation: number;
+  groupId?: string;
   label: string;
   modelUrl?: string;
   orientation?: string;
   removed: false;
   selected: boolean;
   selectionKey: string;
-  type: "gem" | "orange_button";
+  shape?: "cube" | "slope";
+  styleKey?: string;
+  type: "clone" | "gem" | "orange_button" | "weightless_box";
+  voxelColor?: string;
   x: number;
   y: number;
 };
@@ -396,9 +401,33 @@ function frameToPlayData(
   const definitions = new Map(blocks.map((block) => [block.id, block]));
   const actors: RenderActor[] = frame.voxels.flatMap((voxel) => {
     const definition = definitions.get(voxel.blockId);
-    if (!definition || (definition.visual.kind !== "gem" && definition.visual.kind !== "button")) return [];
+    if (!definition) return [];
+    const rigidFamilyType = definition.roleId === "weightless-pushable"
+      ? "weightless_box"
+      : definition.roleId === "clone"
+        ? "clone"
+        : null;
+    const isRigidFamilyMember = rigidFamilyType !== null &&
+      (definition.visual.kind === "cube" || definition.visual.kind === "slope");
+    if (!isRigidFamilyMember && definition.visual.kind !== "gem" && definition.visual.kind !== "button") return [];
+    const genericId = Math.max(0, Math.floor(Number(voxel.groupId ?? voxel.genericId) || 0));
+    const groupId = rigidFamilyType === "clone" ? `c${genericId}` : `M${genericId}`;
+    const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
     return [{
       collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
+      ...(isRigidFamilyMember
+        ? {
+            direction: definition.visual.kind === "slope"
+              ? normalizeSlopeDirection(voxel.orientation, voxel.variantId)
+              : undefined,
+            groupId,
+            shape: definition.visual.kind === "slope" ? "slope" as const : "cube" as const,
+            styleKey: groupId,
+            voxelColor: selected
+              ? lerpHexColor(definition.color, "#34e7f0", 0.48)
+              : definition.color,
+          }
+        : {}),
       elevation: voxel.z + layerOffset,
       label: definition.name,
       ...(definition.visual.kind === "gem"
@@ -407,9 +436,11 @@ function frameToPlayData(
             orientation: normalizeButtonOrientation(voxel.orientation, voxel.variantId),
           }),
       removed: false,
-      selected: selectedVoxelKeys.has(cellObjectSelectionKey(voxel)),
+      selected,
       selectionKey: cellObjectSelectionKey(voxel),
-      type: definition.visual.kind === "gem" ? "gem" : "orange_button",
+      type: isRigidFamilyMember
+        ? rigidFamilyType
+        : definition.visual.kind === "gem" ? "gem" : "orange_button",
       x: voxel.x,
       y: voxel.y,
     }];
@@ -422,6 +453,10 @@ function frameToPlayData(
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
           if (!definition || !["cube", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
+          if (
+            (definition.roleId === "weightless-pushable" || definition.roleId === "clone") &&
+            (definition.visual.kind === "cube" || definition.visual.kind === "slope")
+          ) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
           const orangeForm = definition.visual.kind === "orange-wall"

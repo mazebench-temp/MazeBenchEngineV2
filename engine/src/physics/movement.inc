@@ -1986,6 +1986,123 @@ void PreserveSlopeCarriedMomentum(
   }
 }
 
+void PreserveMovableSlopeRiderMomentum(
+    Voxel* voxels,
+    int32_t width,
+    int32_t height) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_moving_objects[object] == 0 ||
+        g_object_redirected[object] == 2) {
+      continue;
+    }
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].z == INT32_MIN) continue;
+      const int32_t support = FindVoxelAt(
+          voxels,
+          voxels[member].x,
+          voxels[member].y,
+          voxels[member].z - 1,
+          width,
+          height);
+      const int32_t carrier = support >= 0 ? g_voxel_object[support] : -1;
+      if (carrier < 0 || carrier == object ||
+          g_moving_objects[carrier] == 0 ||
+          (!IsBlueBoxSlopeRole(voxels[support].role) &&
+           !IsYellowCloneSlopeRole(voxels[support].role))) {
+        continue;
+      }
+      g_inherited_support_motion[object] = static_cast<uint8_t>(
+          OppositeDirection(IceSlopeDirection(voxels[support].role)) + 1);
+      break;
+    }
+  }
+}
+
+bool ObjectCurrentSlopeProposalIsBlocked(
+    Voxel* voxels,
+    int32_t object,
+    int32_t player_index,
+    int32_t width,
+    int32_t height,
+    bool player_moves_horizontally) {
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const int32_t next_x = voxels[member].x + g_object_dx[object];
+    const int32_t next_y = voxels[member].y + g_object_dy[object];
+    const int32_t next_z = voxels[member].z + g_object_dz[object];
+    if (!IsInsideRoom(next_x, next_y, width, height)) return true;
+    const int32_t occupant = FindVoxelAt(
+        voxels, next_x, next_y, next_z, width, height);
+    if (occupant < 0 || g_voxel_object[occupant] == object) continue;
+    if (occupant == player_index) return !player_moves_horizontally;
+    const int32_t other = g_voxel_object[occupant];
+    if (other >= 0 && g_mandatory_objects[other] != 0 &&
+        ObjectProposalVacatesCell(
+            voxels, other, next_x, next_y, next_z)) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
+// A movable ramp that advances low-edge-first into a horizontally trapped
+// weightless body wedges underneath it. The ramp keeps its horizontal
+// proposal while the trapped body converts its failed horizontal proposal to
+// one vertical step. Untrapped bodies retain the ordinary push closure.
+void ConvertTrappedBodiesToMovableSlopeLifts(
+    Voxel* voxels,
+    int32_t player_index,
+    int32_t width,
+    int32_t height,
+    bool player_moves_horizontally) {
+  for (int32_t slope_object = 0; slope_object < g_object_count;
+       ++slope_object) {
+    if (g_mandatory_objects[slope_object] == 0 ||
+        (g_object_kind[slope_object] != kWeightlessObject &&
+         g_object_kind[slope_object] != kCloneObject)) {
+      continue;
+    }
+    const int32_t movement_direction = g_object_direction[slope_object];
+    if (movement_direction < 0 || movement_direction > 3) continue;
+    for (int32_t member = g_object_head[slope_object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      const uint32_t role = voxels[member].role;
+      if ((!IsBlueBoxSlopeRole(role) && !IsYellowCloneSlopeRole(role)) ||
+          IceSlopeDirection(role) != OppositeDirection(movement_direction)) {
+        continue;
+      }
+      const int32_t next_x = voxels[member].x + g_object_dx[slope_object];
+      const int32_t next_y = voxels[member].y + g_object_dy[slope_object];
+      const int32_t next_z = voxels[member].z + g_object_dz[slope_object];
+      const int32_t occupant = FindVoxelAt(
+          voxels, next_x, next_y, next_z, width, height);
+      if (occupant < 0) continue;
+      const int32_t lifted = g_voxel_object[occupant];
+      if (lifted < 0 || lifted == slope_object ||
+          g_object_kind[lifted] != kWeightlessObject ||
+          g_mandatory_objects[lifted] == 0 ||
+          !ObjectCurrentSlopeProposalIsBlocked(
+              voxels,
+              lifted,
+              player_index,
+              width,
+              height,
+              player_moves_horizontally)) {
+        continue;
+      }
+      g_object_dx[lifted] = 0;
+      g_object_dy[lifted] = 0;
+      g_object_dz[lifted] = 1;
+      // Reflection propagation has already completed, so value 2 is a local
+      // marker for this converted vertical proposal. It is cleared before
+      // returning to the tick state machine.
+      g_object_redirected[lifted] = 2;
+    }
+  }
+}
+
 // Directional slope motion is transactional at the object level. Each rigid
 // polycube owns its direction and vertical ramp delta; only a head-on contact
 // with a reflected body propagates that reflection through a touching convoy.
@@ -2069,7 +2186,9 @@ bool TranslateSlopeMomentumObjects(
             allow_downhill_contact_push && g_component_objects[object] != 0 &&
             ObjectIsFullyOnIce(voxels, other, width, height);
         if ((deliberate_contact_push || downhill_ice_contact_push) &&
-            g_object_kind[object] == kWeightlessObject &&
+            (g_object_kind[object] == kWeightlessObject ||
+             g_object_kind[object] == kCloneObject ||
+             g_object_kind[object] == kPlayerObject) &&
             g_object_kind[other] == kWeightlessObject) {
           g_mandatory_objects[other] = 1;
           g_moving_objects[other] = 1;
@@ -2123,6 +2242,13 @@ bool TranslateSlopeMomentumObjects(
           voxels, object, width, height, false, allow_push);
     }
   }
+
+  ConvertTrappedBodiesToMovableSlopeLifts(
+      voxels,
+      player_index,
+      width,
+      height,
+      player_moves_horizontally);
 
   // Slope proposals can have a different vertical delta per object, so the
   // ordinary uniform-delta carrier path cannot be used directly. Discover
@@ -2320,7 +2446,17 @@ bool TranslateSlopeMomentumObjects(
   }
   BuildSpatialIndex(voxels, count, width, height);
   PreserveSlopeCarriedMomentum(voxels, width, height);
+  PreserveMovableSlopeRiderMomentum(voxels, width, height);
   MarkObjectsForDeferredGravity(voxels, width, height, false);
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_object_redirected[object] == 2) {
+      // The lifted body moved vertically because its horizontal proposal was
+      // blocked. It must not inherit the ramp body's horizontal command as a
+      // new Ice-momentum tick.
+      g_moving_objects[object] = 0;
+      g_object_redirected[object] = 0;
+    }
+  }
   return true;
 }
 

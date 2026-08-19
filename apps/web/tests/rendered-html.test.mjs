@@ -191,7 +191,8 @@ test("non-cube hover and selection are drawn on their real geometry", async () =
   assert.match(renderer, /terrainColor\(descriptor\.type, descriptor\)/);
   assert.match(renderer, /editorGeometryColor\("#f59e0b", selectionKey, selected\)/);
   assert.match(renderer, /actor\.selected === true/);
-  assert.match(canvas, /selected: selectedVoxelKeys\.has\(cellObjectSelectionKey\(voxel\)\)/);
+  assert.match(canvas, /const selected = selectedVoxelKeys\.has\(cellObjectSelectionKey\(voxel\)\)/);
+  assert.match(canvas, /selected,\s*selectionKey: cellObjectSelectionKey\(voxel\)/);
 });
 
 test("lowered orange walls are zero-thickness, paintable support faces", async () => {

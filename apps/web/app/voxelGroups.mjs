@@ -25,10 +25,23 @@ function voxelCanShareCell(voxel, shareableBlockIds, definitions) {
     : shareableBlockIds.has(voxel.blockId);
 }
 
+function genericObjectGroupId(voxel) {
+  return Number.isInteger(voxel.groupId)
+    ? voxel.groupId
+    : Number.isInteger(voxel.genericId) ? voxel.genericId : -1;
+}
+
+function rigidGenericFamilyRole(voxel, definitions) {
+  if (!(definitions instanceof Map)) return null;
+  const roleId = definitions.get(voxel.blockId)?.roleId;
+  return roleId === "weightless-pushable" || roleId === "clone" ? roleId : null;
+}
+
 /**
- * Selects the complete six-neighbor component containing `origin`. "Exact
- * type" includes group, variant, state, and orientation, so adjacent authored
- * mechanisms and numbered polycubes remain independently selectable.
+ * Selects the complete six-neighbor component containing `origin`. Numbered
+ * rigid box/clone families use role + object ID as their identity, allowing a
+ * cube and any directional slopes to form one selectable polycube. Other
+ * authored objects retain exact block, variant, state, and orientation identity.
  *
  * @param {Voxel[]} voxels
  * @param {{ x: number, y: number, z: number, selectionKey?: string }} origin
@@ -55,9 +68,10 @@ export function selectConnectedVoxelGroup(
       originOccupants.at(-1);
   if (!first) return [];
 
-  const groupId = Number.isInteger(first.groupId)
-    ? first.groupId
-    : Number.isInteger(first.genericId) ? first.genericId : -1;
+  const groupId = genericObjectGroupId(first);
+  const rigidFamilyRole = groupId >= 0
+    ? rigidGenericFamilyRole(first, definitions)
+    : null;
   const variantId = Number.isInteger(first.variantId) ? first.variantId : 0;
   const stateId = Number.isInteger(first.stateId) ? first.stateId : 0;
   const orientation = String(first.orientation ?? "none");
@@ -72,13 +86,15 @@ export function selectConnectedVoxelGroup(
         `${voxel.x + dx},${voxel.y + dy},${voxel.z + dz}`,
       ) ?? [];
       const neighbor = candidates.find((candidate) => {
-        const candidateGroupId = Number.isInteger(candidate.groupId)
-          ? candidate.groupId
-          : Number.isInteger(candidate.genericId) ? candidate.genericId : -1;
-        return candidate.blockId === first.blockId && candidateGroupId === groupId &&
+        const candidateGroupId = genericObjectGroupId(candidate);
+        const sameRigidFamily = rigidFamilyRole !== null &&
+          rigidGenericFamilyRole(candidate, definitions) === rigidFamilyRole &&
+          candidateGroupId === groupId;
+        const sameExactType = candidate.blockId === first.blockId && candidateGroupId === groupId &&
           (Number.isInteger(candidate.variantId) ? candidate.variantId : 0) === variantId &&
           (Number.isInteger(candidate.stateId) ? candidate.stateId : 0) === stateId &&
-          String(candidate.orientation ?? "none") === orientation &&
+          String(candidate.orientation ?? "none") === orientation;
+        return (sameRigidFamily || sameExactType) &&
           !selected.has(cellObjectSelectionKey(candidate));
       });
       if (!neighbor) continue;

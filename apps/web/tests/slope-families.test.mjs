@@ -44,6 +44,21 @@ test("generic slope numbers use MazeBench's inclined ramp-face label", async () 
   );
 });
 
+test("box and clone cubes share MazeBench's grouped actor render path with their slopes", async () => {
+  const canvas = await readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8");
+  const renderer = await readFile(
+    new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(canvas, /definition\.roleId === "weightless-pushable"[\s\S]*?"weightless_box"/);
+  assert.match(canvas, /definition\.roleId === "clone"[\s\S]*?"clone"/);
+  assert.match(canvas, /shape: definition\.visual\.kind === "slope" \? "slope"/);
+  assert.match(canvas, /rigidFamilyType === "clone" \? `c\$\{genericId\}` : `M\$\{genericId\}`/);
+  assert.match(renderer, /groupedSlopeActorContactsForVoxels/);
+  assert.match(renderer, /groupedSlopeActorSuppressedEdgeContacts/);
+});
+
 test("browser simulation and search preserve distinct directional slope roles", async () => {
   const physicsEngine = await readFile(
     new URL("../app/physicsEngine.ts", import.meta.url),
@@ -51,6 +66,10 @@ test("browser simulation and search preserve distinct directional slope roles", 
   );
   const searchWorker = await readFile(
     new URL("../public/search-worker.js", import.meta.url),
+    "utf8",
+  );
+  const authoredSuite = await readFile(
+    new URL("../../../engine/tests/project_suite.test.mjs", import.meta.url),
     "utf8",
   );
 
@@ -61,4 +80,6 @@ test("browser simulation and search preserve distinct directional slope roles", 
     assert.match(source, /yellow-clone-slope-left/);
     assert.match(source, /slopePhysicsRoleId\(block\.roleId, (?:orientation|direction)\)/);
   }
+  assert.match(authoredSuite, /\["ice-slope", "blue-box-slope", "yellow-clone-slope"\]/);
+  assert.match(authoredSuite, /slopePhysicsRoleId\(block\.roleId, direction\)/);
 });

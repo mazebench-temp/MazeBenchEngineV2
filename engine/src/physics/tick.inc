@@ -187,7 +187,9 @@ bool AdvanceCloneCommandObjects(
     if (g_clone_command_moved[object] == 0) continue;
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
-    g_object_direction[object] = static_cast<uint8_t>(direction);
+    g_object_direction[object] = g_inherited_support_motion[object] != 0
+        ? static_cast<uint8_t>(g_inherited_support_motion[object] - 1)
+        : static_cast<uint8_t>(direction);
   }
   (void)StoreSupportedMandatoryMomentum(
       state, voxels, count, width, height, direction);
@@ -208,10 +210,12 @@ bool AppendCloneCommandMomentum(
       continue;
     }
     stored = true;
+    const uint8_t momentum = g_inherited_support_motion[object] != 0
+        ? g_inherited_support_motion[object]
+        : static_cast<uint8_t>(direction + 1);
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
-      state->horizontal_momentum[member] =
-          static_cast<uint8_t>(direction + 1);
+      state->horizontal_momentum[member] = momentum;
     }
   }
   return stored;

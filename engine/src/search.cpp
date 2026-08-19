@@ -18,6 +18,21 @@ constexpr uint32_t kCloneRole = HashRoleLiteral("clone");
 constexpr uint32_t kPushableRole = HashRoleLiteral("pushable");
 constexpr uint32_t kWeightlessPushableRole =
     HashRoleLiteral("weightless-pushable");
+constexpr uint32_t kBlueBoxSlopeUpRole = HashRoleLiteral("blue-box-slope-up");
+constexpr uint32_t kBlueBoxSlopeRightRole =
+    HashRoleLiteral("blue-box-slope-right");
+constexpr uint32_t kBlueBoxSlopeDownRole =
+    HashRoleLiteral("blue-box-slope-down");
+constexpr uint32_t kBlueBoxSlopeLeftRole =
+    HashRoleLiteral("blue-box-slope-left");
+constexpr uint32_t kYellowCloneSlopeUpRole =
+    HashRoleLiteral("yellow-clone-slope-up");
+constexpr uint32_t kYellowCloneSlopeRightRole =
+    HashRoleLiteral("yellow-clone-slope-right");
+constexpr uint32_t kYellowCloneSlopeDownRole =
+    HashRoleLiteral("yellow-clone-slope-down");
+constexpr uint32_t kYellowCloneSlopeLeftRole =
+    HashRoleLiteral("yellow-clone-slope-left");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
@@ -117,9 +132,36 @@ uint64_t Mix64(uint64_t value) {
   return value ^ (value >> 31u);
 }
 
+bool IsBlueBoxSlopeRole(uint32_t role) {
+  return role == kBlueBoxSlopeUpRole || role == kBlueBoxSlopeRightRole ||
+      role == kBlueBoxSlopeDownRole || role == kBlueBoxSlopeLeftRole;
+}
+
+bool IsYellowCloneSlopeRole(uint32_t role) {
+  return role == kYellowCloneSlopeUpRole ||
+      role == kYellowCloneSlopeRightRole ||
+      role == kYellowCloneSlopeDownRole ||
+      role == kYellowCloneSlopeLeftRole;
+}
+
+bool IsWeightlessObjectRole(uint32_t role) {
+  return role == kWeightlessPushableRole || IsBlueBoxSlopeRole(role);
+}
+
+bool IsCloneObjectRole(uint32_t role) {
+  return role == kCloneRole || IsYellowCloneSlopeRole(role);
+}
+
+uint32_t DynamicFamilyRole(uint32_t role) {
+  if (IsWeightlessObjectRole(role)) return kWeightlessPushableRole;
+  if (IsCloneObjectRole(role)) return kCloneRole;
+  return role;
+}
+
 bool IsDynamic(uint32_t role) {
-  return role == kPlayerRole || role == kCloneRole || role == kPushableRole ||
-      role == kWeightlessPushableRole || role == kPlayerLiftRole ||
+  return role == kPlayerRole || IsCloneObjectRole(role) ||
+      role == kPushableRole || IsWeightlessObjectRole(role) ||
+      role == kPlayerLiftRole ||
       role == kOrangeButtonRole;
 }
 
@@ -995,11 +1037,12 @@ SearchResult search_shortest(
     const int32_t target = data->dynamic_voxel_count++;
     data->scene[target] = voxels[source];
     int32_t entity = -1;
-    if (voxels[source].role == kWeightlessPushableRole ||
-        voxels[source].role == kCloneRole ||
+    const uint32_t family_role = DynamicFamilyRole(voxels[source].role);
+    if (IsWeightlessObjectRole(voxels[source].role) ||
+        IsCloneObjectRole(voxels[source].role) ||
         voxels[source].role == kPlayerRole) {
       for (int32_t candidate = 0; candidate < data->entity_count; ++candidate) {
-        if (data->entity_roles[candidate] == voxels[source].role &&
+        if (data->entity_roles[candidate] == family_role &&
             data->entity_generic_ids[candidate] == voxels[source].generic_id) {
           entity = candidate;
           break;
@@ -1012,7 +1055,7 @@ SearchResult search_shortest(
       }
       entity = data->entity_count++;
       data->entity_anchors[entity] = target;
-      data->entity_roles[entity] = voxels[source].role;
+      data->entity_roles[entity] = family_role;
       data->entity_generic_ids[entity] = voxels[source].generic_id;
     }
     data->voxel_entities[target] = static_cast<int16_t>(entity);

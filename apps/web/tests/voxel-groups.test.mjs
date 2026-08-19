@@ -17,6 +17,10 @@ const voxel = (x, y, z, blockId = "crate", genericId) =>
 const selectionKeys = (voxels) => voxels.map(cellObjectSelectionKey);
 const definitions = new Map([
   ["crate", { roleId: "pushable", occupancy: "solid" }],
+  ["blue-box", { roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "cube" } }],
+  ["blue-box-slope", { roleId: "weightless-pushable", occupancy: "solid", visual: { kind: "slope" } }],
+  ["clone", { roleId: "clone", occupancy: "solid", visual: { kind: "cube" } }],
+  ["clone-slope", { roleId: "clone", occupancy: "solid", visual: { kind: "slope" } }],
   ["orange-wall", {
     roleId: "orange-wall",
     occupancy: "solid",
@@ -60,6 +64,34 @@ test("connected selection separates authored state and variant values", () => {
   assert.deepEqual(
     new Set(selectConnectedVoxelGroup([first, same, otherState, otherVariant], first)),
     new Set(selectionKeys([first, same])),
+  );
+});
+
+test("same-ID box cubes and directional slopes form one connected rigid selection", () => {
+  const cube = { ...voxel(1, 1, 1, "blue-box", 7), groupId: 7, instanceId: "box-cube" };
+  const slope = {
+    ...voxel(2, 1, 1, "blue-box-slope", 7),
+    groupId: 7,
+    instanceId: "box-slope",
+    orientation: "left",
+    variantId: 3,
+  };
+  const otherId = { ...voxel(3, 1, 1, "blue-box", 8), groupId: 8, instanceId: "other-box" };
+
+  assert.deepEqual(
+    new Set(selectConnectedVoxelGroup([cube, slope, otherId], cube, new Set(), definitions)),
+    new Set(["instance:box-cube", "instance:box-slope"]),
+  );
+});
+
+test("same-ID clone cubes and slopes form one group without joining box IDs", () => {
+  const clone = { ...voxel(1, 1, 1, "clone", 2), groupId: 2, instanceId: "clone-cube" };
+  const slope = { ...voxel(1, 1, 2, "clone-slope", 2), groupId: 2, instanceId: "clone-slope" };
+  const box = { ...voxel(2, 1, 1, "blue-box", 2), groupId: 2, instanceId: "box-same-id" };
+
+  assert.deepEqual(
+    new Set(selectConnectedVoxelGroup([clone, slope, box], slope, new Set(), definitions)),
+    new Set(["instance:clone-cube", "instance:clone-slope"]),
   );
 });
 
