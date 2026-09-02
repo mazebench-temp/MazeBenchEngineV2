@@ -297,7 +297,7 @@
       "parentId": "weightless-box"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "id": "3d-boxes",
       "locked": false,
       "name": "3D Box"
@@ -19005,6 +19005,24 @@
       "file": "test-8.json"
     },
     {
+      "id": "test-8-copy-2",
+      "name": "Player can walk on walls copy",
+      "groupTagId": "general",
+      "tagIds": [
+        "general-default"
+      ],
+      "file": "test-8-copy-2.json"
+    },
+    {
+      "id": "test-8-copy-2-copy",
+      "name": "Player can walk on walls copy copy",
+      "groupTagId": "general",
+      "tagIds": [
+        "general-default"
+      ],
+      "file": "test-8-copy-2-copy.json"
+    },
+    {
       "id": "test-8-copy",
       "name": "Walls are immoveable",
       "groupTagId": "general",
@@ -20097,6 +20115,51 @@
       "file": "test-124-copy-copy.json"
     },
     {
+      "id": "test-124-copy-copy-copy",
+      "name": "Untitled test 124 copy copy copy",
+      "groupTagId": "3d-box-ice",
+      "tagIds": [
+        "3d-box-ice-default"
+      ],
+      "file": "test-124-copy-copy-copy.json"
+    },
+    {
+      "id": "test-124-copy-copy-copy-copy",
+      "name": "Untitled test 124 copy copy copy copy",
+      "groupTagId": "3d-box-ice",
+      "tagIds": [
+        "3d-box-ice-default"
+      ],
+      "file": "test-124-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-124-copy-copy-copy-copy-copy",
+      "name": "Untitled test 124 copy copy copy copy copy",
+      "groupTagId": "3d-box-ice",
+      "tagIds": [
+        "3d-box-ice-default"
+      ],
+      "file": "test-124-copy-copy-copy-copy-copy.json"
+    },
+    {
+      "id": "test-124-copy-copy-copy-copy-2",
+      "name": "Untitled test 124 copy copy copy copy",
+      "groupTagId": "3d-box-ice",
+      "tagIds": [
+        "3d-box-ice-default"
+      ],
+      "file": "test-124-copy-copy-copy-copy-2.json"
+    },
+    {
+      "id": "test-124-copy-copy-copy-copy-2-copy",
+      "name": "Untitled test 124 copy copy copy copy copy",
+      "groupTagId": "3d-box-ice",
+      "tagIds": [
+        "3d-box-ice-default"
+      ],
+      "file": "test-124-copy-copy-copy-copy-2-copy.json"
+    },
+    {
       "id": "test-129",
       "name": "Untitled test 129",
       "groupTagId": "3d-boxes",
@@ -20104,6 +20167,24 @@
         "stacked"
       ],
       "file": "test-129.json"
+    },
+    {
+      "id": "test-129-copy",
+      "name": "Untitled test 129 copy",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "stacked"
+      ],
+      "file": "test-129-copy.json"
+    },
+    {
+      "id": "test-129-copy-copy",
+      "name": "Untitled test 129 copy copy",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "stacked"
+      ],
+      "file": "test-129-copy-copy.json"
     },
     {
       "id": "test-131",
@@ -20596,6 +20677,15 @@
       "file": "test-166-copy-copy-copy.json"
     },
     {
+      "id": "test-166-copy-copy-copy-copy-2",
+      "name": "Untitled test 166 copy copy copy copy",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-166-copy-copy-copy-copy-2.json"
+    },
+    {
       "id": "test-166-copy-copy-copy-copy",
       "name": "Untitled test 166 copy copy copy copy",
       "groupTagId": "ice-slopes-box",
@@ -20605,13 +20695,31 @@
       "file": "test-166-copy-copy-copy-copy.json"
     },
     {
-      "id": "test-166-copy-copy-copy-copy-copy",
+      "id": "test-166-copy-copy-copy-copy-copy-2",
       "name": "Untitled test 166 copy copy copy copy copy",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
       ],
-      "file": "test-166-copy-copy-copy-copy-copy.json"
+      "file": "test-166-copy-copy-copy-copy-copy-2.json"
+    },
+    {
+      "id": "test-166-copy-copy-copy-copy-copy-2-copy",
+      "name": "Untitled test 166 copy copy copy copy copy copy",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-166-copy-copy-copy-copy-copy-2-copy.json"
+    },
+    {
+      "id": "test-166-copy-copy-copy-copy-copy-2-copy-copy",
+      "name": "Untitled test 166 copy copy copy copy copy copy copy",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-166-copy-copy-copy-copy-copy-2-copy-copy.json"
     },
     {
       "id": "test-167",
@@ -21253,6 +21361,51 @@
       "file": "test-254.json"
     },
     {
+      "id": "test-254-copy-4",
+      "name": "Untitled test 254 copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "lift-default"
+      ],
+      "file": "test-254-copy-4.json"
+    },
+    {
+      "id": "test-254-copy-4-copy-2",
+      "name": "Untitled test 254 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "lift-default"
+      ],
+      "file": "test-254-copy-4-copy-2.json"
+    },
+    {
+      "id": "test-254-copy-4-copy-2-copy",
+      "name": "Untitled test 254 copy copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "lift-default"
+      ],
+      "file": "test-254-copy-4-copy-2-copy.json"
+    },
+    {
+      "id": "test-254-copy-4-copy",
+      "name": "Untitled test 254 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "lift-default"
+      ],
+      "file": "test-254-copy-4-copy.json"
+    },
+    {
+      "id": "test-254-copy-3-copy-2",
+      "name": "Untitled test 254 copy copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-254-copy-3-copy-2.json"
+    },
+    {
       "id": "test-254-copy-3",
       "name": "Untitled test 254 copy",
       "groupTagId": "lift",
@@ -21269,15 +21422,6 @@
         "side-lift"
       ],
       "file": "test-254-copy-3-copy.json"
-    },
-    {
-      "id": "test-254-copy-3-copy-2",
-      "name": "Untitled test 254 copy copy",
-      "groupTagId": "lift",
-      "tagIds": [
-        "side-lift"
-      ],
-      "file": "test-254-copy-3-copy-2.json"
     },
     {
       "id": "test-254-copy-3-copy-2-copy",
