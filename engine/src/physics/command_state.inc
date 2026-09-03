@@ -121,6 +121,39 @@ void StoreMandatoryMomentum(
   }
 }
 
+bool FloatingFloorHasIceDrivenActorBehind(
+    Voxel* voxels,
+    int32_t object,
+    int32_t width,
+    int32_t height) {
+  if (!ObjectIsFloatingFloor(voxels, object) ||
+      g_object_direction[object] > 3) {
+    return false;
+  }
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  const int32_t direction = g_object_direction[object];
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const int32_t behind = FindVoxelAt(
+        voxels,
+        voxels[member].x - kDx[direction],
+        voxels[member].y - kDy[direction],
+        voxels[member].z,
+        width,
+        height);
+    if (behind < 0 ||
+        (voxels[behind].role != kPlayerRole &&
+         !IsCloneObjectRole(voxels[behind].role))) {
+      continue;
+    }
+    if (IsSupportedByIce(voxels, voxels[behind], width, height)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool StoreSupportedMandatoryMomentum(
     MotionState* state,
     Voxel* voxels,
@@ -144,12 +177,16 @@ bool StoreSupportedMandatoryMomentum(
       continue;
     }
     const bool punch_momentum = IsPunchMomentum(g_object_redirected[object]);
+    const bool ice_driven_floating_floor =
+        FloatingFloorHasIceDrivenActorBehind(
+            voxels, object, width, height);
     const bool supported_momentum =
         (g_inherited_support_motion[object] != 0 ||
          g_mandatory_objects[object] != 0 ||
          g_object_redirected[object] != 0) &&
         (punch_momentum || g_inherited_support_motion[object] != 0 ||
-         ObjectIsFullyOnIce(voxels, object, width, height));
+         ObjectIsFullyOnIce(voxels, object, width, height) ||
+         ice_driven_floating_floor);
     bool supported_by_momentum_body = false;
     bool supported_by_nonfalling_momentum_body = false;
     uint8_t supporting_momentum_direction = UINT8_MAX;
@@ -358,6 +395,13 @@ void InitializeMotion(
       continue;
     }
     if (ObjectIsActive(voxels, object, width, height)) {
+      if (ObjectIsFloatingFloor(voxels, object)) {
+        // A Floating Floor authored in mid-air remains at that elevation.
+        // Once translated, the movement kernels arm it so subsequent support
+        // loss is animated normally. This is what distinguishes an authored
+        // hovering platform from an accidentally airborne ordinary body.
+        continue;
+      }
       // Dynamic bodies are never allowed to begin a command suspended in the
       // editor volume. Arm them even over the abyss so they settle or leave
       // the world before the requested horizontal input is evaluated.

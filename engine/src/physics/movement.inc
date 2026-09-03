@@ -19,6 +19,66 @@ void ClearMovingObjects() {
   }
 }
 
+bool ObjectCanTransmitDeliberatePush(int32_t object) {
+  if (object < 0) return false;
+  return g_object_kind[object] == kNormalObject ||
+      g_object_kind[object] == kWeightlessObject ||
+      g_object_kind[object] == kCloneObject ||
+      g_object_kind[object] == kPlayerObject;
+}
+
+bool DeliberatePushMayRecruit(int32_t source, int32_t target) {
+  if (!ObjectCanTransmitDeliberatePush(source) || target < 0) return false;
+  if (g_object_kind[target] == kWeightlessObject) return true;
+  if (g_object_kind[target] != kNormalObject) return false;
+  // The command supplies one unit of push force. Weightless polycubes can
+  // occur anywhere in the contact closure, but only one ordinary box or
+  // Floating Floor may participate in the complete transaction.
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_mandatory_objects[object] != 0 &&
+        g_object_kind[object] == kNormalObject) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool FloatingFloorDestinationIsSupportedOrFillable(
+    Voxel* voxels,
+    int32_t object,
+    int32_t dx,
+    int32_t dy,
+    int32_t dz,
+    int32_t width,
+    int32_t height) {
+  if (!ObjectIsFloatingFloor(voxels, object)) return true;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const Voxel& voxel = voxels[member];
+    const int32_t target_z = voxel.z + dz;
+    const int32_t support = target_z == INT32_MIN ? -1 : FindVoxelAt(
+        voxels,
+        voxel.x + dx,
+        voxel.y + dy,
+        target_z - 1,
+        width,
+        height);
+    // Row 1 is the one deliberate unsupported exception: entering a Row-0
+    // hole schedules the authored visible-hover frame followed by Floor fill.
+    if (support < 0 && target_z != 1) return false;
+  }
+  return true;
+}
+
+void ArmTranslatedFloatingFloors(Voxel* voxels) {
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (g_moving_objects[object] != 0 &&
+        ObjectIsFloatingFloor(voxels, object)) {
+      g_object_gravity_armed[object] = 1;
+    }
+  }
+}
+
 // A compressed Orange Wall voxel is non-colliding, but its raised anchor can
 // be embedded in a movable polycube (or immediately beneath that polycube's
 // bottom voxel). In that authored arrangement it is a fixture of the rigid
@@ -745,6 +805,11 @@ bool TranslateMovingObjects(
     // closure, or inter-body race to resolve. Preserve the exact general-path
     // collision rules while avoiding several redundant graph passes per Ice
     // cell. Complex scenes continue through the solver below.
+    if (allow_push &&
+        !FloatingFloorDestinationIsSupportedOrFillable(
+            voxels, 0, dx, dy, dz, width, height)) {
+      return false;
+    }
     for (int32_t member = g_object_head[0]; member >= 0;
          member = g_next_object_voxel[member]) {
       const Voxel& voxel = voxels[member];
@@ -777,6 +842,7 @@ bool TranslateMovingObjects(
       voxels[member].y += dy;
       voxels[member].z += dz;
     }
+    ArmTranslatedFloatingFloors(voxels);
     BuildSpatialIndex(voxels, count, width, height);
     MarkObjectsForDeferredGravity(voxels, width, height, false);
     return true;
@@ -830,10 +896,7 @@ bool TranslateMovingObjects(
         continue;
       }
       if (allow_push &&
-          (g_object_kind[object] == kWeightlessObject ||
-           g_object_kind[object] == kCloneObject ||
-           g_object_kind[object] == kPlayerObject) && other_object >= 0 &&
-          g_object_kind[other_object] == kWeightlessObject) {
+          DeliberatePushMayRecruit(object, other_object)) {
         AddMandatoryObject(other_object, queue_end);
         continue;
       }
@@ -889,11 +952,7 @@ bool TranslateMovingObjects(
               (other >= 0 && g_mandatory_objects[other] != 0)) {
             continue;
           }
-          if (allow_push &&
-              (g_object_kind[object] == kWeightlessObject ||
-               g_object_kind[object] == kCloneObject ||
-               g_object_kind[object] == kPlayerObject) && other >= 0 &&
-              g_object_kind[other] == kWeightlessObject) {
+          if (allow_push && DeliberatePushMayRecruit(object, other)) {
             AddMandatoryObject(other, queue_end);
             continue;
           }
@@ -910,6 +969,11 @@ bool TranslateMovingObjects(
       // A raised fixture caught against terrain anchors the carrier beneath
       // it. Nothing has translated yet, so the complete proposal can abort
       // transactionally.
+      return false;
+    }
+    if (allow_push && g_mandatory_objects[object] != 0 &&
+        !FloatingFloorDestinationIsSupportedOrFillable(
+            voxels, object, dx, dy, dz, width, height)) {
       return false;
     }
   }
@@ -961,6 +1025,7 @@ bool TranslateMovingObjects(
       voxels[member].z += dz;
     }
   }
+  ArmTranslatedFloatingFloors(voxels);
   BuildSpatialIndex(voxels, count, width, height);
   // A stationary body can lose support when a different body translates out
   // from beneath it. Mark every armed body here so that its downward proposal
@@ -2656,11 +2721,14 @@ bool TranslateSlopeMomentumObjects(
         const bool downhill_ice_contact_push =
             allow_downhill_contact_push && g_component_objects[object] != 0 &&
             ObjectIsFullyOnIce(voxels, other, width, height);
-        if ((deliberate_contact_push || downhill_ice_contact_push) &&
+        const bool recruit_deliberate = deliberate_contact_push &&
+            DeliberatePushMayRecruit(object, other);
+        const bool recruit_downhill = downhill_ice_contact_push &&
             (g_object_kind[object] == kWeightlessObject ||
              g_object_kind[object] == kCloneObject ||
              g_object_kind[object] == kPlayerObject) &&
-            g_object_kind[other] == kWeightlessObject) {
+            g_object_kind[other] == kWeightlessObject;
+        if (recruit_deliberate || recruit_downhill) {
           g_mandatory_objects[other] = 1;
           g_moving_objects[other] = 1;
           g_object_direction[other] = g_object_direction[object];
@@ -2762,6 +2830,17 @@ bool TranslateSlopeMomentumObjects(
     if (g_mandatory_objects[object] == 0 ||
         !ObjectIsActive(voxels, object, width, height)) {
       continue;
+    }
+    if (allow_push &&
+        !FloatingFloorDestinationIsSupportedOrFillable(
+            voxels,
+            object,
+            g_object_dx[object],
+            g_object_dy[object],
+            g_object_dz[object],
+            width,
+            height)) {
+      return false;
     }
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
@@ -2971,6 +3050,7 @@ bool TranslateSlopeMomentumObjects(
     }
     return false;
   }
+  ArmTranslatedFloatingFloors(voxels);
   BuildSpatialIndex(voxels, count, width, height);
   PreserveSlopeCarriedMomentum(voxels, width, height);
   PreserveMovableSlopeRiderMomentum(voxels, width, height);
@@ -3078,6 +3158,10 @@ bool ObjectsNeedGravityTick(
   bool needs_tick = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     if (!ObjectIsActive(voxels, object, width, height)) continue;
+    if (ObjectIsFloatingFloor(voxels, object) &&
+        g_object_gravity_armed[object] == 0) {
+      continue;
+    }
     // A vertically interlocked component can give every member apparent
     // direct support even while the entire component is falling. The settle
     // pass owns the decision to clear this flag when the component lands.

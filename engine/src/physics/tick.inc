@@ -6,6 +6,90 @@ bool IsCommandActorObject(int32_t object) {
        g_object_kind[object] == kPlayerObject);
 }
 
+// Clone components resolve from front to back, so one may reach the player's
+// current cell before the player's own command is evaluated. Validate the
+// player's straight, non-slope proposal without committing it; a clone may
+// treat that cell as vacated only when the complete push transaction can
+// actually succeed.
+bool PlayerWillVacateForCloneCommand(
+    Voxel* voxels,
+    int32_t count,
+    int32_t player_index,
+    int32_t direction,
+    int32_t width,
+    int32_t height) {
+  if (player_index < 0 ||
+      !ObjectIsActive(voxels, g_voxel_object[player_index], width, height)) {
+    // A one-voxel player intentionally has no rigid-object record.
+    if (player_index < 0 ||
+        !IsInsideRoom(
+            voxels[player_index].x, voxels[player_index].y, width, height)) {
+      return false;
+    }
+  } else if (g_object_kind[g_voxel_object[player_index]] == kPlayerObject) {
+    return true;
+  }
+  // Directional slope commands have their own simultaneous proposal graph.
+  // Existing clone/slope behavior remains authoritative there.
+  if (SceneHasIceSlopes(voxels, count, width, height)) return true;
+
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  const Voxel& player = voxels[player_index];
+  const int32_t dx = kDx[direction];
+  const int32_t dy = kDy[direction];
+  const int32_t target_x = player.x + dx;
+  const int32_t target_y = player.y + dy;
+  if (!IsInsideRoom(target_x, target_y, width, height)) return false;
+
+  const int32_t target = FindVoxelAt(
+      voxels, target_x, target_y, player.z, width, height);
+  if (target >= 0) {
+    const int32_t object = g_voxel_object[target];
+    if (object < 0) return false;
+    if (IsCommandActorObject(object)) return true;
+    if (g_object_kind[object] != kNormalObject &&
+        g_object_kind[object] != kWeightlessObject) {
+      return false;
+    }
+    ClearMovingObjects();
+    g_mandatory_objects[object] = 1;
+    g_moving_objects[object] = 1;
+    g_object_direction[object] = static_cast<uint8_t>(direction);
+    const bool can_move = TranslateMovingObjects(
+        voxels,
+        count,
+        player_index,
+        dx,
+        dy,
+        0,
+        width,
+        height,
+        true,
+        true,
+        true,
+        false,
+        false);
+    ClearMovingObjects();
+    return can_move;
+  }
+
+  if (player.z == INT32_MIN) return false;
+  const int32_t direct_support = FindVoxelAt(
+      voxels, target_x, target_y, player.z - 1, width, height);
+  if (direct_support >= 0) {
+    return voxels[direct_support].role != kFloatingFloorRole;
+  }
+  const int32_t current_support = FindVoxelAt(
+      voxels, player.x, player.y, player.z - 1, width, height);
+  const int32_t lower_support = FindNearestVoxelBelow(
+      voxels, count, target_x, target_y, player.z, -1, width);
+  return current_support >= 0 &&
+      (voxels[current_support].role == kFloorRole ||
+       IsIceRole(voxels[current_support].role)) &&
+      lower_support < 0;
+}
+
 // Clone IDs and a multi-voxel player are command-controlled rigid polycubes.
 // They all receive the input, but a blocked actor must not cancel another
 // actor. Destination-linked actors form one simultaneous
@@ -35,6 +119,8 @@ bool AdvanceCloneCommandObjects(
     ActiveWorkspace().clone_command_tick_active = false;
     return false;
   }
+  const bool player_will_vacate = PlayerWillVacateForCloneCommand(
+      voxels, count, player_index, direction, width, height);
 
   bool advanced = false;
   for (;;) {
@@ -131,6 +217,7 @@ bool AdvanceCloneCommandObjects(
             ? g_voxel_object[destination_support]
             : -1;
         if (destination_support >= 0 && destination_support != player_index &&
+            voxels[destination_support].role != kFloatingFloorRole &&
             support_object != object &&
             (support_object < 0 || g_component_objects[support_object] == 0)) {
           has_destination_support = true;
@@ -158,7 +245,7 @@ bool AdvanceCloneCommandObjects(
               true,
               false,
               true,
-              true,
+              player_will_vacate,
               player_was_pushed)
         : TranslateMovingObjects(
               voxels,
@@ -171,7 +258,7 @@ bool AdvanceCloneCommandObjects(
               height,
               false,
               true,
-              true,
+              player_will_vacate,
               false);
     if (!moved) continue;
     advanced = true;
@@ -1575,6 +1662,10 @@ TickResult step_tick(
   } else if (target_z != INT32_MIN) {
     const int32_t direct_support = FindVoxelAt(
         voxels, target_x, target_y, target_z - 1, width, height);
+    if (direct_support >= 0 &&
+        voxels[direct_support].role == kFloatingFloorRole) {
+      return store_and_finish(kMotionComplete, records_initial_tick);
+    }
     if (direct_support < 0) {
       const int32_t lower_support = FindNearestVoxelBelow(
           voxels, count, target_x, target_y, target_z, -1, width);
@@ -1739,6 +1830,17 @@ TickResult step_tick(
 
   if (!downhill_underfoot_push &&
       IsSupportedByIce(voxels, player, width, height)) {
+    // A displaced Floating Floor which did not retain momentum is stationary
+    // on the following player phase. Clear only that stale proposal so slope
+    // redirection sees it as the obstruction it is; other established convoy
+    // proposals retain their synchronized timing.
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (ObjectIsFloatingFloor(voxels, object) &&
+          ReadObjectMomentum(state->horizontal_momentum, object) == 0) {
+        g_mandatory_objects[object] = 0;
+        g_moving_objects[object] = 0;
+      }
+    }
     return store_and_finish(kMotionPlayerIce, true);
   }
   if (!automatic_ice_motion && !pushed && !downhill_underfoot_push &&

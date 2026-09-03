@@ -355,6 +355,11 @@ bool ObjectIsActive(Voxel* voxels, int32_t object, int32_t width, int32_t height
       IsInsideRoom(voxels[head].x, voxels[head].y, width, height);
 }
 
+bool ObjectIsFloatingFloor(Voxel* voxels, int32_t object) {
+  const int32_t head = object >= 0 ? g_object_head[object] : -1;
+  return head >= 0 && voxels[head].role == kFloatingFloorRole;
+}
+
 int32_t FindNearestVoxelBelow(
     Voxel* voxels,
     int32_t count,

@@ -1987,6 +1987,90 @@ void TestFloatingFloorFillsHoleOnFollowingTick() {
         "the platform should become permanent Floor in the Row-0 hole");
 }
 
+void TestFloatingFloorSharesOneWeightBudgetWithWeightlessChains() {
+  voxelbench::Voxel voxels[] = {
+      {0, 5, 1, Role("player"), -1},
+      {0, 4, 1, Role("floating-floor"), -1},
+      {0, 3, 1, Role("weightless-pushable"), 0},
+      {0, 2, 1, Role("weightless-pushable"), 1},
+      {0, 1, 0, Role("floor"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 3, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {0, 5, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 9, 6, 6, 0) == 0,
+        "a mixed Floating Floor and weightless chain push should run");
+  Check(voxels[0].y == 4 && voxels[1].y == 3 &&
+            voxels[2].y == 2 && voxels[3].y == 1,
+        "one weighted platform should transmit through any weightless chain");
+}
+
+void TestFloatingFloorIsNotWalkableOrPushableIntoHighVoid() {
+  voxelbench::Voxel walk[] = {
+      {0, 5, 2, Role("player"), -1},
+      {0, 5, 1, Role("solid"), -1},
+      {0, 4, 1, Role("floating-floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {0, 5, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(walk, 5, 6, 6, 0) == 0,
+        "walking toward a Floating Floor top should run");
+  Check(walk[0].y == 5,
+        "Floating Floor should not provide a walkable top surface");
+
+  voxelbench::Voxel high_push[] = {
+      {0, 4, 4, Role("player"), -1},
+      {0, 3, 4, Role("floating-floor"), -1},
+      {0, 3, 3, Role("solid"), -1},
+      {0, 4, 3, Role("solid"), -1},
+      {0, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(high_push, 5, 6, 6, 0) == 0,
+        "an unsupported high Floating Floor push should run");
+  Check(high_push[0].y == 4 && high_push[1].y == 3 &&
+            high_push[1].z == 4,
+        "a deliberate push must not launch Floating Floor into high void");
+}
+
+void TestCloneDoesNotEnterPlayerCellWhenPlayerPushIsBlocked() {
+  voxelbench::Voxel voxels[] = {
+      {0, 4, 1, Role("player"), -1},
+      {0, 5, 1, Role("clone"), 0},
+      {0, 3, 1, Role("floating-floor"), -1},
+      {0, 2, 1, Role("floating-floor"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 3, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+      {0, 5, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 8, 6, 6, 0) == 0,
+        "a blocked player and trailing clone command should run");
+  Check(voxels[0].y == 4 && voxels[1].y == 5 &&
+            voxels[2].y == 3 && voxels[3].y == 2,
+        "the clone must retain its cell when the player cannot vacate");
+}
+
+void TestAuthoredFloatingFloorHoversAndSlopeJamReflectsPlayer() {
+  voxelbench::Voxel voxels[] = {
+      {0, 4, 1, Role("player"), -1},
+      {0, 3, 2, Role("floating-floor"), -1},
+      {0, 3, 1, Role("ice-slope-up"), -1},
+      {0, 2, 1, Role("solid"), -1},
+      {0, 1, 2, Role("floating-floor"), -1},
+      {0, 1, 0, Role("floor"), -1},
+      {0, 2, 0, Role("floor"), -1},
+      {0, 3, 0, Role("floor"), -1},
+      {0, 4, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 9, 6, 6, 0) == 0,
+        "a Floating Floor slope-jam command should run");
+  Check(voxels[0].y == 4 && voxels[0].z == 1 &&
+            voxels[1].y == 2 && voxels[1].z == 2 &&
+            voxels[4].y == 1 && voxels[4].z == 2,
+        "the authored platform should hover while the blocked slope actor recoils");
+}
+
 void TestSearchTracksFilledFloatingFloorState() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
@@ -2093,11 +2177,15 @@ int main() {
   TestPuncherMomentumMovesAWholeWeightlessConvoy();
   TestFloatingFloorHasOneBoxPushWeight();
   TestFloatingFloorFillsHoleOnFollowingTick();
+  TestFloatingFloorSharesOneWeightBudgetWithWeightlessChains();
+  TestFloatingFloorIsNotWalkableOrPushableIntoHighVoid();
+  TestCloneDoesNotEnterPlayerCellWhenPlayerPushIsBlocked();
+  TestAuthoredFloatingFloorHoversAndSlopeJamReflectsPlayer();
   TestSearchTracksFilledFloatingFloorState();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 81 C++ physics/search tests passed\n";
+  std::cout << "all 85 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }
