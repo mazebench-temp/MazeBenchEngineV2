@@ -41,7 +41,6 @@ int32_t g_random_trail_next = 0;
 int32_t g_random_actions = 0;
 int32_t g_random_undos = 0;
 int32_t g_random_exit_direction = -1;
-int32_t g_random_exit_kind = 0;
 
 void EnsureInitialized() {
   if (g_initialized) return;
@@ -94,23 +93,22 @@ void RecordRandomVisit() {
   if (g_random_trail_count < kRandomTrailCapacity) ++g_random_trail_count;
 }
 
-int32_t RandomExitKind(
+bool RandomActionMayExit(
     const voxelbench::Voxel& before,
     const voxelbench::Voxel& after,
     int32_t direction) {
-  if (!RandomObjectIsActive(after)) return 0;
+  if (!RandomObjectIsActive(after)) return false;
   const int32_t dx = after.x - before.x;
   const int32_t dy = after.y - before.y;
-  const bool stationary = dx == 0 && dy == 0;
   if (after.y == 0 && ((dx == 0 && dy < 0) ||
-      (stationary && direction == 0))) return stationary ? 1 : 2;
+      (dx == 0 && dy == 0 && direction == 0))) return true;
   if (after.x == g_random_width - 1 && ((dx > 0 && dy == 0) ||
-      (stationary && direction == 1))) return stationary ? 1 : 2;
+      (dx == 0 && dy == 0 && direction == 1))) return true;
   if (after.y == g_random_height - 1 && ((dx == 0 && dy > 0) ||
-      (stationary && direction == 2))) return stationary ? 1 : 2;
+      (dx == 0 && dy == 0 && direction == 2))) return true;
   if (after.x == 0 && ((dx < 0 && dy == 0) ||
-      (stationary && direction == 3))) return stationary ? 1 : 2;
-  return 0;
+      (dx == 0 && dy == 0 && direction == 3))) return true;
+  return false;
 }
 
 }  // namespace
@@ -289,7 +287,6 @@ int32_t random_agent_run(int32_t maximum_actions) {
   g_random_actions = 0;
   g_random_undos = 0;
   g_random_exit_direction = -1;
-  g_random_exit_kind = 0;
   RecordRandomVisit();
 
   for (int32_t action = 0; action < maximum_actions; ++action) {
@@ -339,11 +336,9 @@ int32_t random_agent_run(int32_t maximum_actions) {
       RecordRandomVisit();
       continue;
     }
-    const int32_t exit_kind = RandomExitKind(before, player, direction);
-    if (exit_kind != 0) {
+    if (RandomActionMayExit(before, player, direction)) {
       RestoreRandomUndo();
       g_random_exit_direction = direction;
-      g_random_exit_kind = exit_kind;
       if (!voxelbench::prepare_quiescent_snapshot(
           &g_workspace,
           g_voxels,
@@ -370,10 +365,6 @@ int32_t random_agent_death_undos() {
 
 int32_t random_agent_exit_direction() {
   return g_random_exit_direction;
-}
-
-int32_t random_agent_exit_kind() {
-  return g_random_exit_kind;
 }
 
 uint32_t random_agent_seed() {

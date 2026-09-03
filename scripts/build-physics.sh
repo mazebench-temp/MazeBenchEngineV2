@@ -41,7 +41,6 @@ ZIG_GLOBAL_CACHE_DIR="$zig_global_cache_dir" \
   -Wl,--export=random_agent_actions \
   -Wl,--export=random_agent_death_undos \
   -Wl,--export=random_agent_exit_direction \
-  -Wl,--export=random_agent_exit_kind \
   -Wl,--export=random_agent_seed \
   -Wl,--export=random_agent_visited_word \
   -Wl,--export=random_agent_trail_count \
