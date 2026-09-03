@@ -108,6 +108,18 @@ test("native random-agent batches retain one death undo and a 50-cell trail", as
     roleCode(engine, "player"),
     -1,
   ]);
+
+  const ordinaryEdgeStep = [
+    { x: 1, y: 1, z: 1, roleId: "player" },
+    { x: 0, y: 1, z: 0, roleId: "floor" },
+    { x: 1, y: 1, z: 0, roleId: "floor" },
+    { x: 2, y: 1, z: 0, roleId: "floor" },
+  ];
+  const ordinaryEdgeState = writeVoxels(engine, ordinaryEdgeStep);
+  assert.equal(engine.random_agent_begin(ordinaryEdgeStep.length, 3, 3, 1, 1), 1);
+  assert.equal(engine.random_agent_run(1), 0);
+  assert.equal(engine.random_agent_actions(), 1);
+  assert.equal(ordinaryEdgeState.buffer[0], 2);
 });
 
 test("the C++ engine pushes a pushable role and preserves negative Z", async () => {
