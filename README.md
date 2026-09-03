@@ -96,4 +96,4 @@ npm run benchmark:search
 npm run benchmark:search:wasm
 ```
 
-`benchmark:physics` reports both a prepared eight-voxel Ice push and the shared passive player-command accelerator. The native and WASM search benchmarks solve the same frozen 110-voxel, arbitrary-3D fixture at its proven 427-command optimum, replay the returned solution, and report exact solve latency plus clearly separated global-state, local-state, successor, and command-simulation rates. Native uses the host CPU instruction set while WASM is a generic browser target, so each is a platform baseline rather than a direct native-versus-WASM contest.
+`benchmark:physics` reports both a prepared eight-voxel Ice push and the shared passive player-command accelerator. The native and WASM search benchmarks solve the same frozen 110-voxel, arbitrary-3D fixture at its proven 435-command optimum, replay the returned solution, and report exact solve latency plus clearly separated global-state, local-state, successor, and command-simulation rates. Native uses the host CPU instruction set while WASM is a generic browser target, so each is a platform baseline rather than a direct native-versus-WASM contest.
