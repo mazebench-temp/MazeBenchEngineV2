@@ -60,7 +60,7 @@ type BlockDefinition = {
   color: string;
   roleId: string;
   occupancy: string;
-  visual: { kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope"; modelUrl?: string };
+  visual: { kind: "button" | "cube" | "floating-floor" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope"; modelUrl?: string };
 };
 
 type SearchBenchProps = {

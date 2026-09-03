@@ -63,6 +63,8 @@ void TestSimplePush() {
 }
 
 void TestPlayerGateRisesWhenPlayerApproaches() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
       {0, 3, 1, Role("player-gate"), 0},
@@ -70,12 +72,22 @@ void TestPlayerGateRisesWhenPlayerApproaches() {
       {0, 4, 0, Role("floor"), -1},
       {0, 5, 0, Role("floor"), -1},
   };
-  Check(voxelbench::simulate_turn(voxels, 5, 6, 6, 0) == 0,
-        "player-gate approach command should run");
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 6, 6, 0) ==
+            voxelbench::TickResult::kMore,
+        "player-gate approach should schedule a mechanism tick");
   Check(voxels[0].y == 4,
         "player should approach a lowered player gate");
+  Check(voxels[1].generic_id == 0,
+        "player gate should remain lowered in the movement frame");
+  Check(voxelbench::step_tick(
+            &workspace, &state, voxels, 5, 6, 6, 0) ==
+            voxelbench::TickResult::kComplete,
+        "player-gate mechanism tick should complete the command");
   Check(voxels[1].generic_id == 1,
-        "player gate should become a raised cube beside the player");
+        "player gate should become a raised cube one tick later");
 }
 
 void TestPlayerIceSlide() {

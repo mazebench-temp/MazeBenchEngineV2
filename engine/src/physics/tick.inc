@@ -359,19 +359,12 @@ TickResult step_tick(
           height);
 
   bool orange_advanced_this_tick = false;
+  bool gate_advanced_this_tick = false;
   auto store_and_finish = [&](int32_t phase,
                               bool advanced,
                               bool gravity_already_checked = false) {
-    const bool gates_changed = RefreshPlayerGates(
-        voxels, count, width, height);
-    if (gates_changed) {
-      BuildSpatialIndex(voxels, count, width, height);
-      MarkObjectsForDeferredGravity(voxels, width, height, false);
-      state->player_gravity_armed = 1;
-    }
-    advanced |= gates_changed;
     advanced |= orange_advanced_this_tick || clone_command_advanced ||
-        puncher_visual_advanced;
+        puncher_visual_advanced || gate_advanced_this_tick;
     if (clone_command_tick) {
       (void)AppendCloneCommandMomentum(
           state, voxels, state->direction, width, height);
@@ -394,6 +387,10 @@ TickResult step_tick(
       // otherwise the body remains suspended until the next player command.
       phase = kMotionGravity;
       state->reserved[0] = kResumeNothing;
+    }
+    if (phase == kMotionComplete &&
+        PlayerGatesNeedTick(voxels, count, width, height)) {
+      phase = kMotionPlayerGates;
     }
     if (phase == kMotionComplete &&
         OrangeMechanismsNeedTick(voxels, count, width, height)) {
@@ -539,6 +536,26 @@ TickResult step_tick(
     state->player_falling = 1;
     return true;
   };
+
+  // Gate proximity is sampled from the previous animation frame. During
+  // continuous Ice/gravity motion, the gate update shares the following
+  // movement tick. Once other motion stops, a dedicated final mechanism tick
+  // exposes the same one-frame delay.
+  if (!initialized_this_call &&
+      (state->phase == kMotionPlayerGates ||
+       PlayerGatesNeedTick(voxels, count, width, height))) {
+    const bool dedicated_gate_tick = state->phase == kMotionPlayerGates;
+    gate_advanced_this_tick = RefreshPlayerGates(
+        voxels, count, width, height);
+    if (gate_advanced_this_tick) {
+      BuildSpatialIndex(voxels, count, width, height);
+      MarkObjectsForDeferredGravity(voxels, width, height, false);
+      state->player_gravity_armed = 1;
+    }
+    if (dedicated_gate_tick) {
+      return store_and_finish(kMotionComplete, false);
+    }
+  }
 
   // Orange walls react one tick after the pressure change. While another
   // motion phase is still active (Ice, gravity, or a lift), their one-row

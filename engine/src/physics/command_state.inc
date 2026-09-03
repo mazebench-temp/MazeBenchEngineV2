@@ -8,6 +8,7 @@ constexpr int32_t kMotionOrangeMechanisms = 6;
 constexpr int32_t kMotionPlayerPunch = 7;
 constexpr int32_t kMotionPlayerPunchUp = 8;
 constexpr int32_t kMotionPlayerPunchDown = 9;
+constexpr int32_t kMotionPlayerGates = 10;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;

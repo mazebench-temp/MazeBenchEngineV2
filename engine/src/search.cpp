@@ -167,8 +167,11 @@ bool IsDynamic(uint32_t role) {
 }
 
 bool SearchGateBlockingActor(uint32_t role) {
-  return role == kPushableRole || IsWeightlessObjectRole(role) ||
-      IsCloneObjectRole(role);
+  return role == kPushableRole || IsWeightlessObjectRole(role);
+}
+
+bool IsSearchPlayerGateTrigger(uint32_t role) {
+  return role == kPlayerRole || IsCloneObjectRole(role);
 }
 
 void RefreshSearchPlayerGates(Voxel* voxels, int32_t count) {
@@ -184,16 +187,20 @@ void RefreshSearchPlayerGates(Voxel* voxels, int32_t count) {
     }
     bool raised = false;
     for (int32_t index = 0; index < count && !raised; ++index) {
-      const Voxel& player = voxels[index];
-      if (player.role != kPlayerRole || player.x < 0) continue;
-      const int64_t delta_x = static_cast<int64_t>(player.x) - gate.x;
-      const int64_t delta_y = static_cast<int64_t>(player.y) - gate.y;
+      const Voxel& actor = voxels[index];
+      if (!IsSearchPlayerGateTrigger(actor.role) || actor.x < 0) continue;
+      const int64_t delta_x = static_cast<int64_t>(actor.x) - gate.x;
+      const int64_t delta_y = static_cast<int64_t>(actor.y) - gate.y;
       const int64_t distance =
           (delta_x < 0 ? -delta_x : delta_x) +
           (delta_y < 0 ? -delta_y : delta_y);
-      const bool standing_on_gate = distance == 0 && player.z == gate.z;
-      raised = distance <= 1 && !standing_on_gate &&
-          (player.z != gate.z || !same_level_block);
+      const int64_t height_above_gate =
+          static_cast<int64_t>(actor.z) - gate.z;
+      const bool overlaps_lowered_plate =
+          distance == 0 && height_above_gate == 0;
+      raised = distance <= 1 && height_above_gate >= 0 &&
+          height_above_gate <= 1 && !overlaps_lowered_plate &&
+          (height_above_gate != 0 || !same_level_block);
     }
     gate.generic_id = raised ? 1 : 0;
   }

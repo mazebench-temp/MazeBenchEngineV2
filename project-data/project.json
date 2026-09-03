@@ -93,6 +93,12 @@
       "name": "Clone",
       "description": "Moves just like the player",
       "generic": true
+    },
+    {
+      "id": "floating-floor",
+      "name": "Floating Floor",
+      "description": "A hovering pushable platform that can be positioned to bridge open space. Its exact movement and hole-filling rules are defined by authored tests.",
+      "generic": false
     }
   ],
   "blocks": [
@@ -239,6 +245,16 @@
       "occupancy": "solid",
       "visual": {
         "kind": "slope"
+      }
+    },
+    {
+      "id": "floating-floor",
+      "name": "Floating floor",
+      "color": "#D6BD94",
+      "roleId": "floating-floor",
+      "occupancy": "solid",
+      "visual": {
+        "kind": "floating-floor"
       }
     },
     {
@@ -680,6 +696,20 @@
       "locked": false,
       "name": "Default",
       "parentId": "gate"
+    },
+    {
+      "collapsed": false,
+      "id": "floating-floor",
+      "locked": false,
+      "name": "floating floor"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "floating-floor-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "floating-floor"
     }
   ],
   "searches": [
@@ -23537,6 +23567,33 @@
         "gate-default"
       ],
       "file": "test-493.json"
+    },
+    {
+      "id": "test-494",
+      "name": "Untitled test 494",
+      "groupTagId": "floating-floor",
+      "tagIds": [
+        "floating-floor-default"
+      ],
+      "file": "test-494.json"
+    },
+    {
+      "id": "test-494-copy",
+      "name": "Untitled test 494 copy",
+      "groupTagId": "floating-floor",
+      "tagIds": [
+        "floating-floor-default"
+      ],
+      "file": "test-494-copy.json"
+    },
+    {
+      "id": "test-494-copy-copy",
+      "name": "Untitled test 494 copy copy",
+      "groupTagId": "floating-floor",
+      "tagIds": [
+        "floating-floor-default"
+      ],
+      "file": "test-494-copy-copy.json"
     }
   ]
 }

@@ -36,9 +36,11 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Yellow clone slope/);
   assert.match(html, /Red gate/);
   assert.match(html, /Puncher/);
+  assert.match(html, /Floating floor/);
   assert.match(html, /Outlined slope · 4 directions/);
   assert.match(html, /MazeBench red gate/);
   assert.match(html, /MazeBench puncher/);
+  assert.match(html, /MazeBench floating floor/);
   assert.match(html, /Interactive MazeBench perspective polycube editor/);
   assert.match(html, /Erase tool/);
   assert.match(html, /Block palette · Left and right arrows choose tools/);

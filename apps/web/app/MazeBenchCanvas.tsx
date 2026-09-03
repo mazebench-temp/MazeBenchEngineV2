@@ -27,7 +27,7 @@ type BlockDefinition = {
   occupancy: string;
   visual: {
     buttonForm?: "visible" | "hidden";
-    kind: "button" | "cube" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope";
+    kind: "button" | "cube" | "floating-floor" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope";
     modelUrl?: string;
     orangeForm?: "visible" | "hidden";
   };
@@ -184,7 +184,7 @@ type RenderActor = {
   selectionKey: string;
   shape?: "cube" | "slope";
   styleKey?: string;
-  type: "clone" | "gem" | "orange_button" | "puncher" | "weightless_box";
+  type: "clone" | "floating_floor" | "gem" | "orange_button" | "puncher" | "weightless_box";
   sprung?: boolean;
   voxelColor?: string;
   x: number;
@@ -413,7 +413,8 @@ function frameToPlayData(
         : null;
     const isRigidFamilyMember = rigidFamilyType !== null &&
       (definition.visual.kind === "cube" || definition.visual.kind === "slope");
-    if (!isRigidFamilyMember && definition.visual.kind !== "gem" && definition.visual.kind !== "button" && definition.visual.kind !== "puncher") return [];
+    const isFloatingFloor = definition.visual.kind === "floating-floor";
+    if (!isRigidFamilyMember && !isFloatingFloor && definition.visual.kind !== "gem" && definition.visual.kind !== "button" && definition.visual.kind !== "puncher") return [];
     const genericId = Math.max(0, Math.floor(Number(voxel.groupId ?? voxel.genericId) || 0));
     const groupId = rigidFamilyType === "clone" ? `c${genericId}` : `M${genericId}`;
     const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
@@ -439,6 +440,13 @@ function frameToPlayData(
         ? { editorOnly: true, editorOpacity: 0.5 }
         : {}),
       label: definition.name,
+      ...(isFloatingFloor
+        ? {
+            voxelColor: selected
+              ? lerpHexColor(definition.color, "#34e7f0", 0.48)
+              : definition.color,
+          }
+        : {}),
       ...(definition.visual.kind === "gem"
         ? { modelUrl: definition.visual.modelUrl }
         : definition.visual.kind === "puncher"
@@ -455,6 +463,8 @@ function frameToPlayData(
       selectionKey: cellObjectSelectionKey(voxel),
       type: isRigidFamilyMember
         ? rigidFamilyType
+        : isFloatingFloor
+          ? "floating_floor"
         : definition.visual.kind === "gem"
           ? "gem"
           : definition.visual.kind === "puncher"

@@ -127,7 +127,7 @@ type BlockDefinition = {
 type OccupancyProfile = "solid" | "sensor" | "support" | "decoration" | "inactive";
 type BlockVisualDefinition = {
   buttonForm?: "visible" | "hidden";
-  kind: "button" | "cube" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope";
+  kind: "button" | "cube" | "floating-floor" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope";
   modelUrl?: string;
   orangeForm?: "visible" | "hidden";
 };
@@ -269,6 +269,7 @@ const DEFAULT_ROLES: PhysicsRoleDefinition[] = [
   { id: "puncher", name: "Puncher", description: "A four-direction, two-state fixture. State 0 is unsprung and state 1 is sprung; its direction points outward from its supporting side face. Its launch and timing rules are awaiting authored tests.", generic: true },
   { id: "orange-button", name: "Orange Button", description: "A six-face pressure sensor with visible and editor-only invisible forms. Every independently pressed button lowers every Orange Wall by one additional unit.", generic: false },
   { id: "orange-wall", name: "Orange Wall", description: "One mechanism with visible and editor-only invisible wall forms. Both may share a cell with anything and store a nonnegative remaining-rise number.", generic: false },
+  { id: "floating-floor", name: "Floating Floor", description: "A hovering pushable platform that can be positioned to bridge open space. Its exact movement and hole-filling rules are defined by authored tests.", generic: false },
 ];
 
 const DEFAULT_BLOCKS: BlockDefinition[] = [
@@ -290,6 +291,7 @@ const DEFAULT_BLOCKS: BlockDefinition[] = [
   { id: "orange-wall-hidden", name: "Invisible orange wall", color: "#B85F16", roleId: "orange-wall", occupancy: "inactive", visual: { kind: "orange-wall", orangeForm: "hidden" } },
   { id: "orange-button", name: "Orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "sensor", variantMax: 5, visual: { kind: "button", buttonForm: "visible" } },
   { id: "orange-button-hidden", name: "Invisible orange button", color: "#F59E0B", roleId: "orange-button", occupancy: "inactive", variantMax: 5, visual: { kind: "button", buttonForm: "hidden" } },
+  { id: "floating-floor", name: "Floating floor", color: "#D6BD94", roleId: "floating-floor", occupancy: "solid", visual: { kind: "floating-floor" } },
 ];
 
 const SLOPE_DIRECTION_OPTIONS = [
@@ -301,6 +303,7 @@ const SLOPE_DIRECTION_OPTIONS = [
 
 function visualDefinitionForKind(kind: string): BlockVisualDefinition {
   if (kind === "gem") return { kind: "gem", modelUrl: "/assets/objects/gem.glb" };
+  if (kind === "floating-floor") return { kind: "floating-floor" };
   if (kind === "gate") return { kind: "gate" };
   if (kind === "lift") return { kind: "lift" };
   if (kind === "puncher") return { kind: "puncher" };
@@ -336,7 +339,7 @@ function normalizeRoles(roles?: PhysicsRoleDefinition[]) {
   if (!normalized.some((role) => role.id === "player-lift")) {
     normalized.push({ ...DEFAULT_ROLES.find((role) => role.id === "player-lift")! });
   }
-  for (const roleId of ["player-gate", "puncher", "orange-button", "orange-wall"]) {
+  for (const roleId of ["player-gate", "puncher", "orange-button", "orange-wall", "floating-floor"]) {
     if (!normalized.some((role) => role.id === roleId)) {
       normalized.push({ ...DEFAULT_ROLES.find((role) => role.id === roleId)! });
     }
@@ -358,6 +361,8 @@ function normalizeBlocks(
     const roleId = roleIds.has(requestedRoleId) ? requestedRoleId : fallbackRoleId;
     const visualKind = block.visual?.kind === "lift"
       ? "lift"
+      : block.visual?.kind === "floating-floor" || roleId === "floating-floor"
+      ? "floating-floor"
       : block.visual?.kind === "gate" || roleId === "player-gate"
       ? "gate"
       : block.visual?.kind === "puncher" || roleId === "puncher"
@@ -391,6 +396,8 @@ function normalizeBlocks(
       occupancy: normalizeOccupancyProfile(block.occupancy, roleId) as OccupancyProfile,
       visual: visualKind === "gem"
         ? { kind: "gem", modelUrl: block.visual?.modelUrl ?? "/assets/objects/gem.glb" }
+        : visualKind === "floating-floor"
+          ? { kind: "floating-floor" }
         : visualKind === "slope"
           ? { kind: "slope" }
           : visualKind === "lift"
@@ -487,6 +494,16 @@ function normalizeBlocks(
       genericMax: PUNCHER_GENERIC_MAX,
       variantMax: 3,
       visual: { kind: "puncher" },
+    });
+  }
+  if (roleIds.has("floating-floor") && !normalized.some((block) => block.roleId === "floating-floor")) {
+    normalized.push({
+      id: "floating-floor",
+      name: "Floating floor",
+      color: "#D6BD94",
+      roleId: "floating-floor",
+      occupancy: "solid",
+      visual: { kind: "floating-floor" },
     });
   }
   const mechanismDefinitions: BlockDefinition[] = [];
@@ -3766,7 +3783,7 @@ export default function VoxelBench() {
                   return (
                     <button key={block.id} className={`author-hotbar__slot ${!groupSelectionMode && !activeGroupSelection && selectedBlock === block.id ? "is-active" : ""}`} title={`${block.name} — ${title}`} onClick={() => requestBlockSelection(block.id)}>
                       <span className="author-hotbar__key">{index + 1}</span>
-                      <span className={`swatch-cube ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? `pressure-button pressure-button--${hiddenButton ? "hidden" : "visible"}` : ""} ${block.visual.kind === "orange-wall" ? `orange-wall orange-wall--${hiddenOrangeWall ? "hidden" : "cube"}` : ""} ${block.visual.kind === "lift" ? `lift lift--${binaryStateRaised ? "raised" : "lowered"} lift--top` : ""} ${block.visual.kind === "gate" ? `gate gate--${binaryStateRaised ? "raised" : "lowered"}` : ""} ${isPuncher ? `puncher puncher--${binaryStateRaised ? "sprung" : "unsprung"}` : ""} ${generic ? "generic" : orangeWallDepth === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : isPuncher ? <i className="puncher-direction-glyph" aria-hidden="true">→</i> : null}</span>
+                      <span className={`swatch-cube ${block.visual.kind === "floating-floor" ? "floating-floor" : ""} ${block.visual.kind === "slope" ? `slope slope--${slopeDirection}` : ""} ${block.visual.kind === "button" ? `pressure-button pressure-button--${hiddenButton ? "hidden" : "visible"}` : ""} ${block.visual.kind === "orange-wall" ? `orange-wall orange-wall--${hiddenOrangeWall ? "hidden" : "cube"}` : ""} ${block.visual.kind === "lift" ? `lift lift--${binaryStateRaised ? "raised" : "lowered"} lift--top` : ""} ${block.visual.kind === "gate" ? `gate gate--${binaryStateRaised ? "raised" : "lowered"}` : ""} ${isPuncher ? `puncher puncher--${binaryStateRaised ? "sprung" : "unsprung"}` : ""} ${generic ? "generic" : orangeWallDepth === null ? "" : "stateful"} ${genericLabel && genericLabel.length > 5 ? "generic-label-long" : genericLabel && genericLabel.length > 2 ? "generic-label-medium" : ""}`} data-generic-label={genericLabel} style={{ "--block-color": block.color } as React.CSSProperties}>{slopeOption && !generic ? <i className="slope-direction-glyph" aria-hidden="true">{slopeOption.glyph}</i> : isPuncher ? <i className="puncher-direction-glyph" aria-hidden="true">→</i> : null}</span>
                     </button>
                   );
                 })}
@@ -3827,7 +3844,7 @@ export default function VoxelBench() {
                 <div className="definition-form new-definition">
                   <label className="field"><span>New block name</span><input value={newBlock.name} placeholder="e.g. Ice" onChange={(event) => setNewBlock((value) => ({ ...value, name: event.target.value }))} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={newBlock.color} onChange={(event) => setNewBlock((value) => ({ ...value, color: event.target.value }))} /></label><label className="field"><span>Physics role</span><select value={newBlock.roleId} onChange={(event) => setNewBlock((value) => ({ ...value, roleId: event.target.value }))}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
-                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={newBlock.occupancy} onChange={(event) => setNewBlock((value) => ({ ...value, occupancy: event.target.value as OccupancyProfile }))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={newBlock.visual.kind} onChange={(event) => setNewBlock((value) => ({ ...value, visual: visualDefinitionForKind(event.target.value) }))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gate">MazeBench red gate</option><option value="puncher">MazeBench puncher</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
+                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={newBlock.occupancy} onChange={(event) => setNewBlock((value) => ({ ...value, occupancy: event.target.value as OccupancyProfile }))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={newBlock.visual.kind} onChange={(event) => setNewBlock((value) => ({ ...value, visual: visualDefinitionForKind(event.target.value) }))}><option value="cube">Outlined cube</option><option value="floating-floor">MazeBench floating floor</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gate">MazeBench red gate</option><option value="puncher">MazeBench puncher</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
                   <button className="tool-button tool-button--primary full" onClick={addBlock}>Create block</button>
                 </div>
               ) : groupSelectionMode || activeGroupSelection ? (
@@ -3850,10 +3867,11 @@ export default function VoxelBench() {
                 <div className="eraser-description"><svg className="author-tool-icon author-tool-icon--eraser" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg><div><strong>Erase tool</strong><small>Click a visible cube to remove it. Press E to select.</small></div></div>
               ) : selectedDefinition ? (
                 <div className="definition-form">
-                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? `pressure-button pressure-button--${selectedDefinition.visual.buttonForm === "hidden" ? "hidden" : "visible"}` : ""} ${selectedDefinition.visual.kind === "orange-wall" ? `orange-wall orange-wall--${selectedDefinition.visual.orangeForm === "hidden" ? "hidden" : "cube"} stateful` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${selectedDefinition.visual.kind === "gate" ? `gate gate--${gateIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"}` : ""} ${selectedDefinition.visual.kind === "puncher" ? `puncher puncher--${puncherIsSprung(selectedGenericIds[selectedDefinition.id] ?? 0) ? "sprung" : "unsprung"}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : selectedDefinition.visual.kind === "gate" ? String(gateIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : selectedDefinition.visual.kind === "puncher" ? String(puncherIsSprung(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallDepth ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : selectedDefinition.visual.kind === "puncher" ? <i className="puncher-direction-glyph" aria-hidden="true">→</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
+                  <div className="selected-block-title"><span className={`swatch-cube large ${selectedDefinition.visual.kind === "floating-floor" ? "floating-floor" : ""} ${selectedDefinition.visual.kind === "slope" ? `slope slope--${selectedSlopeDirection}` : ""} ${selectedDefinition.visual.kind === "button" ? `pressure-button pressure-button--${selectedDefinition.visual.buttonForm === "hidden" ? "hidden" : "visible"}` : ""} ${selectedDefinition.visual.kind === "orange-wall" ? `orange-wall orange-wall--${selectedDefinition.visual.orangeForm === "hidden" ? "hidden" : "cube"} stateful` : ""} ${selectedDefinition.visual.kind === "lift" ? `lift lift--${liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"} lift--top` : ""} ${selectedDefinition.visual.kind === "gate" ? `gate gate--${gateIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? "raised" : "lowered"}` : ""} ${selectedDefinition.visual.kind === "puncher" ? `puncher puncher--${puncherIsSprung(selectedGenericIds[selectedDefinition.id] ?? 0) ? "sprung" : "unsprung"}` : ""} ${genericBlockIds.has(selectedDefinition.id) ? "generic" : ""}`} data-generic-label={genericBlockIds.has(selectedDefinition.id) ? selectedDefinition.visual.kind === "lift" ? String(liftIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : selectedDefinition.visual.kind === "gate" ? String(gateIsRaised(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : selectedDefinition.visual.kind === "puncher" ? String(puncherIsSprung(selectedGenericIds[selectedDefinition.id] ?? 0) ? 1 : 0) : "N" : selectedOrangeWallDepth ?? undefined} style={{ "--block-color": selectedDefinition.color } as React.CSSProperties}>{selectedSlopeOption && !genericBlockIds.has(selectedDefinition.id) ? <i className="slope-direction-glyph" aria-hidden="true">{selectedSlopeOption.glyph}</i> : selectedDefinition.visual.kind === "puncher" ? <i className="puncher-direction-glyph" aria-hidden="true">→</i> : null}</span><div><strong>{selectedDefinition.name}</strong><small>{selectedDefinition.id}</small></div></div>
                   <label className="field"><span>Name</span><input value={selectedDefinition.name} onChange={(event) => { setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, name: event.target.value } : block)); setResults({}); }} /></label>
                   <div className="definition-row"><label className="field color-field"><span>Color</span><input type="color" value={selectedDefinition.color} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedBlock ? { ...block, color: event.target.value } : block))} /></label><label className="field"><span>Physics role</span><select value={selectedDefinition.roleId} onChange={(event) => updateBlockRole(selectedDefinition, event.target.value)}>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select></label></div>
-                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gate">MazeBench red gate</option><option value="puncher">MazeBench puncher</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
+                  <div className="definition-row definition-row--equal"><label className="field"><span>Occupancy</span><select value={selectedDefinition.occupancy} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, occupancy: event.target.value as OccupancyProfile } : block))}>{OCCUPANCY_PROFILES.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}</select></label><label className="field"><span>Visual</span><select value={selectedDefinition.visual.kind} onChange={(event) => setBlocks((current) => current.map((block) => block.id === selectedDefinition.id ? { ...block, visual: visualDefinitionForKind(event.target.value) } : block))}><option value="cube">Outlined cube</option><option value="floating-floor">MazeBench floating floor</option><option value="slope">Outlined slope · 4 directions</option><option value="lift">MazeBench lift</option><option value="gate">MazeBench red gate</option><option value="puncher">MazeBench puncher</option><option value="button">Orange pressure button</option><option value="orange-wall">Orange lowering wall</option><option value="gem">MazeBench gem</option></select></label></div>
+                  {selectedDefinition.visual.kind === "floating-floor" && <p className="engine-role-note"><b>MazeBench floating platform.</b> It occupies one logical cube while rendering as the outlined hovering slab. Author its exact push, support, and hole-filling behavior in unit-test frames.</p>}
                   {selectedDefinition.visual.kind === "slope" && <p className="engine-role-note"><b>Painting follows the camera.</b> Every slope faces the far side of the current view, regardless of which cube face you click. Rotate the camera to choose another direction.</p>}
                   {selectedDefinition.visual.kind === "lift" && <p className="engine-role-note"><b>Painting chooses the mounting.</b> Click a cube’s top or one of its four side faces. The toolbar state stays 0 (lowered) or 1 (raised), while the saved lift receives the matching directional ID from 0–9.</p>}
                   {selectedDefinition.visual.kind === "gate" && <p className="engine-role-note"><b>Binary gate state.</b> Use state 0 for the lowered red slab and state 1 for the raised red cube. Left and right arrows toggle the selected state.</p>}

@@ -8655,6 +8655,7 @@
           logicalBottomLayer: sourceLayer,
           logicalLayerCount: 1,
           logicalSourceFollowsPaint: true,
+          selectionKey: actor.selectionKey,
           topY,
           bottomY,
           sourceLayer
