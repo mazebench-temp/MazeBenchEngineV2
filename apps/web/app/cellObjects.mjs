@@ -50,7 +50,9 @@ export function objectCanShareCell(block) {
  * @param {{ occupancy?: string, roleId?: string, visual?: { kind?: string } } | undefined} block
  */
 export function objectPaintsInsideClickedBody(block) {
-  return block?.visual?.kind !== "lift" && objectCanShareCell(block);
+  return block?.visual?.kind !== "lift" &&
+    block?.visual?.kind !== "puncher" &&
+    objectCanShareCell(block);
 }
 
 /**

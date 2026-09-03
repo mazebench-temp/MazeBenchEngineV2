@@ -41,6 +41,28 @@
         "repository": "MazeBenchEngine",
         "path": "public/play-render-three.js:terrainPieceDescriptorForLayer"
       }
+    },
+    "mazebench-player-gate": {
+      "kind": "primitive",
+      "shape": "lowered-slab-or-raised-cube",
+      "anchor": "cell-center-bottom",
+      "states": ["lowered", "raised"],
+      "pickProxy": "cell",
+      "source": {
+        "repository": "MazeBenchEngine",
+        "path": "public/play-render-three.js:terrainPieceDescriptorForLayer"
+      }
+    },
+    "mazebench-puncher": {
+      "kind": "primitive",
+      "shape": "outlined-three-part-cylinder",
+      "anchor": "selected-cell-side-face",
+      "orientations": ["up", "right", "down", "left"],
+      "pickProxy": "cell",
+      "source": {
+        "repository": "MazeBenchBenchmarking",
+        "path": "render/v1/special-piece-renderers.mjs:addPuncher"
+      }
     }
   }
 }

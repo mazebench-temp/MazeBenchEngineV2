@@ -67,7 +67,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Import the MazeBench gem GLB with source/provenance documentation.
 - [x] Render the imported gem with MazeBench's black-outline treatment.
 - [x] Port the MazeBench purple player-lift slab/cube recipe as IDs `0/1` Up, `2/3` Front, `4/5` Right, `6/7` Back, and `8/9` Left; reserve the downward mounting for later.
-- [ ] Port reusable visual recipes for gates, orange mechanisms, slopes, and punchers.
+- [x] Port the MazeBench red gate slab/cube and outlined four-direction puncher visual recipes.
+- [ ] Port any remaining reusable gate, orange-mechanism, and slope visual recipes.
 - [ ] Keep canonical assets in shared game data for the web and future Apple app.
 
 ## Phase 5 — Generalized C++ object/state ABI
@@ -108,7 +109,8 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Undo, copy tick, export/import, reset, and resize preserve overlaps.
 - [ ] Frame differences identify the exact missing state/variant/occupant.
 - [x] Automatic rotations correctly transform authored ramps and their cycle traces.
-- [ ] Automatic rotations correctly transform future punchers, face symbols, and unrestricted orientations.
+- [x] Automatic rotations correctly transform four-direction punchers.
+- [ ] Automatic rotations correctly transform future face symbols and unrestricted orientations.
 - [x] Search distinguishes identical coordinates with different mechanism states.
 - [x] One Orange Wall object can be painted, selected, translated, and stored inside any occupied editor cell.
 - [x] One visible Orange Button object supports all six mountings and may share occupied cells.

@@ -8458,6 +8458,8 @@
       return editorPickForRenderContext({
         kind: "actor",
         highlightShape: "geometry",
+        selectionKey: actor.selectionKey,
+        highlightShape: "geometry",
         cells: [
           {
             gridX: actor.x,
@@ -8847,7 +8849,13 @@
       const backGeometry = cylinderGeometry(radius, depth, 40);
       const middleGeometry = cylinderGeometry(radius * 0.66, depth * 0.45, 40);
       const bullseyeGeometry = cylinderGeometry(radius * 0.34, depth * 0.5, 40);
-      const partColor = (color) => actor.renderInHole ? dimHexColor(color, fade) : color;
+      const partColor = (color) => {
+        const authoredColor = color === "#ef4444" && actor.voxelColor
+          ? actor.voxelColor
+          : color;
+        const visibleColor = actor.renderInHole ? dimHexColor(authoredColor, fade) : authoredColor;
+        return editorGeometryColor(visibleColor, actor.selectionKey, actor.selected === true);
+      };
 
       addPuncherArm(actor, anchoredCenter, direction, depth, elevation, sink, opacity, edgeOpacity);
       addPuncherCylinderPart(

@@ -34,6 +34,11 @@ const definitions = new Map([
     occupancy: "inactive",
     visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
+  ["puncher", {
+    roleId: "puncher",
+    occupancy: "sensor",
+    visual: { kind: "puncher" },
+  }],
 ]);
 
 const at = (blockId, extras = {}) => ({ x: 2, y: 3, z: 1, blockId, ...extras });
@@ -66,6 +71,7 @@ test("lifts mount outside a clicked box while pass-through sensors may join its 
     occupancy: "sensor",
     visual: { kind: "gem" },
   }), true);
+  assert.equal(objectPaintsInsideClickedBody(definitions.get("puncher")), false);
 });
 
 test("a sensor joins an occupied solid cell without replacing the body", () => {

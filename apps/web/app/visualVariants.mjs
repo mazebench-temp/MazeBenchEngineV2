@@ -2,6 +2,7 @@ export const SLOPE_DIRECTIONS = ["up", "right", "down", "left"];
 export const LIFT_ORIENTATIONS = ["top", "north", "east", "south", "west"];
 export const BUTTON_ORIENTATIONS = ["top", "north", "east", "south", "west", "bottom"];
 export const LIFT_GENERIC_MAX = 9;
+export const GATE_GENERIC_MAX = 1;
 
 const DIRECTION_ALIASES = new Map([
   ["north", "up"],
@@ -51,6 +52,30 @@ export function rotateSlopeMetadata(voxel, quarterTurns) {
     orientation: nextDirection,
     variantId: slopeDirectionIndex(nextDirection),
   };
+}
+
+// Punchers use the same four horizontal directions as slopes, but unlike
+// slopes their direction comes from the side face they are mounted on. The
+// direction is the outward punch direction, not the supporting face normal's
+// inverse.
+export function puncherDirectionFromPaintFace(facePick = {}) {
+  if (facePick?.face === "bottom-face") return null;
+  const dx = Math.sign(Number(facePick?.dx) || 0);
+  const dy = Math.sign(Number(facePick?.dy) || 0);
+  if (dx > 0) return "right";
+  if (dx < 0) return "left";
+  if (dy > 0) return "down";
+  if (dy < 0) return "up";
+  return null;
+}
+
+export function rotatePuncherMetadata(voxel, quarterTurns) {
+  return rotateSlopeMetadata(voxel, quarterTurns);
+}
+
+export function gateIsRaised(genericId = 0) {
+  const id = Math.max(0, Math.min(GATE_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
+  return id === 1;
 }
 
 export function liftIsRaised(genericId = 0) {
@@ -193,5 +218,7 @@ export function rotateVoxelVisualMetadata(voxel, quarterTurns) {
     ? rotateLiftMetadata(voxel, quarterTurns)
     : voxel?.blockId === "orange-button" || voxel?.blockId === "orange-button-hidden"
       ? rotateButtonMetadata(voxel, quarterTurns)
+    : voxel?.blockId === "puncher"
+      ? rotatePuncherMetadata(voxel, quarterTurns)
     : rotateSlopeMetadata(voxel, quarterTurns);
 }

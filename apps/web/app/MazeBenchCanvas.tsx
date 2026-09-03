@@ -14,7 +14,7 @@ import {
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
 import { resolveEditorPaintTarget } from "./editorPaintTarget.mjs";
-import { liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
+import { gateIsRaised, liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
 import {
   orangeWallMechanismDepth,
 } from "./orangeWalls.mjs";
@@ -27,7 +27,7 @@ type BlockDefinition = {
   occupancy: string;
   visual: {
     buttonForm?: "visible" | "hidden";
-    kind: "button" | "cube" | "gem" | "lift" | "orange-wall" | "slope";
+    kind: "button" | "cube" | "gate" | "gem" | "lift" | "orange-wall" | "puncher" | "slope";
     modelUrl?: string;
     orangeForm?: "visible" | "hidden";
   };
@@ -156,7 +156,7 @@ type TerrainLayer = {
   raised: boolean;
   orangeForm?: "cube" | "face" | "hidden";
   selectionKey: string;
-  type: "wall" | "ice_slope" | "orange_wall" | "player_lift";
+  type: "wall" | "ice_slope" | "orange_wall" | "player_gate" | "player_lift";
   voxelColor: string;
   voxelKey: string;
 };
@@ -184,7 +184,7 @@ type RenderActor = {
   selectionKey: string;
   shape?: "cube" | "slope";
   styleKey?: string;
-  type: "clone" | "gem" | "orange_button" | "weightless_box";
+  type: "clone" | "gem" | "orange_button" | "puncher" | "weightless_box";
   voxelColor?: string;
   x: number;
   y: number;
@@ -412,7 +412,7 @@ function frameToPlayData(
         : null;
     const isRigidFamilyMember = rigidFamilyType !== null &&
       (definition.visual.kind === "cube" || definition.visual.kind === "slope");
-    if (!isRigidFamilyMember && definition.visual.kind !== "gem" && definition.visual.kind !== "button") return [];
+    if (!isRigidFamilyMember && definition.visual.kind !== "gem" && definition.visual.kind !== "button" && definition.visual.kind !== "puncher") return [];
     const genericId = Math.max(0, Math.floor(Number(voxel.groupId ?? voxel.genericId) || 0));
     const groupId = rigidFamilyType === "clone" ? `c${genericId}` : `M${genericId}`;
     const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
@@ -440,6 +440,11 @@ function frameToPlayData(
       label: definition.name,
       ...(definition.visual.kind === "gem"
         ? { modelUrl: definition.visual.modelUrl }
+        : definition.visual.kind === "puncher"
+          ? {
+              direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId),
+              voxelColor: definition.color,
+            }
         : {
             orientation: normalizeButtonOrientation(voxel.orientation, voxel.variantId),
           }),
@@ -448,7 +453,11 @@ function frameToPlayData(
       selectionKey: cellObjectSelectionKey(voxel),
       type: isRigidFamilyMember
         ? rigidFamilyType
-        : definition.visual.kind === "gem" ? "gem" : "orange_button",
+        : definition.visual.kind === "gem"
+          ? "gem"
+          : definition.visual.kind === "puncher"
+            ? "puncher"
+            : "orange_button",
       x: voxel.x,
       y: voxel.y,
     }];
@@ -460,13 +469,14 @@ function frameToPlayData(
         .sort((left, right) => left.z - right.z)
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
-          if (!definition || !["cube", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
+          if (!definition || !["cube", "gate", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
           if (
             (definition.roleId === "weightless-pushable" || definition.roleId === "clone") &&
             (definition.visual.kind === "cube" || definition.visual.kind === "slope")
           ) return null;
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
+          const isGate = definition.visual.kind === "gate";
           const hiddenOrangeWall = definition.visual.kind === "orange-wall" &&
             definition.visual.orangeForm === "hidden";
           return {
@@ -491,6 +501,8 @@ function frameToPlayData(
             label: definition.name,
             raised: isLift
               ? liftIsRaised(voxel.genericId)
+              : isGate
+                ? gateIsRaised(voxel.genericId)
               : true,
             ...(definition.visual.kind === "orange-wall"
               ? { orangeForm: hiddenOrangeWall ? "hidden" as const : "cube" as const }
@@ -500,6 +512,8 @@ function frameToPlayData(
               ? "ice_slope"
               : isLift
                 ? "player_lift"
+              : isGate
+                ? "player_gate"
               : definition.visual.kind === "orange-wall"
                 ? "orange_wall"
                 : "wall",

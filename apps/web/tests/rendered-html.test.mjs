@@ -34,7 +34,11 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Ice slope/);
   assert.match(html, /Blue box slope/);
   assert.match(html, /Yellow clone slope/);
+  assert.match(html, /Red gate/);
+  assert.match(html, /Puncher/);
   assert.match(html, /Outlined slope · 4 directions/);
+  assert.match(html, /MazeBench red gate/);
+  assert.match(html, /MazeBench puncher/);
   assert.match(html, /Interactive MazeBench perspective polycube editor/);
   assert.match(html, /Erase tool/);
   assert.match(html, /Block palette · Left and right arrows choose tools/);
@@ -226,6 +230,24 @@ test("the editor exposes visible and invisible Orange Walls and Buttons", async 
   assert.match(editor, /id: "orange-button-hidden", name: "Invisible orange button"[\s\S]*?buttonForm: "hidden"/);
   assert.doesNotMatch(editor, /id: "orange-wall-face"/);
   assert.match(editor, /pressure-button--\$\{hiddenButton \? "hidden" : "visible"\}/);
+});
+
+test("red gates and punchers use the MazeBench Three.js recipes", async () => {
+  const [editor, canvas, renderer, manifest] = await Promise.all([
+    readFile(new URL("../app/VoxelBench.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/MazeBenchCanvas.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../public/mazebench-runtime/play-render-three.js", import.meta.url), "utf8"),
+    readFile(new URL("../public/assets/objects/manifest.json", import.meta.url), "utf8"),
+  ]);
+  assert.match(editor, /id: "player-gate", name: "Red gate"[\s\S]*?genericMax: GATE_GENERIC_MAX[\s\S]*?kind: "gate"/);
+  assert.match(editor, /id: "puncher", name: "Puncher"[\s\S]*?variantMax: 3[\s\S]*?kind: "puncher"/);
+  assert.match(canvas, /definition\.visual\.kind === "puncher"[\s\S]*?type: isRigidFamilyMember/);
+  assert.match(canvas, /isGate[\s\S]*?gateIsRaised\(voxel\.genericId\)[\s\S]*?"player_gate"/);
+  assert.match(renderer, /function addPuncher\(/);
+  assert.match(renderer, /highlightShape: "geometry",\s*selectionKey: actor\.selectionKey/);
+  assert.match(renderer, /addPuncherCylinderPart\([\s\S]*?"#ef4444"[\s\S]*?"#f8fafc"[\s\S]*?"#b91c1c"/);
+  assert.match(manifest, /"mazebench-player-gate"/);
+  assert.match(manifest, /"mazebench-puncher"[\s\S]*?"MazeBenchBenchmarking"/);
 });
 
 test("the cell inspector imports its Orange Wall number formatter", async () => {

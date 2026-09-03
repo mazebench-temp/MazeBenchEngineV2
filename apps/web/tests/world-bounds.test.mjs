@@ -165,3 +165,24 @@ test("clockwise level rotations rotate side buttons and preserve top and bottom 
     { x: 0, y: 3, z: 3, blockId: "orange-button", orientation: "north", variantId: 1, stateId: 0 },
   ]);
 });
+
+test("clockwise level rotations rotate punch directions", () => {
+  const world = { width: 4, height: 3 };
+  const puncher = [{
+    x: 1,
+    y: 0,
+    z: 2,
+    blockId: "puncher",
+    orientation: "up",
+    variantId: 0,
+  }];
+
+  assert.deepEqual(rotateVoxelsClockwise(puncher, world, 1), [{
+    x: 2,
+    y: 1,
+    z: 2,
+    blockId: "puncher",
+    orientation: "right",
+    variantId: 1,
+  }]);
+});

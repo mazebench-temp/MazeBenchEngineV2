@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  GATE_GENERIC_MAX,
   LIFT_GENERIC_MAX,
+  gateIsRaised,
   liftGenericId,
   liftIsRaised,
   liftOrientationFromPaintFace,
@@ -11,10 +13,35 @@ import {
   normalizeLiftOrientation,
   normalizeSlopeDirection,
   offsetSlopeDirection,
+  puncherDirectionFromPaintFace,
   rotateLiftMetadata,
+  rotatePuncherMetadata,
   rotateSlopeMetadata,
   slopeDirectionIndex,
 } from "../app/visualVariants.mjs";
+
+test("red gates expose exactly one lowered and one raised editor state", () => {
+  assert.equal(GATE_GENERIC_MAX, 1);
+  assert.equal(gateIsRaised(0), false);
+  assert.equal(gateIsRaised(1), true);
+  assert.equal(gateIsRaised(200), true);
+});
+
+test("punchers point outward from one of four painted side faces", () => {
+  assert.equal(puncherDirectionFromPaintFace({ dx: 1, dy: 0 }), "right");
+  assert.equal(puncherDirectionFromPaintFace({ dx: -1, dy: 0 }), "left");
+  assert.equal(puncherDirectionFromPaintFace({ dx: 0, dy: 1 }), "down");
+  assert.equal(puncherDirectionFromPaintFace({ dx: 0, dy: -1 }), "up");
+  assert.equal(puncherDirectionFromPaintFace({ face: "top", dx: 0, dy: 0 }), null);
+  assert.equal(puncherDirectionFromPaintFace({ face: "bottom-face" }), null);
+});
+
+test("puncher rotation keeps its visual direction attached to the room", () => {
+  assert.deepEqual(
+    rotatePuncherMetadata({ blockId: "puncher", orientation: "up", variantId: 0 }, 3),
+    { blockId: "puncher", orientation: "left", variantId: 3 },
+  );
+});
 
 test("ice slopes have four stable authored directions", () => {
   assert.equal(normalizeSlopeDirection("north"), "up");

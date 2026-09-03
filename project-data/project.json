@@ -65,6 +65,18 @@
       "generic": true
     },
     {
+      "id": "player-gate",
+      "name": "Red Gate",
+      "description": "A two-state red player gate. State 0 is a lowered pass-through slab and state 1 is a raised gate cube. Its collision and trigger rules are awaiting authored tests.",
+      "generic": true
+    },
+    {
+      "id": "puncher",
+      "name": "Puncher",
+      "description": "A four-direction fixture that points outward from its supporting side face. Its launch and timing rules are awaiting authored tests.",
+      "generic": false
+    },
+    {
       "id": "orange-button",
       "name": "Orange Button",
       "description": "A six-face pressure sensor. Every independently pressed button lowers every Orange Wall by one additional unit.",
@@ -184,6 +196,28 @@
       "occupancy": "sensor",
       "visual": {
         "kind": "lift"
+      }
+    },
+    {
+      "id": "player-gate",
+      "name": "Red gate",
+      "color": "#C75652",
+      "roleId": "player-gate",
+      "genericMax": 1,
+      "occupancy": "sensor",
+      "visual": {
+        "kind": "gate"
+      }
+    },
+    {
+      "id": "puncher",
+      "name": "Puncher",
+      "color": "#EF4444",
+      "roleId": "puncher",
+      "variantMax": 3,
+      "occupancy": "sensor",
+      "visual": {
+        "kind": "puncher"
       }
     },
     {
@@ -617,6 +651,20 @@
       "locked": false,
       "name": "and ice",
       "parentId": "lift"
+    },
+    {
+      "collapsed": false,
+      "id": "punchers",
+      "locked": false,
+      "name": "punchers"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "punchers-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "punchers"
     }
   ],
   "searches": [
@@ -23168,6 +23216,15 @@
         "stacked-2"
       ],
       "file": "test-426-copy-copy-copy.json"
+    },
+    {
+      "id": "test-460",
+      "name": "Untitled test 460",
+      "groupTagId": "punchers",
+      "tagIds": [
+        "punchers-default"
+      ],
+      "file": "test-460.json"
     }
   ]
 }
