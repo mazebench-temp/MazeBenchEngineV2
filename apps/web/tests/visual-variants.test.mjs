@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   GATE_GENERIC_MAX,
   LIFT_GENERIC_MAX,
+  PUNCHER_GENERIC_MAX,
   gateIsRaised,
   liftGenericId,
   liftIsRaised,
@@ -14,6 +15,7 @@ import {
   normalizeSlopeDirection,
   offsetSlopeDirection,
   puncherDirectionFromPaintFace,
+  puncherIsSprung,
   rotateLiftMetadata,
   rotatePuncherMetadata,
   rotateSlopeMetadata,
@@ -34,6 +36,13 @@ test("punchers point outward from one of four painted side faces", () => {
   assert.equal(puncherDirectionFromPaintFace({ dx: 0, dy: -1 }), "up");
   assert.equal(puncherDirectionFromPaintFace({ face: "top", dx: 0, dy: 0 }), null);
   assert.equal(puncherDirectionFromPaintFace({ face: "bottom-face" }), null);
+});
+
+test("punchers expose exactly one unsprung and one sprung editor state", () => {
+  assert.equal(PUNCHER_GENERIC_MAX, 1);
+  assert.equal(puncherIsSprung(0), false);
+  assert.equal(puncherIsSprung(1), true);
+  assert.equal(puncherIsSprung(200), true);
 });
 
 test("puncher rotation keeps its visual direction attached to the room", () => {

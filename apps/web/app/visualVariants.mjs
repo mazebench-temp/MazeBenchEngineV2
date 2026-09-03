@@ -3,6 +3,7 @@ export const LIFT_ORIENTATIONS = ["top", "north", "east", "south", "west"];
 export const BUTTON_ORIENTATIONS = ["top", "north", "east", "south", "west", "bottom"];
 export const LIFT_GENERIC_MAX = 9;
 export const GATE_GENERIC_MAX = 1;
+export const PUNCHER_GENERIC_MAX = 1;
 
 const DIRECTION_ALIASES = new Map([
   ["north", "up"],
@@ -75,6 +76,11 @@ export function rotatePuncherMetadata(voxel, quarterTurns) {
 
 export function gateIsRaised(genericId = 0) {
   const id = Math.max(0, Math.min(GATE_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
+  return id === 1;
+}
+
+export function puncherIsSprung(genericId = 0) {
+  const id = Math.max(0, Math.min(PUNCHER_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
   return id === 1;
 }
 

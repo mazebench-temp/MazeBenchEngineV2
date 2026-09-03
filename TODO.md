@@ -68,6 +68,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [x] Render the imported gem with MazeBench's black-outline treatment.
 - [x] Port the MazeBench purple player-lift slab/cube recipe as IDs `0/1` Up, `2/3` Front, `4/5` Right, `6/7` Back, and `8/9` Left; reserve the downward mounting for later.
 - [x] Port the MazeBench red gate slab/cube and outlined four-direction puncher visual recipes.
+- [x] Give Punchers independent unsprung (`0`) and sprung (`1`) authored states while preserving their four directional mountings.
 - [ ] Port any remaining reusable gate, orange-mechanism, and slope visual recipes.
 - [ ] Keep canonical assets in shared game data for the web and future Apple app.
 

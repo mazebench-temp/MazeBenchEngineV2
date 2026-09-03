@@ -8806,6 +8806,40 @@
       addEdgeLines(geometry, position, 18, edgeOpacity * 0.84, null, mesh.scale);
     }
 
+    function addAuthoredSprungPuncherArm(
+      actor,
+      start,
+      end,
+      centerY,
+      opacity,
+      edgeOpacity,
+      editorPick
+    ) {
+      const lengthX = Math.abs(end.x - start.x);
+      const lengthZ = Math.abs(end.z - start.z);
+      const horizontal = lengthX >= lengthZ;
+      const geometry = boxGeometry(1, 1, 1);
+      const armColor = editorGeometryColor("#9ca3af", actor.selectionKey, actor.selected === true);
+      const mesh = new THREE.Mesh(geometry, material(armColor, opacity));
+      const position = new THREE.Vector3(
+        (start.x + end.x) / 2,
+        centerY,
+        (start.z + end.z) / 2
+      );
+
+      mesh.position.copy(position);
+      mesh.scale.set(
+        horizontal ? Math.max(puncherArmThickness, lengthX + puncherArmThickness) : puncherArmThickness,
+        unit * 0.16,
+        horizontal ? puncherArmThickness : Math.max(puncherArmThickness, lengthZ + puncherArmThickness)
+      );
+      mesh.castShadow = renderContextCastsShadows();
+      mesh.receiveShadow = false;
+      mesh.userData.editorPick = editorPick;
+      scene.add(mesh);
+      addEdgeLines(geometry, position, 18, edgeOpacity * 0.84, null, mesh.scale);
+    }
+
     function addPuncherCylinderPart(
       actor,
       geometry,
@@ -8840,7 +8874,12 @@
       const rotation = puncherRotationForDirection(direction);
       const radius = puncherRadius * scale;
       const depth = puncherDepth * scale;
-      const anchoredCenter = puncherAnchoredCenter(center, direction, depth);
+      const restingCenter = puncherAnchoredCenter(center, direction, depth);
+      const authoredExtension = actor.sprung === true ? unit * 0.46 * scale : 0;
+      const anchoredCenter = {
+        x: restingCenter.x + direction.x * authoredExtension,
+        z: restingCenter.z + direction.z * authoredExtension
+      };
       const centerY = elevation * elevationUnit - sink + actorVisualLift + unit * 0.54 * scale;
       const bottomY = centerY - radius;
       const topY = centerY + radius;
@@ -8857,6 +8896,17 @@
         return editorGeometryColor(visibleColor, actor.selectionKey, actor.selected === true);
       };
 
+      if (authoredExtension > 0) {
+        addAuthoredSprungPuncherArm(
+          actor,
+          restingCenter,
+          anchoredCenter,
+          centerY,
+          opacity,
+          edgeOpacity,
+          editorPick
+        );
+      }
       addPuncherArm(actor, anchoredCenter, direction, depth, elevation, sink, opacity, edgeOpacity);
       addPuncherCylinderPart(
         actor,

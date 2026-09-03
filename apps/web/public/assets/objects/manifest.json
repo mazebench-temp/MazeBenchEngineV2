@@ -58,6 +58,7 @@
       "shape": "outlined-three-part-cylinder",
       "anchor": "selected-cell-side-face",
       "orientations": ["up", "right", "down", "left"],
+      "states": ["unsprung", "sprung"],
       "pickProxy": "cell",
       "source": {
         "repository": "MazeBenchBenchmarking",

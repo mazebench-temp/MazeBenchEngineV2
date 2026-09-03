@@ -14,7 +14,7 @@ import {
 } from "./marqueeSelection.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
 import { resolveEditorPaintTarget } from "./editorPaintTarget.mjs";
-import { gateIsRaised, liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection } from "./visualVariants.mjs";
+import { gateIsRaised, liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection, puncherIsSprung } from "./visualVariants.mjs";
 import {
   orangeWallMechanismDepth,
 } from "./orangeWalls.mjs";
@@ -185,6 +185,7 @@ type RenderActor = {
   shape?: "cube" | "slope";
   styleKey?: string;
   type: "clone" | "gem" | "orange_button" | "puncher" | "weightless_box";
+  sprung?: boolean;
   voxelColor?: string;
   x: number;
   y: number;
@@ -443,6 +444,7 @@ function frameToPlayData(
         : definition.visual.kind === "puncher"
           ? {
               direction: normalizeSlopeDirection(voxel.orientation, voxel.variantId),
+              sprung: puncherIsSprung(voxel.genericId),
               voxelColor: definition.color,
             }
         : {

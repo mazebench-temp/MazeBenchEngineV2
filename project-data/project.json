@@ -73,8 +73,8 @@
     {
       "id": "puncher",
       "name": "Puncher",
-      "description": "A four-direction fixture that points outward from its supporting side face. Its launch and timing rules are awaiting authored tests.",
-      "generic": false
+      "description": "A four-direction, two-state fixture. State 0 is unsprung and state 1 is sprung; its direction points outward from its supporting side face. Its launch and timing rules are awaiting authored tests.",
+      "generic": true
     },
     {
       "id": "orange-button",
@@ -214,6 +214,7 @@
       "name": "Puncher",
       "color": "#EF4444",
       "roleId": "puncher",
+      "genericMax": 1,
       "variantMax": 3,
       "occupancy": "sensor",
       "visual": {
@@ -23225,6 +23226,42 @@
         "punchers-default"
       ],
       "file": "test-460.json"
+    },
+    {
+      "id": "test-460-copy",
+      "name": "Untitled test 460 copy",
+      "groupTagId": "punchers",
+      "tagIds": [
+        "punchers-default"
+      ],
+      "file": "test-460-copy.json"
+    },
+    {
+      "id": "test-460-copy-copy",
+      "name": "Untitled test 460 copy copy",
+      "groupTagId": "punchers",
+      "tagIds": [
+        "punchers-default"
+      ],
+      "file": "test-460-copy-copy.json"
+    },
+    {
+      "id": "test-460-copy-2",
+      "name": "Untitled test 460 copy",
+      "groupTagId": "punchers",
+      "tagIds": [
+        "punchers-default"
+      ],
+      "file": "test-460-copy-2.json"
+    },
+    {
+      "id": "test-460-copy-3",
+      "name": "Untitled test 460 copy",
+      "groupTagId": "punchers",
+      "tagIds": [
+        "punchers-default"
+      ],
+      "file": "test-460-copy-3.json"
     }
   ]
 }

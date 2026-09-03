@@ -240,14 +240,15 @@ test("red gates and punchers use the MazeBench Three.js recipes", async () => {
     readFile(new URL("../public/assets/objects/manifest.json", import.meta.url), "utf8"),
   ]);
   assert.match(editor, /id: "player-gate", name: "Red gate"[\s\S]*?genericMax: GATE_GENERIC_MAX[\s\S]*?kind: "gate"/);
-  assert.match(editor, /id: "puncher", name: "Puncher"[\s\S]*?variantMax: 3[\s\S]*?kind: "puncher"/);
-  assert.match(canvas, /definition\.visual\.kind === "puncher"[\s\S]*?type: isRigidFamilyMember/);
+  assert.match(editor, /id: "puncher", name: "Puncher"[\s\S]*?genericMax: PUNCHER_GENERIC_MAX[\s\S]*?variantMax: 3[\s\S]*?kind: "puncher"/);
+  assert.match(canvas, /definition\.visual\.kind === "puncher"[\s\S]*?sprung: puncherIsSprung\(voxel\.genericId\)[\s\S]*?type: isRigidFamilyMember/);
   assert.match(canvas, /isGate[\s\S]*?gateIsRaised\(voxel\.genericId\)[\s\S]*?"player_gate"/);
   assert.match(renderer, /function addPuncher\(/);
+  assert.match(renderer, /actor\.sprung === true[\s\S]*?addAuthoredSprungPuncherArm/);
   assert.match(renderer, /highlightShape: "geometry",\s*selectionKey: actor\.selectionKey/);
   assert.match(renderer, /addPuncherCylinderPart\([\s\S]*?"#ef4444"[\s\S]*?"#f8fafc"[\s\S]*?"#b91c1c"/);
   assert.match(manifest, /"mazebench-player-gate"/);
-  assert.match(manifest, /"mazebench-puncher"[\s\S]*?"MazeBenchBenchmarking"/);
+  assert.match(manifest, /"mazebench-puncher"[\s\S]*?"states": \["unsprung", "sprung"\][\s\S]*?"MazeBenchBenchmarking"/);
 });
 
 test("the cell inspector imports its Orange Wall number formatter", async () => {
