@@ -34,10 +34,13 @@ constexpr uint32_t kYellowCloneSlopeDownRole =
 constexpr uint32_t kYellowCloneSlopeLeftRole =
     HashRoleLiteral("yellow-clone-slope-left");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
+constexpr uint32_t kFloorRole = HashRoleLiteral("floor");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr uint32_t kPlayerGateRole = HashRoleLiteral("player-gate");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
+constexpr uint32_t kFloatingFloorRole = HashRoleLiteral("floating-floor");
+constexpr int32_t kFilledFloatingFloor = 1;
 
 int32_t SearchOrangeWallDepth(int32_t value) {
   if (value <= -2) {
@@ -163,7 +166,7 @@ bool IsDynamic(uint32_t role) {
   return role == kPlayerRole || IsCloneObjectRole(role) ||
       role == kPushableRole || IsWeightlessObjectRole(role) ||
       role == kPlayerLiftRole ||
-      role == kOrangeButtonRole;
+      role == kOrangeButtonRole || role == kFloatingFloorRole;
 }
 
 bool SearchGateBlockingActor(uint32_t role) {
@@ -432,7 +435,16 @@ void LoadNode(SearchData* data, const SearchNode& node) {
     data->scene[dynamic].z =
         DecodeCoordinate(node.coordinates[entity][2]) +
         data->base_offsets[dynamic][2];
-    if (data->scene[dynamic].role == kPlayerLiftRole) {
+    if (data->entity_roles[entity] == kFloatingFloorRole) {
+      const bool filled =
+          (node.lift_states & (uint64_t{1} << entity)) != 0;
+      data->scene[dynamic].role = filled
+          ? kFloorRole
+          : kFloatingFloorRole;
+      data->scene[dynamic].generic_id = filled
+          ? kFilledFloatingFloor
+          : data->entity_generic_ids[entity];
+    } else if (data->scene[dynamic].role == kPlayerLiftRole) {
       const int32_t authored_id = data->entity_generic_ids[entity];
       const int32_t orientation_base = authored_id >= 0
           ? authored_id - authored_id % 2
@@ -465,6 +477,11 @@ bool CaptureCandidate(SearchData* data) {
     const Voxel& anchor = data->scene[data->entity_anchors[entity]];
     if (anchor.role == kPlayerLiftRole && anchor.generic_id >= 0 &&
         anchor.generic_id % 2 != 0) {
+      data->candidate_lift_states |= uint64_t{1} << entity;
+    }
+    if (data->entity_roles[entity] == kFloatingFloorRole &&
+        anchor.role == kFloorRole &&
+        anchor.generic_id == kFilledFloatingFloor) {
       data->candidate_lift_states |= uint64_t{1} << entity;
     }
     const int32_t x = anchor.x < 0 ? -1 : anchor.x;
@@ -565,6 +582,13 @@ SearchResult InvalidResult() {
 
 bool SceneIsSettled(const SearchData* data, int32_t width, int32_t height) {
   for (int32_t entity = 0; entity < data->entity_count; ++entity) {
+    if (data->entity_roles[entity] == kFloatingFloorRole) {
+      const Voxel& anchor = data->scene[data->entity_anchors[entity]];
+      if (anchor.role == kFloorRole &&
+          anchor.generic_id == kFilledFloatingFloor) {
+        continue;
+      }
+    }
     bool supported = false;
     for (int32_t member = 0;
          member < data->dynamic_voxel_count && !supported; ++member) {

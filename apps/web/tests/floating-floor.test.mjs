@@ -12,7 +12,7 @@ test("the tracked project catalog includes the MazeBench Floating Floor", async 
   assert.deepEqual(roles.get("floating-floor"), {
     id: "floating-floor",
     name: "Floating Floor",
-    description: "A hovering pushable platform that can be positioned to bridge open space. Its exact movement and hole-filling rules are defined by authored tests.",
+    description: "A one-weight hovering platform. One can be pushed like a Sokoban box; after entering a Row-0 hole it stays suspended for that movement tick, then becomes permanent Floor on the next tick.",
     generic: false,
   });
   assert.deepEqual(blocks.get("floating-floor"), {
@@ -43,4 +43,11 @@ test("the editor routes Floating Floor blocks through the MazeBench actor recipe
   assert.match(renderer, /logicalSourceFollowsPaint: true,\s*selectionKey: actor\.selectionKey/);
   assert.match(manifest, /"mazebench-floating-floor"[\s\S]*?"hovering-top-rounded-platform"/);
   assert.match(styles, /\.swatch-cube\.floating-floor::before/);
+});
+
+test("the C++ adapter converts a filled Floating Floor into permanent Floor", async () => {
+  const adapter = await readFile(new URL("../app/physicsEngine.ts", import.meta.url), "utf8");
+
+  assert.match(adapter, /visualKind === "floating-floor" && mechanismId === 1/);
+  assert.match(adapter, /blockId: floorBlockId \?\? voxel\.blockId/);
 });

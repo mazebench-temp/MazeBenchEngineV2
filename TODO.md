@@ -99,7 +99,7 @@ scene storage, occupancy indexes, hashing, or transitions change.
 - [ ] Puncher: directional fixture and launch behavior.
 - [x] Player lift: lowered/raised collision, player-triggered state toggle, blocked-headroom guard, rider movement, face-derived editor painting, attached-fixture carrying, trace persistence, and exact-search identity.
 - [ ] Player gate: role-filtered collision.
-- [ ] Floating Floor: pushable support and hole-filling behavior, driven by authored tick tests.
+- [x] Floating Floor: one-box push weight, blocked multi-platform pushes, a visible suspended movement tick over a Row-0 hole, and permanent Floor conversion on the following tick.
 - [ ] Attached/moving device variants.
 
 ## Required acceptance coverage

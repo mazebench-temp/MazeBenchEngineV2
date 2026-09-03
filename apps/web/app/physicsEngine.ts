@@ -131,6 +131,7 @@ type PhysicsAdapterContext = {
   blocks: BlockDefinition[];
   blocksById: Map<string, BlockDefinition>;
   buttonBlockIds: { visible?: string; hidden?: string };
+  floorBlockId?: string;
   genericBlockIds: Set<string>;
   mechanismValue: (voxel: Voxel) => number;
   physics: PhysicsExports;
@@ -175,6 +176,7 @@ async function physicsAdapterContext(
     hidden: blocks.find((block) =>
       block.visual?.kind === "button" && block.visual.buttonForm === "hidden")?.id,
   };
+  const floorBlockId = blocks.find((block) => block.roleId === "floor")?.id;
   const mechanismValue = (voxel: Voxel) => {
     const visual = blocksById.get(voxel.blockId)?.visual;
     if (visual?.kind === "button") {
@@ -202,6 +204,7 @@ async function physicsAdapterContext(
     blocks,
     blocksById,
     buttonBlockIds,
+    floorBlockId,
     genericBlockIds,
     mechanismValue,
     physics,
@@ -237,6 +240,7 @@ export async function simulateCommandWithCpp(
     blockRole,
     blocksById,
     buttonBlockIds,
+    floorBlockId,
     genericBlockIds,
     mechanismValue,
     physics,
@@ -278,6 +282,8 @@ export async function simulateCommandWithCpp(
                 ? buttonBlockIds.hidden ?? voxel.blockId
                 : buttonBlockIds.visible ?? voxel.blockId,
             }
+          : visualKind === "floating-floor" && mechanismId === 1
+            ? { blockId: floorBlockId ?? voxel.blockId }
           : {}),
         x: voxelBuffer[offset],
         y: voxelBuffer[offset + 1],

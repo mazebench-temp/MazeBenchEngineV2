@@ -1149,6 +1149,7 @@ int32_t TrySimulatePassiveQuiescentTurn(
       ActiveWorkspace().prepared_has_player_lifts ||
       ActiveWorkspace().prepared_has_orange_mechanisms ||
       ActiveWorkspace().prepared_has_punchers ||
+      ActiveWorkspace().prepared_has_floating_floors ||
       ActiveWorkspace().prepared_has_clones ||
       ActiveWorkspace().prepared_has_player_polycube ||
       ActiveWorkspace().scene_has_player_gates) return 0;

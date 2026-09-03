@@ -33,7 +33,8 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       AddVoxelToObject(index, player_object);
       continue;
     }
-    if (voxels[index].role == kPushableRole) {
+    if (voxels[index].role == kPushableRole ||
+        voxels[index].role == kFloatingFloorRole) {
       AddVoxelToObject(index, CreateObject(kNormalObject));
       continue;
     }
@@ -350,7 +351,8 @@ void ResetObjectMotion() {
 
 bool ObjectIsActive(Voxel* voxels, int32_t object, int32_t width, int32_t height) {
   const int32_t head = g_object_head[object];
-  return head >= 0 && IsInsideRoom(voxels[head].x, voxels[head].y, width, height);
+  return head >= 0 && g_voxel_object[head] == object &&
+      IsInsideRoom(voxels[head].x, voxels[head].y, width, height);
 }
 
 int32_t FindNearestVoxelBelow(
@@ -685,6 +687,25 @@ bool SettleObject(
       g_object_falling[object] = 0;
     }
     return false;
+  }
+
+  const int32_t head = g_object_head[object];
+  if (head >= 0 && voxels[head].role == kFloatingFloorRole &&
+      voxels[head].z == 1 &&
+      FindVoxelAt(
+          voxels, voxels[head].x, voxels[head].y, 0, width, height) < 0) {
+    // Floating Floor is a one-cell, one-weight platform. It spends one
+    // horizontal frame suspended over a Row-0 hole, then settles into that
+    // hole as permanent Floor on the following gravity tick.
+    voxels[head].z = 0;
+    voxels[head].role = kFloorRole;
+    voxels[head].generic_id = kFilledFloatingFloor;
+    g_voxel_object[head] = -1;
+    g_object_gravity_armed[object] = 0;
+    g_object_falling[object] = 0;
+    g_moving_objects_fell = true;
+    g_fell_objects[object] = 1;
+    return true;
   }
 
   int64_t drop = INT64_MAX;

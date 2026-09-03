@@ -97,7 +97,7 @@
     {
       "id": "floating-floor",
       "name": "Floating Floor",
-      "description": "A hovering pushable platform that can be positioned to bridge open space. Its exact movement and hole-filling rules are defined by authored tests.",
+      "description": "A one-weight hovering platform. One can be pushed like a Sokoban box; after entering a Row-0 hole it stays suspended for that movement tick, then becomes permanent Floor on the next tick.",
       "generic": false
     }
   ],

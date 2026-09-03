@@ -32,6 +32,8 @@ constexpr uint32_t kPlayerGateRole = HashRoleLiteral("player-gate");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
 constexpr uint32_t kPuncherRole = HashRoleLiteral("puncher");
+constexpr uint32_t kFloatingFloorRole = HashRoleLiteral("floating-floor");
+constexpr int32_t kFilledFloatingFloor = 1;
 
 // Spatial and rigid-object indexes contain at most kVoxelCapacity entries.
 // The 2x backing table preserves a <= 0.5 load factor at maximum scene size.
@@ -343,6 +345,7 @@ struct WorkspaceData {
   bool prepared_has_player_lifts;
   bool prepared_has_orange_mechanisms;
   bool prepared_has_punchers;
+  bool prepared_has_floating_floors;
   bool prepared_has_clones;
   bool prepared_has_player_polycube;
   bool scene_has_orange_mechanisms;
