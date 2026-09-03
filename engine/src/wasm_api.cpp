@@ -13,11 +13,6 @@ constexpr uint32_t HashRoleLiteral(const char* value) {
 
 constexpr uint32_t kRandomPlayerRole = HashRoleLiteral("player");
 constexpr uint32_t kRandomGoalRole = HashRoleLiteral("goal");
-constexpr uint32_t kRandomIceRole = HashRoleLiteral("ice");
-constexpr uint32_t kRandomIceSlopeUpRole = HashRoleLiteral("ice-slope-up");
-constexpr uint32_t kRandomIceSlopeRightRole = HashRoleLiteral("ice-slope-right");
-constexpr uint32_t kRandomIceSlopeDownRole = HashRoleLiteral("ice-slope-down");
-constexpr uint32_t kRandomIceSlopeLeftRole = HashRoleLiteral("ice-slope-left");
 constexpr int32_t kRandomTrailCapacity = 50;
 constexpr int32_t kRandomVisitedWords = 8;
 
@@ -99,23 +94,6 @@ void RecordRandomVisit() {
   if (g_random_trail_count < kRandomTrailCapacity) ++g_random_trail_count;
 }
 
-bool RandomPlayerIsOnIce(const voxelbench::Voxel& player) {
-  for (int32_t index = 0; index < g_random_count; ++index) {
-    if (index == g_random_player_index) continue;
-    const voxelbench::Voxel& voxel = g_voxels[index];
-    const bool ice = voxel.role == kRandomIceRole ||
-        voxel.role == kRandomIceSlopeUpRole ||
-        voxel.role == kRandomIceSlopeRightRole ||
-        voxel.role == kRandomIceSlopeDownRole ||
-        voxel.role == kRandomIceSlopeLeftRole;
-    if (ice && voxel.x == player.x && voxel.y == player.y &&
-        (voxel.z == player.z || voxel.z == player.z - 1)) {
-      return true;
-    }
-  }
-  return false;
-}
-
 int32_t RandomExitKind(
     const voxelbench::Voxel& before,
     const voxelbench::Voxel& after,
@@ -124,15 +102,13 @@ int32_t RandomExitKind(
   const int32_t dx = after.x - before.x;
   const int32_t dy = after.y - before.y;
   const bool stationary = dx == 0 && dy == 0;
-  const bool continuing_motion = RandomPlayerIsOnIce(after) ||
-      (dx < -1 || dx > 1 || dy < -1 || dy > 1);
-  if (after.y == 0 && ((continuing_motion && dx == 0 && dy < 0) ||
+  if (after.y == 0 && ((dx == 0 && dy < 0) ||
       (stationary && direction == 0))) return stationary ? 1 : 2;
-  if (after.x == g_random_width - 1 && ((continuing_motion && dx > 0 && dy == 0) ||
+  if (after.x == g_random_width - 1 && ((dx > 0 && dy == 0) ||
       (stationary && direction == 1))) return stationary ? 1 : 2;
-  if (after.y == g_random_height - 1 && ((continuing_motion && dx == 0 && dy > 0) ||
+  if (after.y == g_random_height - 1 && ((dx == 0 && dy > 0) ||
       (stationary && direction == 2))) return stationary ? 1 : 2;
-  if (after.x == 0 && ((continuing_motion && dx < 0 && dy == 0) ||
+  if (after.x == 0 && ((dx < 0 && dy == 0) ||
       (stationary && direction == 3))) return stationary ? 1 : 2;
   return 0;
 }
