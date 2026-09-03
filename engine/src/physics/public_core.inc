@@ -25,6 +25,7 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_has_ice_slopes = false;
   data->prepared_has_player_lifts = false;
   data->prepared_has_orange_mechanisms = false;
+  data->prepared_has_punchers = false;
   data->prepared_has_clones = false;
   data->prepared_has_player_polycube = false;
   data->scene_has_orange_mechanisms = false;
@@ -64,7 +65,8 @@ bool prepare_scene(
     if (role == kPlayerRole || IsCloneObjectRole(role) ||
         role == kPushableRole || IsWeightlessObjectRole(role) ||
         role == kPlayerLiftRole ||
-        role == kOrangeButtonRole || role == kOrangeWallRole) {
+        role == kOrangeButtonRole || role == kOrangeWallRole ||
+        role == kPuncherRole) {
       data.prepared_dynamic_voxel_count = -1;
       return false;
     }
@@ -75,6 +77,7 @@ bool prepare_scene(
   data.prepared_has_ice_slopes = false;
   data.prepared_has_player_lifts = false;
   data.prepared_has_orange_mechanisms = false;
+  data.prepared_has_punchers = false;
   data.prepared_has_clones = false;
   data.prepared_has_player_polycube = false;
   int32_t player_count = 0;
@@ -84,6 +87,7 @@ bool prepare_scene(
     data.prepared_has_orange_mechanisms |=
         voxels[index].role == kOrangeButtonRole ||
         voxels[index].role == kOrangeWallRole;
+    data.prepared_has_punchers |= voxels[index].role == kPuncherRole;
     data.prepared_has_clones |= IsCloneObjectRole(voxels[index].role);
     player_count += voxels[index].role == kPlayerRole ? 1 : 0;
     if (voxels[index].role == kGoalRole) {

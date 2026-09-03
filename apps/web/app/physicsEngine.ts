@@ -2,6 +2,9 @@ import {
   buttonIsHiddenMechanismId,
   buttonMechanismId,
   normalizeButtonOrientation,
+  normalizeSlopeDirection,
+  puncherIsSprungMechanismId,
+  puncherMechanismId,
 } from "./visualVariants.mjs";
 import {
   orangeWallDepthFromMechanismValue,
@@ -183,6 +186,12 @@ async function physicsAdapterContext(
     if (visual?.kind === "orange-wall") {
       return orangeWallMechanismValue(voxel, blocksById);
     }
+    if (visual?.kind === "puncher") {
+      return puncherMechanismId(
+        normalizeSlopeDirection(voxel.orientation, voxel.variantId),
+        Number(voxel.genericId) === 1,
+      );
+    }
     return genericBlockIds.has(voxel.blockId)
       ? Math.max(0, Math.floor(Number(voxel.genericId) || 0))
       : -1;
@@ -280,7 +289,9 @@ export async function simulateCommandWithCpp(
             : {}),
         ...(genericBlockIds.has(voxel.blockId)
           ? {
-              genericId: voxelBuffer[offset + 4],
+              genericId: visualKind === "puncher"
+                ? Number(puncherIsSprungMechanismId(mechanismId))
+                : mechanismId,
               ...(blocksById.get(voxel.blockId)?.visual?.kind === "lift"
                 ? { groupId: voxelBuffer[offset + 4] }
                 : {}),

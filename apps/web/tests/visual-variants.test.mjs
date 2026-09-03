@@ -15,7 +15,10 @@ import {
   normalizeSlopeDirection,
   offsetSlopeDirection,
   puncherDirectionFromPaintFace,
+  puncherDirectionFromMechanismId,
   puncherIsSprung,
+  puncherIsSprungMechanismId,
+  puncherMechanismId,
   rotateLiftMetadata,
   rotatePuncherMetadata,
   rotateSlopeMetadata,
@@ -43,6 +46,17 @@ test("punchers expose exactly one unsprung and one sprung editor state", () => {
   assert.equal(puncherIsSprung(0), false);
   assert.equal(puncherIsSprung(1), true);
   assert.equal(puncherIsSprung(200), true);
+});
+
+test("puncher ABI metadata combines direction with binary visual state", () => {
+  assert.equal(puncherMechanismId("up", false), 0);
+  assert.equal(puncherMechanismId("right", true), 3);
+  assert.equal(puncherMechanismId("down", false), 4);
+  assert.equal(puncherMechanismId("left", true), 7);
+  assert.equal(puncherDirectionFromMechanismId(5), "down");
+  assert.equal(puncherDirectionFromMechanismId(7), "left");
+  assert.equal(puncherIsSprungMechanismId(6), false);
+  assert.equal(puncherIsSprungMechanismId(7), true);
 });
 
 test("puncher rotation keeps its visual direction attached to the room", () => {

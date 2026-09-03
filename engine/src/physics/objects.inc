@@ -37,7 +37,8 @@ void BuildObjects(Voxel* voxels, int32_t count) {
       continue;
     }
     if (voxels[index].role == kPlayerLiftRole ||
-        voxels[index].role == kOrangeButtonRole) {
+        voxels[index].role == kOrangeButtonRole ||
+        voxels[index].role == kPuncherRole) {
       // A lift is an independently stateful fixture, but it is still a body:
       // when a moving polycube carries it, it translates and falls with that
       // support. It is not directly player-pushable.
@@ -116,8 +117,30 @@ int32_t MechanismAttachmentVoxel(
   if (member < 0) return -1;
   const Voxel& mechanism = voxels[member];
   if (mechanism.role != kPlayerLiftRole &&
-      mechanism.role != kOrangeButtonRole) {
+      mechanism.role != kOrangeButtonRole &&
+      mechanism.role != kPuncherRole) {
     return -1;
+  }
+  if (mechanism.role == kPuncherRole) {
+    const int32_t direction = mechanism.generic_id >= 0
+        ? mechanism.generic_id / 2
+        : 0;
+    int32_t support_x = mechanism.x;
+    int32_t support_y = mechanism.y;
+    if (direction == 0) {
+      ++support_y;
+    } else if (direction == 1) {
+      --support_x;
+    } else if (direction == 2) {
+      --support_y;
+    } else if (direction == 3) {
+      ++support_x;
+    } else {
+      return -1;
+    }
+    const int32_t support = FindVoxelAt(
+        voxels, support_x, support_y, mechanism.z, width, height);
+    return support == g_ignored_support_voxel ? -1 : support;
   }
   const int32_t orientation = mechanism.generic_id >= 0
       ? mechanism.generic_id / 2
@@ -239,7 +262,11 @@ bool AttachedPlayerLiftHasDirectSupport(
     bool require_stable) {
   for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
     const int32_t fixture = g_object_head[lift_object];
-    if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+    if (fixture >= 0 &&
+        (voxels[fixture].role == kOrangeButtonRole ||
+         voxels[fixture].role == kPuncherRole)) {
+      // Pass-through sensors ride their mount, but do not become a rigid
+      // foothold for that mount when another body occupies the sensor cell.
       continue;
     }
     if (!PlayerLiftIsAttachedToObject(
@@ -277,7 +304,9 @@ bool AddAttachedPlayerLiftIceSupports(
     bool& found_support) {
   for (int32_t lift_object = 0; lift_object < g_object_count; ++lift_object) {
     const int32_t fixture = g_object_head[lift_object];
-    if (fixture >= 0 && voxels[fixture].role == kOrangeButtonRole) {
+    if (fixture >= 0 &&
+        (voxels[fixture].role == kOrangeButtonRole ||
+         voxels[fixture].role == kPuncherRole)) {
       continue;
     }
     if (!PlayerLiftIsAttachedToObject(
@@ -763,7 +792,7 @@ int32_t BuildVerticalComponent(
   g_object_queue[queue_end++] = first_object;
   while (queue_begin < queue_end) {
     const int32_t object = g_object_queue[queue_begin++];
-    const int32_t attachment = PlayerLiftSideAttachmentVoxel(
+    const int32_t attachment = MechanismAttachmentVoxel(
         voxels, object, width, height);
     if (attachment >= 0) {
       const int32_t other = g_voxel_object[attachment];
@@ -784,7 +813,8 @@ int32_t BuildVerticalComponent(
     }
     const int32_t object_fixture = g_object_head[object];
     if (object_fixture >= 0 &&
-        voxels[object_fixture].role == kOrangeButtonRole) {
+        (voxels[object_fixture].role == kOrangeButtonRole ||
+         voxels[object_fixture].role == kPuncherRole)) {
       // A sensor joins a vertical fall component only through its encoded
       // face attachment. Its pass-through face may overlap or sit beside a
       // body without mechanically latching onto that body.
@@ -846,10 +876,10 @@ bool SettleSupportComponent(
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       const Voxel& voxel = voxels[member];
-      if (voxel.role == kOrangeButtonRole) {
-        // A button is attached to the falling component and translates with
-        // it, but its zero-volume face cannot prop the component up when it
-        // overlaps terrain below.
+      if (voxel.role == kOrangeButtonRole || voxel.role == kPuncherRole) {
+        // A pass-through sensor is attached to the falling component and
+        // translates with it, but its zero-volume face cannot prop the
+        // component up when it overlaps terrain below.
         continue;
       }
       const int32_t support = FindNearestVoxelBelowComponent(

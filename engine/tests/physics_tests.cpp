@@ -1858,6 +1858,51 @@ void TestSearchTracksOrangeWallDepth() {
         "exact search should hash linked orange-wall depth and solve through it");
 }
 
+void TestPuncherRedirectsPlayerAndResetsVisually() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::Voxel voxels[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("puncher"), 2},  // Right-facing, unsprung.
+      {0, 2, 1, Role("wall"), -1},
+      {4, 2, 1, Role("wall"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {3, 2, 0, Role("floor"), -1},
+      {4, 2, 0, Role("floor"), -1},
+  };
+  voxelbench::reset_workspace(&workspace);
+  voxelbench::reset_motion_state(&state);
+  Check(voxelbench::simulate_command(
+            &workspace, &state, voxels, 9, 5, 5, 0) == 0,
+        "a player punch route should quiesce");
+  Check(voxels[0].x == 3 && voxels[0].y == 2,
+        "a puncher should redirect the player and preserve its impulse until blocked");
+  Check(voxels[1].generic_id == 2,
+        "a puncher should expose its sprung frame and reset before completion");
+}
+
+void TestPuncherMomentumMovesAWholeWeightlessConvoy() {
+  voxelbench::Voxel voxels[] = {
+      {1, 3, 1, Role("player"), -1},
+      {1, 2, 1, Role("puncher"), 2},  // Right-facing, unsprung.
+      {2, 2, 1, Role("weightless-pushable"), 0},
+      {0, 2, 1, Role("wall"), -1},
+      {5, 2, 1, Role("wall"), -1},
+      {1, 3, 0, Role("floor"), -1},
+      {1, 2, 0, Role("floor"), -1},
+      {2, 2, 0, Role("floor"), -1},
+      {3, 2, 0, Role("floor"), -1},
+      {4, 2, 0, Role("floor"), -1},
+      {5, 2, 0, Role("floor"), -1},
+  };
+  Check(voxelbench::simulate_turn(voxels, 11, 6, 5, 0) == 0,
+        "a punch-driven weightless convoy should quiesce");
+  Check(voxels[0].x == 3 && voxels[2].x == 4,
+        "every body pushed by a punch should retain the convoy impulse");
+}
+
 }  // namespace
 
 int main() {
@@ -1936,10 +1981,12 @@ int main() {
   TestFloatingOrangeWallLowersAsACube();
   TestProjectedOrangeFaceTransitionsWithDepth();
   TestSearchTracksOrangeWallDepth();
+  TestPuncherRedirectsPlayerAndResetsVisually();
+  TestPuncherMomentumMovesAWholeWeightlessConvoy();
   if (failures != 0) {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 75 C++ physics/search tests passed\n";
+  std::cout << "all 77 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

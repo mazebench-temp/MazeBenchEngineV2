@@ -84,6 +84,23 @@ export function puncherIsSprung(genericId = 0) {
   return id === 1;
 }
 
+// The public project format keeps a puncher's visible binary state separate
+// from its authored orientation. The compact C++ ABI has one mechanism word,
+// so encode direction in the upper bits and sprung state in the low bit.
+export function puncherMechanismId(direction, sprung = false) {
+  return slopeDirectionIndex(direction) * 2 + (sprung ? 1 : 0);
+}
+
+export function puncherDirectionFromMechanismId(mechanismId = 0) {
+  const id = Math.max(0, Math.min(7, Math.floor(Number(mechanismId) || 0)));
+  return SLOPE_DIRECTIONS[Math.floor(id / 2)];
+}
+
+export function puncherIsSprungMechanismId(mechanismId = 0) {
+  const id = Math.max(0, Math.min(7, Math.floor(Number(mechanismId) || 0)));
+  return (id & 1) === 1;
+}
+
 export function liftIsRaised(genericId = 0) {
   const id = Math.max(0, Math.min(LIFT_GENERIC_MAX, Math.floor(Number(genericId) || 0)));
   return id % 2 === 1;

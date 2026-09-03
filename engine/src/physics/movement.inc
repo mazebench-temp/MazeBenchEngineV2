@@ -123,8 +123,11 @@ int32_t MovingSupportBelowObject(
       }
     }
   }
-  const int32_t attachment = PlayerLiftSideAttachmentVoxel(
-      voxels, object, width, height);
+  const int32_t fixture = g_object_head[object];
+  const int32_t attachment = fixture >= 0 &&
+          voxels[fixture].role == kPuncherRole
+      ? MechanismAttachmentVoxel(voxels, object, width, height)
+      : PlayerLiftSideAttachmentVoxel(voxels, object, width, height);
   if (attachment >= 0) {
     const int32_t support_object = g_voxel_object[attachment];
     if (support_object >= 0 && support_object != object &&
@@ -268,7 +271,7 @@ bool ResolveCarriedCollisions(
           g_voxel_object[occupant] == object) {
         continue;
       }
-      if (voxel.role == kOrangeButtonRole) {
+      if (voxel.role == kOrangeButtonRole || voxel.role == kPuncherRole) {
         // Orange Buttons are face sensors, not rigid voxels. A mounted button
         // may ride its carrier into a cell occupied by the floor, a wall, or
         // another body while remaining independently pressable by overlap.
@@ -623,8 +626,11 @@ void MarkObjectsForDeferredGravity(
       g_component_objects[object] = 1;
       continue;
     }
-    const int32_t attachment = PlayerLiftSideAttachmentVoxel(
-        voxels, object, width, height);
+    const int32_t attachment_member = g_object_head[object];
+    const int32_t attachment = attachment_member >= 0 &&
+            voxels[attachment_member].role == kPuncherRole
+        ? MechanismAttachmentVoxel(voxels, object, width, height)
+        : PlayerLiftSideAttachmentVoxel(voxels, object, width, height);
     if (attachment >= 0) {
       const int32_t support_object = g_voxel_object[attachment];
       if (support_object != object &&
@@ -675,8 +681,11 @@ void MarkObjectsForDeferredGravity(
         changed = true;
         continue;
       }
-      const int32_t attachment = PlayerLiftSideAttachmentVoxel(
-          voxels, object, width, height);
+      const int32_t attachment_member = g_object_head[object];
+      const int32_t attachment = attachment_member >= 0 &&
+              voxels[attachment_member].role == kPuncherRole
+          ? MechanismAttachmentVoxel(voxels, object, width, height)
+          : PlayerLiftSideAttachmentVoxel(voxels, object, width, height);
       if (attachment >= 0) {
         const int32_t support_object = g_voxel_object[attachment];
         if (support_object >= 0 && support_object != object &&
@@ -1180,12 +1189,23 @@ bool SlopeEntryIsBlocked(
     int32_t vertical_delta,
     int32_t width,
     int32_t height) {
-  if (vertical_delta != 0 || voxel.z == INT32_MIN) return false;
+  if (voxel.z == INT32_MIN) return false;
   constexpr int32_t kDx[] = {0, 1, 0, -1};
   constexpr int32_t kDy[] = {-1, 0, 1, 0};
   const int32_t next_x = voxel.x + kDx[direction];
   const int32_t next_y = voxel.y + kDy[direction];
   if (!IsInsideRoom(next_x, next_y, width, height)) return false;
+  if (vertical_delta > 0) {
+    // An ascending diagonal sweeps the vertical face at the destination.
+    // The ramp beneath that face is traversable; a wall or rigid body at the
+    // source elevation stops the trajectory even though its endpoint one row
+    // higher is empty.
+    const int32_t swept = FindVoxelAt(
+        voxels, next_x, next_y, voxel.z, width, height);
+    return swept >= 0 && !IsIceSlopeRole(voxels[swept].role) &&
+        !IsPassThroughVoxel(voxels[swept]);
+  }
+  if (vertical_delta < 0) return false;
   const int32_t next_support = FindVoxelAt(
       voxels, next_x, next_y, voxel.z - 1, width, height);
   if (next_support < 0 || !IsIceSlopeRole(voxels[next_support].role)) {

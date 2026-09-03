@@ -30,6 +30,7 @@ constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
+constexpr uint32_t kPuncherRole = HashRoleLiteral("puncher");
 
 // Spatial and rigid-object indexes contain at most kVoxelCapacity entries.
 // The 2x backing table preserves a <= 0.5 load factor at maximum scene size.
@@ -87,7 +88,8 @@ bool IsLoweredPlayerLift(const Voxel& voxel) {
 }
 
 bool IsOrdinaryPassThroughVoxel(const Voxel& voxel) {
-  return voxel.role == kGoalRole || IsLoweredPlayerLift(voxel);
+  return voxel.role == kGoalRole || voxel.role == kPuncherRole ||
+      IsLoweredPlayerLift(voxel);
 }
 
 bool IsPassThroughVoxel(const Voxel& voxel) {
@@ -335,6 +337,7 @@ struct WorkspaceData {
   bool prepared_has_ice_slopes;
   bool prepared_has_player_lifts;
   bool prepared_has_orange_mechanisms;
+  bool prepared_has_punchers;
   bool prepared_has_clones;
   bool prepared_has_player_polycube;
   bool scene_has_orange_mechanisms;

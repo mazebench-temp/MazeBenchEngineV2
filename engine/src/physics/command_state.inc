@@ -5,11 +5,33 @@ constexpr int32_t kMotionGravity = 3;
 constexpr int32_t kMotionComplete = 4;
 constexpr int32_t kMotionPlayerLift = 5;
 constexpr int32_t kMotionOrangeMechanisms = 6;
+constexpr int32_t kMotionPlayerPunch = 7;
+constexpr int32_t kMotionPlayerPunchUp = 8;
+constexpr int32_t kMotionPlayerPunchDown = 9;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;
 constexpr uint8_t kResumeCommand = 3;
 constexpr uint8_t kResumeVacatedLift = 4;
+
+constexpr uint8_t kPunchMomentumBase = 9;
+constexpr uint8_t kLatentPunchMomentumBase = 13;
+
+bool IsPunchMomentum(uint8_t momentum) {
+  return momentum >= kPunchMomentumBase &&
+      momentum < kLatentPunchMomentumBase + 4;
+}
+
+bool IsPlayerPunchPhase(int32_t phase) {
+  return phase == kMotionPlayerPunch ||
+      phase == kMotionPlayerPunchUp ||
+      phase == kMotionPlayerPunchDown;
+}
+
+bool IsLatentMomentum(uint8_t momentum) {
+  return (momentum >= 5 && momentum <= 8) ||
+      momentum >= kLatentPunchMomentumBase;
+}
 
 uint8_t ReadObjectFlag(
     const uint8_t* flags,
@@ -120,11 +142,12 @@ bool StoreSupportedMandatoryMomentum(
         !ObjectIsActive(voxels, object, width, height)) {
       continue;
     }
+    const bool punch_momentum = IsPunchMomentum(g_object_redirected[object]);
     const bool supported_momentum =
         (g_inherited_support_motion[object] != 0 ||
          g_mandatory_objects[object] != 0 ||
          g_object_redirected[object] != 0) &&
-        (g_inherited_support_motion[object] != 0 ||
+        (punch_momentum || g_inherited_support_motion[object] != 0 ||
          ObjectIsFullyOnIce(voxels, object, width, height));
     bool supported_by_momentum_body = false;
     bool supported_by_nonfalling_momentum_body = false;
@@ -177,9 +200,11 @@ bool StoreSupportedMandatoryMomentum(
           : g_object_direction[object] <= 3
               ? g_object_direction[object]
               : fallback_direction;
-      state->horizontal_momentum[member] = static_cast<uint8_t>(
-          direction +
-          ((supported_momentum || moved_with_momentum_body) ? 1 : 5));
+      const bool moving = supported_momentum || moved_with_momentum_body;
+      state->horizontal_momentum[member] = static_cast<uint8_t>(direction +
+          (punch_momentum
+              ? moving ? kPunchMomentumBase : kLatentPunchMomentumBase
+              : moving ? 1 : 5));
     }
   }
   return stored;
@@ -201,7 +226,7 @@ void RestoreMandatoryMomentum(
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
     g_object_direction[object] = static_cast<uint8_t>((momentum - 1) & 3);
-    if ((momentum > 4 &&
+    if ((IsLatentMomentum(momentum) && !IsPunchMomentum(momentum) &&
          !ObjectIsFullyOnIce(voxels, object, width, height)) ||
         g_object_falling[object] != 0) {
       // Momentum remains serialized while a body falls toward a lower slope,
@@ -1122,6 +1147,7 @@ int32_t TrySimulatePassiveQuiescentTurn(
   if (ActiveWorkspace().prepared_has_ice_slopes ||
       ActiveWorkspace().prepared_has_player_lifts ||
       ActiveWorkspace().prepared_has_orange_mechanisms ||
+      ActiveWorkspace().prepared_has_punchers ||
       ActiveWorkspace().prepared_has_clones ||
       ActiveWorkspace().prepared_has_player_polycube) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;

@@ -666,6 +666,20 @@
       "locked": false,
       "name": "Default",
       "parentId": "punchers"
+    },
+    {
+      "collapsed": false,
+      "id": "gate",
+      "locked": false,
+      "name": "gate"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "gate-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "gate"
     }
   ],
   "searches": [
@@ -23388,6 +23402,15 @@
         "punchers-default"
       ],
       "file": "test-476-copy-copy.json"
+    },
+    {
+      "id": "test-479",
+      "name": "Untitled test 479",
+      "groupTagId": "gate",
+      "tagIds": [
+        "gate-default"
+      ],
+      "file": "test-479.json"
     }
   ]
 }
