@@ -5792,6 +5792,14 @@
       }
 
       if (layer.type === "player_gate") {
+        // VoxelBench frames author the gate's visible binary state directly.
+        // The live MazeBench proximity rule is only meaningful while playing;
+        // applying it in the editor made every state-1 gate render as a flat
+        // plate whenever no player happened to be standing beside it.
+        if (isEditorRenderMode()) {
+          return elevation + (layer.raised === true ? 1 : 0);
+        }
+
         if (activeRenderContext?.raisedPlayerGates) {
           return elevation + (activeRenderContext.raisedPlayerGates.has(key) ? 1 : 0);
         }

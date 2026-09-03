@@ -243,6 +243,7 @@ test("red gates and punchers use the MazeBench Three.js recipes", async () => {
   assert.match(editor, /id: "puncher", name: "Puncher"[\s\S]*?genericMax: PUNCHER_GENERIC_MAX[\s\S]*?variantMax: 3[\s\S]*?kind: "puncher"/);
   assert.match(canvas, /definition\.visual\.kind === "puncher"[\s\S]*?sprung: puncherIsSprung\(voxel\.genericId\)[\s\S]*?type: isRigidFamilyMember/);
   assert.match(canvas, /isGate[\s\S]*?gateIsRaised\(voxel\.genericId\)[\s\S]*?"player_gate"/);
+  assert.match(renderer, /layer\.type === "player_gate"[\s\S]*?isEditorRenderMode\(\)[\s\S]*?layer\.raised === true \? 1 : 0/);
   assert.match(renderer, /function addPuncher\(/);
   assert.match(renderer, /actor\.sprung === true[\s\S]*?addAuthoredSprungPuncherArm/);
   assert.match(renderer, /highlightShape: "geometry",\s*selectionKey: actor\.selectionKey/);

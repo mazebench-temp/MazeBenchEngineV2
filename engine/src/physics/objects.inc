@@ -17,6 +17,7 @@ void BuildObjects(Voxel* voxels, int32_t count) {
   g_object_count = 0;
   g_weightless_object_count = 0;
   ActiveWorkspace().scene_has_orange_mechanisms = false;
+  ActiveWorkspace().scene_has_player_gates = false;
   ResetHash();
   int32_t player_count = 0;
   for (int32_t index = 0; index < count; ++index) {
@@ -49,6 +50,10 @@ void BuildObjects(Voxel* voxels, int32_t count) {
     }
     if (voxels[index].role == kOrangeWallRole) {
       ActiveWorkspace().scene_has_orange_mechanisms = true;
+      continue;
+    }
+    if (voxels[index].role == kPlayerGateRole) {
+      ActiveWorkspace().scene_has_player_gates = true;
       continue;
     }
     if (!IsWeightlessObjectRole(voxels[index].role) &&

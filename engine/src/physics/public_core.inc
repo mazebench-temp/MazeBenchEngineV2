@@ -29,6 +29,7 @@ void reset_workspace(PhysicsWorkspace* workspace) {
   data->prepared_has_clones = false;
   data->prepared_has_player_polycube = false;
   data->scene_has_orange_mechanisms = false;
+  data->scene_has_player_gates = false;
   data->clone_command_tick_active = false;
   data->assume_quiescent_start = false;
   data->motion_voxel_count = -1;
@@ -64,7 +65,7 @@ bool prepare_scene(
     const uint32_t role = voxels[index].role;
     if (role == kPlayerRole || IsCloneObjectRole(role) ||
         role == kPushableRole || IsWeightlessObjectRole(role) ||
-        role == kPlayerLiftRole ||
+        role == kPlayerLiftRole || role == kPlayerGateRole ||
         role == kOrangeButtonRole || role == kOrangeWallRole ||
         role == kPuncherRole) {
       data.prepared_dynamic_voxel_count = -1;

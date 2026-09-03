@@ -9,6 +9,7 @@ namespace {
 #include "physics/objects.inc"
 #include "physics/movement.inc"
 #include "physics/command_state.inc"
+#include "physics/gates.inc"
 #include "physics/punchers.inc"
 #include "physics/cycle.inc"
 

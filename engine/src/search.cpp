@@ -35,6 +35,7 @@ constexpr uint32_t kYellowCloneSlopeLeftRole =
     HashRoleLiteral("yellow-clone-slope-left");
 constexpr uint32_t kGoalRole = HashRoleLiteral("goal");
 constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
+constexpr uint32_t kPlayerGateRole = HashRoleLiteral("player-gate");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
 
@@ -163,6 +164,39 @@ bool IsDynamic(uint32_t role) {
       role == kPushableRole || IsWeightlessObjectRole(role) ||
       role == kPlayerLiftRole ||
       role == kOrangeButtonRole;
+}
+
+bool SearchGateBlockingActor(uint32_t role) {
+  return role == kPushableRole || IsWeightlessObjectRole(role) ||
+      IsCloneObjectRole(role);
+}
+
+void RefreshSearchPlayerGates(Voxel* voxels, int32_t count) {
+  for (int32_t gate_index = 0; gate_index < count; ++gate_index) {
+    Voxel& gate = voxels[gate_index];
+    if (gate.role != kPlayerGateRole) continue;
+    bool same_level_block = false;
+    for (int32_t index = 0; index < count; ++index) {
+      const Voxel& candidate = voxels[index];
+      if (!SearchGateBlockingActor(candidate.role) || candidate.x < 0) continue;
+      same_level_block |= candidate.x == gate.x && candidate.y == gate.y &&
+          candidate.z == gate.z;
+    }
+    bool raised = false;
+    for (int32_t index = 0; index < count && !raised; ++index) {
+      const Voxel& player = voxels[index];
+      if (player.role != kPlayerRole || player.x < 0) continue;
+      const int64_t delta_x = static_cast<int64_t>(player.x) - gate.x;
+      const int64_t delta_y = static_cast<int64_t>(player.y) - gate.y;
+      const int64_t distance =
+          (delta_x < 0 ? -delta_x : delta_x) +
+          (delta_y < 0 ? -delta_y : delta_y);
+      const bool standing_on_gate = distance == 0 && player.z == gate.z;
+      raised = distance <= 1 && !standing_on_gate &&
+          (player.z != gate.z || !same_level_block);
+    }
+    gate.generic_id = raised ? 1 : 0;
+  }
 }
 
 bool EncodeCoordinate(int32_t value, int16_t* output) {
@@ -414,6 +448,7 @@ void LoadNode(SearchData* data, const SearchNode& node) {
     voxel.y = data->goal_coordinates[goal][1];
     voxel.z = data->goal_coordinates[goal][2];
   }
+  RefreshSearchPlayerGates(data->scene, data->count);
 }
 
 bool CaptureCandidate(SearchData* data) {
@@ -1070,11 +1105,12 @@ SearchResult search_shortest(
       }
     }
   }
-  // Orange-wall anchors never translate, but their compact lowering depth is
-  // mutable. Keep them in physics' rebuilt prefix without spending a search
-  // coordinate entity per wall; one global depth value identifies the state.
+  // Orange-wall anchors and player gates never translate, but their mechanism
+  // values are mutable. Keep them in physics' rebuilt prefix without spending
+  // a search coordinate entity for each fixed fixture.
   for (int32_t source = 0; source < count; ++source) {
-    if (voxels[source].role != kOrangeWallRole) continue;
+    if (voxels[source].role != kOrangeWallRole &&
+        voxels[source].role != kPlayerGateRole) continue;
     const int32_t target = data->dynamic_voxel_count++;
     data->scene[target] = voxels[source];
     data->voxel_entities[target] = -1;
@@ -1082,7 +1118,8 @@ SearchResult search_shortest(
   static_count = data->dynamic_voxel_count;
   for (int32_t source = 0; source < count; ++source) {
     if (IsDynamic(voxels[source].role) ||
-        voxels[source].role == kOrangeWallRole) continue;
+        voxels[source].role == kOrangeWallRole ||
+        voxels[source].role == kPlayerGateRole) continue;
     const int32_t target = static_count++;
     data->scene[target] = voxels[source];
     if (voxels[source].role == kGoalRole) {

@@ -362,6 +362,14 @@ TickResult step_tick(
   auto store_and_finish = [&](int32_t phase,
                               bool advanced,
                               bool gravity_already_checked = false) {
+    const bool gates_changed = RefreshPlayerGates(
+        voxels, count, width, height);
+    if (gates_changed) {
+      BuildSpatialIndex(voxels, count, width, height);
+      MarkObjectsForDeferredGravity(voxels, width, height, false);
+      state->player_gravity_armed = 1;
+    }
+    advanced |= gates_changed;
     advanced |= orange_advanced_this_tick || clone_command_advanced ||
         puncher_visual_advanced;
     if (clone_command_tick) {

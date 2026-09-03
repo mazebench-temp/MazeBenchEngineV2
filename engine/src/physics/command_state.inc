@@ -1149,7 +1149,8 @@ int32_t TrySimulatePassiveQuiescentTurn(
       ActiveWorkspace().prepared_has_orange_mechanisms ||
       ActiveWorkspace().prepared_has_punchers ||
       ActiveWorkspace().prepared_has_clones ||
-      ActiveWorkspace().prepared_has_player_polycube) return 0;
+      ActiveWorkspace().prepared_has_player_polycube ||
+      ActiveWorkspace().scene_has_player_gates) return 0;
   const int32_t player_index = ActiveWorkspace().prepared_player_index;
   if (player_index < 0 || player_index >= count ||
       voxels[player_index].role != kPlayerRole) {
