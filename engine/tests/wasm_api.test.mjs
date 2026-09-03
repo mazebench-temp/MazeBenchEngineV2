@@ -100,6 +100,7 @@ test("native random-agent batches retain one death undo and a 50-cell trail", as
   assert.equal(engine.random_agent_run(1), 1);
   assert.equal(engine.random_agent_actions(), 0);
   assert.equal(engine.random_agent_exit_direction(), 3);
+  assert.equal(engine.random_agent_exit_kind(), 1);
   assert.deepEqual(Array.from(edgeState.buffer.slice(0, edgeState.stride)), [
     0,
     1,
