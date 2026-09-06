@@ -24073,6 +24073,24 @@
         "stacked"
       ],
       "file": "test-546.json"
+    },
+    {
+      "id": "level-nxm-weird-case-1",
+      "name": "Level NxM Weird Case 1",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "level-nxm-weird-case-1.json"
+    },
+    {
+      "id": "level-nxm-weird-case-1-copy",
+      "name": "Level NxM Weird Case 1 copy",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "level-nxm-weird-case-1-copy.json"
     }
   ]
 }
