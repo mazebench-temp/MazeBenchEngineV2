@@ -191,6 +191,49 @@ void TestRampSideSlideStillCollidesWithSolids() {
         "sliding momentum must not bypass a solid above the destination ramp");
 }
 
+void TestRampCrestPushesOnlyUnblockedWeightlessChains() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  voxelbench::reset_workspace(&workspace);
+  // Crossing a 64-bit frontier boundary and reversing object storage exercise
+  // both traversal orders and scratch cleanup across successive commands.
+  for (const int32_t length : {1, 65}) {
+    for (const bool reverse : {false, true}) {
+      for (const bool blocked : {false, true}) {
+        voxelbench::Voxel voxels[256];
+        int32_t count = 0;
+        const int32_t height = length + 5;
+        voxels[count++] = {0, length + 2, 1, Role("player"), -1};
+        for (int32_t index = 0; index < length; ++index) {
+          const int32_t y = reverse ? index + 1 : length - index;
+          voxels[count++] = {0, y, 2, Role("weightless-pushable"), 1000 + y};
+        }
+        for (int32_t y = 0; y < height; ++y) {
+          voxels[count++] = {0, y, 0, Role("floor"), -1};
+        }
+        for (int32_t y = 0; y <= length; ++y) {
+          voxels[count++] = {0, y, 1, Role("solid"), -1};
+        }
+        voxels[count++] = {0, length + 1, 1, Role("ice-slope-up"), -1};
+        if (blocked) voxels[count++] = {0, 0, 2, Role("solid"), -1};
+        Check(voxelbench::simulate_command(
+                  &workspace, &state, voxels, count, 1, height, 0) == 0,
+              "ramp-crest chain command should complete");
+        Check(state.tick == 2 && voxels[0].x == 0 &&
+                  voxels[0].y == (blocked ? length + 2 : length) &&
+                  voxels[0].z == (blocked ? 1 : 2),
+              "the crest should push a clear chain or reflect from a blocked one");
+        for (int32_t index = 1; index <= length; ++index) {
+          Check(voxels[index].x == 0 && voxels[index].z == 2 &&
+                    voxels[index].y == voxels[index].generic_id - 1000 -
+                        (blocked ? 0 : 1),
+                "crest contact must move the whole chain exactly once or none of it");
+        }
+      }
+    }
+  }
+}
+
 void TestPushableIceSlide() {
   voxelbench::Voxel voxels[] = {
       {2, 4, 1, Role("player"), -1},
@@ -2292,6 +2335,7 @@ int main() {
   TestSlidingMomentumEntersRampSide();
   TestWalkingCannotEnterRampSide();
   TestRampSideSlideStillCollidesWithSolids();
+  TestRampCrestPushesOnlyUnblockedWeightlessChains();
   TestPushableIceSlide();
   TestPlayerAndPushedBodySlideTogetherOnIce();
   TestIceStopsAtObstacle();
@@ -2381,6 +2425,6 @@ int main() {
     std::cerr << failures << " C++ physics test(s) failed\n";
     return EXIT_FAILURE;
   }
-  std::cout << "all 92 C++ physics/search tests passed\n";
+  std::cout << "all 93 C++ physics/search tests passed\n";
   return EXIT_SUCCESS;
 }

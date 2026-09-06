@@ -46,6 +46,14 @@ downhill and follows the ramp. A deliberate step remains blocked from the
 side, even when the player is standing on Ice. This exception does not bypass
 solid occupants or change the ramp's low-edge entry restriction.
 
+Uphill momentum may push a stationary weightless-box chain at a ramp's crest,
+including boxes on non-Ice support. A blocked chain still reflects downhill;
+flat-Ice momentum alone does not gain this push. Feasibility uses the same
+whole-polycube elevation calculation as the transaction and fixed workspace
+bitsets, without recursive searches or per-tick allocations. A level external
+foot prevents a long or tall polycube from descending through its support;
+unsupported overhangs do not count as extra feet.
+
 After every physics change, run the repository-level test suite. A change is
 not complete until all native, WebAssembly, rotation, and web regression tests
 pass.

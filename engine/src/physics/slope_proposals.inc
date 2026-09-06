@@ -16,18 +16,119 @@ bool SceneHasIceSlopes(
   return false;
 }
 
-void PrepareSlopeObjectProposal(
+int32_t ObjectSlopeVerticalDelta(
     Voxel* voxels,
     int32_t object,
+    int32_t direction,
     int32_t width,
     int32_t height,
-    bool allow_redirect,
-    bool deliberate_vertical = false) {
+    bool deliberate_vertical) {
+  bool has_uphill_foot = false;
+  bool has_downhill_foot = false;
+  bool has_level_foot = false;
+  for (int32_t member = g_object_head[object]; member >= 0;
+       member = g_next_object_voxel[member]) {
+    const int32_t member_dz = deliberate_vertical
+        ? DeliberateSlopeVerticalDelta(
+              voxels, voxels[member], direction, width, height, true)
+        : SlopeVerticalDelta(
+              voxels, voxels[member], direction, width, height);
+
+    // Only exposed feet constrain a rigid body's ramp elevation. Internal
+    // members stacked above the same polycube do not vote a second time, and
+    // unsupported overhangs follow the supported portion. A level external
+    // foot is significant: a polycube cannot descend through that foot
+    // merely because another part of the same body rests on a wedge.
+    int32_t support = -1;
+    if (voxels[member].z != INT32_MIN) {
+      support = FindVoxelAt(
+          voxels,
+          voxels[member].x,
+          voxels[member].y,
+          voxels[member].z - 1,
+          width,
+          height);
+    }
+    if (support >= 0 && g_voxel_object[support] == object) continue;
+    if (support < 0 && member_dz <= 0) continue;
+
+    has_uphill_foot |= member_dz > 0;
+    has_downhill_foot |= member_dz < 0;
+    has_level_foot |= member_dz == 0;
+  }
+  // Reduce all external contacts without depending on voxel traversal order.
+  // An uphill foot lifts the body away from flat support; level support only
+  // blocks descent through that surface. Destination collisions are validated
+  // for every member by the transaction before any coordinate is committed.
+  return has_uphill_foot ? 1
+      : has_downhill_foot && !has_level_foot ? -1 : 0;
+}
+
+// Read-only contact closure for a crest impact. Reuse the same whole-body
+// elevation rule as movement, and visit each contacted polycube once without
+// recursion, allocations, or changing the tick's existing motion proposals.
+bool CanPushWeightlessSlopeChain(
+    Voxel* voxels, int32_t object, int32_t direction,
+    int32_t width, int32_t height) {
+  if (object < 0 || g_object_kind[object] != kWeightlessObject) return false;
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  WorkspaceData& workspace = ActiveWorkspace();
+  const int32_t words = (g_object_count + 63) / 64;
+  int32_t pending = 1;
+  workspace.slope_push_seen[object / 64] = uint64_t{1} << (object % 64);
+  workspace.slope_push_pending[object / 64] = uint64_t{1} << (object % 64);
+  bool clear = true;
+  while (pending > 0 && clear) {
+    for (int32_t word = 0; word < words && clear; ++word) {
+      while (workspace.slope_push_pending[word] != 0 && clear) {
+        const int32_t bit = __builtin_ctzll(workspace.slope_push_pending[word]);
+        const int32_t moving = word * 64 + bit;
+        workspace.slope_push_pending[word] &= ~(uint64_t{1} << bit);
+        --pending;
+        const int32_t dz = ObjectSlopeVerticalDelta(
+            voxels, moving, direction, width, height, false);
+        for (int32_t member = g_object_head[moving]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          const int32_t x = voxels[member].x + kDx[direction];
+          const int32_t y = voxels[member].y + kDy[direction];
+          const int32_t z = voxels[member].z + dz;
+          if (!IsInsideRoom(x, y, width, height)) {
+            clear = false;
+            break;
+          }
+          const int32_t occupant = FindVoxelAt(voxels, x, y, z, width, height);
+          if (occupant < 0) continue;
+          const int32_t other = g_voxel_object[occupant];
+          if (other == moving) continue;
+          if (other < 0 || g_object_kind[other] != kWeightlessObject) {
+            clear = false;
+            break;
+          }
+          const uint64_t mask = uint64_t{1} << (other % 64);
+          if ((workspace.slope_push_seen[other / 64] & mask) == 0) {
+            workspace.slope_push_seen[other / 64] |= mask;
+            workspace.slope_push_pending[other / 64] |= mask;
+            ++pending;
+          }
+        }
+      }
+    }
+  }
+  for (int32_t index = 0; index < words; ++index) {
+    workspace.slope_push_seen[index] = 0;
+    workspace.slope_push_pending[index] = 0;
+  }
+  return clear;
+}
+
+void PrepareSlopeObjectProposal(
+    Voxel* voxels, int32_t object, int32_t width, int32_t height,
+    bool allow_redirect, bool deliberate_vertical = false) {
   constexpr int8_t kDx[] = {0, 1, 0, -1};
   constexpr int8_t kDy[] = {-1, 0, 1, 0};
   int32_t direction = g_object_direction[object] <= 3
-      ? g_object_direction[object]
-      : 0;
+      ? g_object_direction[object] : 0;
   if (allow_redirect) {
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
@@ -43,66 +144,8 @@ void PrepareSlopeObjectProposal(
   g_object_direction[object] = static_cast<uint8_t>(direction);
   g_object_dx[object] = kDx[direction];
   g_object_dy[object] = kDy[direction];
-  bool has_vertical_stack = false;
-  for (int32_t member = g_object_head[object]; member >= 0;
-       member = g_next_object_voxel[member]) {
-    if (voxels[member].z == INT32_MIN) continue;
-    const int32_t below = FindVoxelAt(
-        voxels,
-        voxels[member].x,
-        voxels[member].y,
-        voxels[member].z - 1,
-        width,
-        height);
-    if (below >= 0 && g_voxel_object[below] == object) {
-      has_vertical_stack = true;
-      break;
-    }
-  }
-
-  bool has_uphill_foot = false;
-  bool has_downhill_foot = false;
-  bool has_level_foot = false;
-  for (int32_t member = g_object_head[object]; member >= 0;
-       member = g_next_object_voxel[member]) {
-    const int32_t member_dz = deliberate_vertical
-        ? DeliberateSlopeVerticalDelta(
-              voxels, voxels[member], direction, width, height, true)
-        : SlopeVerticalDelta(
-              voxels, voxels[member], direction, width, height);
-
-    // Only exposed feet constrain a rigid body's ramp elevation. Internal
-    // members stacked above the same polycube do not vote a second time, and
-    // unsupported overhangs follow the supported portion. A level external
-    // foot is significant: a tall polycube cannot descend through that foot
-    // merely because another part of the same body rests on a wedge.
-    int32_t support = -1;
-    if (voxels[member].z != INT32_MIN) {
-      support = FindVoxelAt(
-          voxels,
-          voxels[member].x,
-          voxels[member].y,
-          voxels[member].z - 1,
-          width,
-          height);
-    }
-    if (support >= 0 && g_voxel_object[support] == object) continue;
-    if (has_vertical_stack) {
-      if (support < 0 && member_dz <= 0) continue;
-    } else if (member_dz == 0) {
-      continue;
-    }
-
-    has_uphill_foot |= member_dz > 0;
-    has_downhill_foot |= member_dz < 0;
-    has_level_foot |= member_dz == 0;
-  }
-  // Reduce all external contacts without depending on voxel traversal order.
-  // An uphill foot lifts the body away from flat support; level support only
-  // blocks descent through that surface. Destination collisions are validated
-  // for every member by the transaction before any coordinate is committed.
-  g_object_dz[object] = has_uphill_foot ? 1
-      : has_downhill_foot && !has_level_foot ? -1 : 0;
+  g_object_dz[object] = static_cast<int8_t>(ObjectSlopeVerticalDelta(
+      voxels, object, direction, width, height, deliberate_vertical));
 }
 
 int32_t ObjectDownhillSlopeDirection(

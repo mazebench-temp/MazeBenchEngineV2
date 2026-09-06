@@ -334,6 +334,8 @@ struct WorkspaceData {
   uint8_t component_objects[kVoxelCapacity];
   int32_t component_indegree[kVoxelCapacity];
   int32_t object_queue[kVoxelCapacity];
+  uint64_t slope_push_seen[kVoxelCapacity / 64];
+  uint64_t slope_push_pending[kVoxelCapacity / 64];
   int32_t column_heads[kDenseColumnCapacity];
   int32_t next_column_voxel[kVoxelCapacity];
   int32_t static_column_heads[kDenseColumnCapacity];

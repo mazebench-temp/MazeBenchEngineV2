@@ -22,6 +22,10 @@ int32_t SlopeSupportingVoxel(
       : -1;
 }
 
+bool CanPushWeightlessSlopeChain(
+    Voxel* voxels, int32_t object, int32_t direction,
+    int32_t width, int32_t height);
+
 int32_t RedirectSlopeDirection(
     Voxel* voxels,
     const Voxel& voxel,
@@ -67,6 +71,12 @@ int32_t RedirectSlopeDirection(
       // A simultaneous fall vacates the high-edge cell. The following body
       // continues uphill into that source instead of reflecting from a body
       // which is no longer there at the end of this tick.
+      return direction;
+    }
+    if (CanPushWeightlessSlopeChain(
+            voxels, occupant_object, direction, width, height)) {
+      // Crest momentum pushes a movable blue-box chain instead of reflecting.
+      // This query checks every member before the ordinary transaction commits.
       return direction;
     }
   }

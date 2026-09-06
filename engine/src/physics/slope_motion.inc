@@ -54,6 +54,17 @@ bool TranslateSlopeMomentumObjects(
       }
       PrepareSlopeObjectProposal(
           voxels, object, width, height, !allow_push, allow_push);
+      if (allow_downhill_contact_push && g_object_dz[object] == 0) {
+        for (int32_t member = g_object_head[object]; member >= 0;
+             member = g_next_object_voxel[member]) {
+          const int32_t support = SlopeSupportingVoxel(
+              voxels, voxels[member], width, height);
+          if (support >= 0 && IceSlopeDirection(voxels[support].role) ==
+                  g_object_direction[object]) {
+            g_component_objects[object] |= 2;
+          }
+        }
+      }
       for (int32_t member = g_object_head[object]; member >= 0;
            member = g_next_object_voxel[member]) {
         const int32_t next_x = voxels[member].x + g_object_dx[object];
@@ -74,9 +85,8 @@ bool TranslateSlopeMomentumObjects(
           continue;
         }
         // A deliberate shove always recruits a touching weightless body.
-        // Automatic momentum does so only while descending a ramp: that is a
-        // synchronized landing/contact, whereas a body already sliding on a
-        // level surface stops when it reaches a stationary body.
+        // Ramp momentum also transmits a push through a crest's weightless
+        // chain. A free flat-Ice slide still stops at a stationary body.
         bool source_is_movable_ramp = false;
         for (int32_t source_member = g_object_head[object];
              source_member >= 0;
@@ -94,9 +104,12 @@ bool TranslateSlopeMomentumObjects(
         const bool downhill_ice_contact_push =
             allow_downhill_contact_push && g_component_objects[object] != 0 &&
             ObjectIsFullyOnIce(voxels, other, width, height);
+        const bool crest_contact_push = allow_downhill_contact_push &&
+            (g_component_objects[object] & 2) != 0;
         const bool recruit_deliberate = deliberate_contact_push &&
             DeliberatePushMayRecruit(object, other);
-        const bool recruit_downhill = downhill_ice_contact_push &&
+        const bool recruit_downhill =
+            (downhill_ice_contact_push || crest_contact_push) &&
             (g_object_kind[object] == kWeightlessObject ||
              g_object_kind[object] == kCloneObject ||
              g_object_kind[object] == kPlayerObject) &&
