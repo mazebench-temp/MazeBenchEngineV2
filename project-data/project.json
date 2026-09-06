@@ -24091,6 +24091,24 @@
         "engine-regressions-support"
       ],
       "file": "level-nxm-weird-case-1-copy.json"
+    },
+    {
+      "id": "room-oxl-weird-case-1",
+      "name": "Room OxL weird case 1",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-default"
+      ],
+      "file": "room-oxl-weird-case-1.json"
+    },
+    {
+      "id": "room-oxl-weird-case-1-copy",
+      "name": "Room OxL weird case 2",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-default"
+      ],
+      "file": "room-oxl-weird-case-1-copy.json"
     }
   ]
 }
