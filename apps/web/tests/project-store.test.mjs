@@ -6,8 +6,10 @@ import test from "node:test";
 
 import {
   readProjectDirectory,
+  readProjectBundle,
   writeProjectDirectory,
 } from "../../../scripts/lib/project-store.mjs";
+import { projectRevision, saveProjectRevision } from "../../../scripts/lib/project-revision.mjs";
 
 function makeTest(id, blockId) {
   return {
@@ -75,6 +77,53 @@ test("split project store writes one compact file per test and removes stale fil
     const restoredReduced = await readProjectDirectory(directory);
     assert.deepEqual(restoredReduced.tags, reduced.tags);
     assert.deepEqual(restoredReduced.tests, reduced.tests);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("revision saves reject stale tabs without removing newly authored tests", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "voxelbench-project-revision-"));
+  try {
+    const original = makeProject([makeTest("first", "player")]);
+    await writeProjectDirectory(directory, original);
+    const revision = projectRevision(await readProjectBundle(directory));
+    const noRevision = await saveProjectRevision(directory, original);
+    assert.equal(noRevision.status, 428);
+    assert.equal(noRevision.saved, false);
+
+    const newer = makeProject([...original.tests, makeTest("newly-authored", "box")]);
+    await writeProjectDirectory(directory, newer);
+    const stale = await saveProjectRevision(directory, original, revision);
+    assert.equal(stale.status, 409);
+    assert.equal(stale.saved, false);
+    assert.deepEqual((await readProjectDirectory(directory)).tests, newer.tests);
+
+    const currentRevision = projectRevision(await readProjectBundle(directory));
+    newer.tests[0].description = "Fresh edit after loading the latest version";
+    const accepted = await saveProjectRevision(directory, newer, currentRevision);
+    assert.equal(accepted.saved, true);
+    assert.equal(accepted.status, 200);
+    assert.notEqual(accepted.revision, currentRevision);
+    assert.equal(accepted.revision, projectRevision(await readProjectBundle(directory)));
+    assert.deepEqual((await readProjectDirectory(directory)).tests, newer.tests);
+
+    // Even metadata-only edits must invalidate a second tab's old revision.
+    assert.equal((await saveProjectRevision(directory, original, currentRevision)).saved, false);
+    assert.equal((await readProjectDirectory(directory)).tests.length, 2);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("a new project requires an explicit empty-project revision", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "voxelbench-project-new-"));
+  try {
+    const original = makeProject([makeTest("first", "player")]);
+    assert.equal((await saveProjectRevision(directory, original)).status, 428);
+    const saved = await saveProjectRevision(directory, original, "*");
+    assert.equal(saved.saved, true);
+    assert.equal((await saveProjectRevision(directory, original, "*")).status, 409);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

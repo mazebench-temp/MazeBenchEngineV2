@@ -82,7 +82,7 @@ test("browser simulation and search preserve distinct directional slope roles", 
     "utf8",
   );
   const authoredSuite = await readFile(
-    new URL("../../../engine/tests/project_suite.test.mjs", import.meta.url),
+    new URL("../../../engine/tests/helpers/project-engine.mjs", import.meta.url),
     "utf8",
   );
 

@@ -34,7 +34,7 @@ import {
   offsetGenericObjectId,
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
-import { deleteTestCase, runnableTestCases } from "./testSuite.mjs";
+import { deleteTestCase, runnableTestCases, summarizeTestResults } from "./testSuite.mjs";
 import {
   canonicalTagCombination,
   combinationViewIncludesTest,
@@ -56,7 +56,6 @@ import {
   createCellObjectMultisetDiffer,
   eraseOneObjectAtCell,
   normalizeOccupancyProfile,
-  objectCanShareCell,
   objectPaintsInsideClickedBody,
   placeObjectInCell,
 } from "./cellObjects.mjs";
@@ -1441,6 +1440,24 @@ type TagCombinationAlias = {
   tagIds: string[];
 };
 
+function SuiteGroupStatus({ label, summary }: {
+  label: string;
+  summary: ReturnType<typeof summarizeTestResults>;
+}) {
+  const description = summary.state === "empty"
+    ? "No active tests"
+    : `${summary.passed}/${summary.active} passing${summary.failed ? ` · ${summary.failed} failing` : ""}${summary.pending ? ` · ${summary.pending} not run` : ""}`;
+  const tooltip = `${label}: ${description}${summary.hidden ? ` · ${summary.hidden} hidden / ignored` : ""}`;
+  return <span className={`suite-group-status is-${summary.state}`} role="img" aria-label={tooltip} title={tooltip}>
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {summary.state === "pass" ? <path d="m4 10 4 4 8-8" />
+        : summary.state === "fail" ? <path d="m5 5 10 10M15 5 5 15" />
+          : summary.state === "pending" ? <circle cx="10" cy="10" r="5" strokeWidth="1.5" />
+            : <path d="M6 10h8" strokeWidth="1.5" />}
+    </svg>
+  </span>;
+}
+
 function TestSuiteWorkspace({
   activeId,
   blocks,
@@ -1487,9 +1504,11 @@ function TestSuiteWorkspace({
   tests: TestCase[];
 }) {
   const activeTest = tests.find((test) => test.id === activeId);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(activeTest?.folderId ?? null);
+  const [requestedFolderId, setSelectedFolderId] = useState<string | null>(activeTest?.folderId ?? null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "hidden" | "passed" | "untested">("all");
+  const [pagination, setPagination] = useState({ scope: "", index: 0 });
+  const contentRef = useRef<HTMLDivElement>(null);
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
   const [folderRenameDraft, setFolderRenameDraft] = useState<{ id: string; name: string } | null>(null);
   const [previewQueue, setPreviewQueue] = useState<Array<{
@@ -1531,6 +1550,8 @@ function TestSuiteWorkspace({
     () => new Map(combinationAliases.map((alias) => [alias.id, alias])),
     [combinationAliases],
   );
+  const selectedFolderId = requestedFolderId &&
+    (foldersById.has(requestedFolderId) || aliasesById.has(requestedFolderId)) ? requestedFolderId : null;
   const childrenByParent = useMemo(() => {
     const children = new Map<string, TestFolder[]>();
     for (const folder of folders) {
@@ -1563,6 +1584,18 @@ function TestSuiteWorkspace({
     folder.id,
     tests.filter((test) => testUsesTag(test, folder)).length,
   ])), [folders, tests]);
+  const folderResults = useMemo(() => new Map(folders.map((folder) => [
+    folder.id,
+    // Include combination memberships: those cards also appear beneath the
+    // direct subtag list, and their failures must propagate to the parent.
+    summarizeTestResults(tests.filter((test) => testUsesTag(test, folder)), results),
+  ])), [folders, results, tests]);
+  const aliasResults = useMemo(() => new Map(combinationAliases.map((alias) => [
+    alias.id,
+    summarizeTestResults(tests.filter((test) => test.folderId === alias.groupTagId &&
+      combinationViewIncludesTest(test.tagIds, alias.tagIds, tagOrder)), results),
+  ])), [combinationAliases, results, tagOrder, tests]);
+  const allResults = useMemo(() => summarizeTestResults(tests, results), [results, tests]);
   const rootFolderCount = folders.filter((folder) => !folder.parentId).length;
 
   const testIsInSelectedView = useCallback((test: TestCase) => {
@@ -1590,10 +1623,18 @@ function TestSuiteWorkspace({
     const aliasLabel = combinationAliases.find((alias) =>
       alias.groupTagId === test.folderId &&
       combinationViewIncludesTest(test.tagIds, alias.tagIds, tagOrder))?.label ?? "";
-    return !needle || `${test.name} ${test.description} ${tagPaths} ${aliasLabel}`.toLowerCase().includes(needle);
+    return !needle || `${test.id} ${test.name} ${test.description} ${tagPaths} ${aliasLabel}`.toLowerCase().includes(needle);
   };
   const selectedScopeTests = tests.filter(testIsInSelectedView);
   const visibleTests = selectedScopeTests.filter(testMatchesFilters);
+  const pageSize = 24;
+  const pageScope = JSON.stringify([selectedFolderId, query, statusFilter]);
+  const page = pagination.scope === pageScope ? pagination.index : 0;
+  const setPage = (index: number) => setPagination({ scope: pageScope, index });
+  const pageCount = Math.max(1, Math.ceil(visibleTests.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageTests = visibleTests.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  useEffect(() => { contentRef.current?.scrollTo({ top: 0 }); }, [currentPage, selectedFolderId, query, statusFilter]);
   const selectedFolder = selectedFolderId ? foldersById.get(selectedFolderId) : undefined;
   const selectedAlias = selectedFolderId ? aliasesById.get(selectedFolderId) : undefined;
   const relatedAliasSections = selectedFolder?.parentId
@@ -1608,11 +1649,6 @@ function TestSuiteWorkspace({
       .filter((section) => section.tests.length > 0)
     : [];
   const relatedTestCount = relatedAliasSections.reduce((count, section) => count + section.tests.length, 0);
-  useEffect(() => {
-    if (selectedFolderId && !foldersById.has(selectedFolderId) && !aliasesById.has(selectedFolderId)) {
-      setSelectedFolderId(null);
-    }
-  }, [aliasesById, foldersById, selectedFolderId]);
   const runnableTests = runnableTestCases(tests);
   const runnableTestIds = new Set(runnableTests.map((test) => test.id));
   const completed = Object.entries(results)
@@ -1656,7 +1692,7 @@ function TestSuiteWorkspace({
           <div className="suite-test-row__identity">
             <label className="suite-test-row__title">
               <span>Title</span>
-              <input aria-label={`Title for ${test.name || "untitled test"}`} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
+              <textarea aria-label={`Title for ${test.name || "untitled test"}`} rows={2} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
             </label>
             <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
           </div>
@@ -1664,7 +1700,7 @@ function TestSuiteWorkspace({
             <span>Description</span>
             <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
           </label>
-          <small>{test.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")} · {test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · hidden from physics suite" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+          <small title={test.id}>{test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · ignored" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
         </div>
         <div className="suite-test-row__actions">
           <button type="button" disabled={test.hidden} title={test.hidden ? "Unhide this case before running it" : "Run this case"} onClick={() => onRunTest(test)}>Run</button>
@@ -1702,13 +1738,13 @@ function TestSuiteWorkspace({
             <button className="suite-tree__collapse" type="button" disabled={!hasChildren} aria-label={`${folder.collapsed ? "Expand" : "Collapse"} ${folder.name}`} aria-expanded={!folder.collapsed} onClick={() => onToggleFolderCollapsed(folder.id)}><span aria-hidden="true">▾</span></button>
             {folderRenameDraft?.id === folder.id ? (
               <form className="suite-tree__rename" onSubmit={(event) => { event.preventDefault(); const name = folderRenameDraft.name.trim(); if (!name) return; onRenameFolder(folder.id, name); setFolderRenameDraft(null); }}>
-                <input autoFocus aria-label={`New name for ${folder.name}`} value={folderRenameDraft.name} onChange={(event) => setFolderRenameDraft({ id: folder.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setFolderRenameDraft(null); } }} />
+                <input aria-label={`New name for ${folder.name}`} value={folderRenameDraft.name} onChange={(event) => setFolderRenameDraft({ id: folder.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setFolderRenameDraft(null); } }} />
                 <button type="submit" disabled={!folderRenameDraft.name.trim()} aria-label={`Save name for ${folder.name}`}>✓</button>
                 <button type="button" aria-label={`Cancel renaming ${folder.name}`} onClick={() => setFolderRenameDraft(null)}>×</button>
               </form>
             ) : (
               <>
-                <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><em>{folderTestCounts.get(folder.id) ?? 0}</em></button>
+                <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><SuiteGroupStatus label={folder.name} summary={folderResults.get(folder.id)!} /><em>{folderTestCounts.get(folder.id) ?? 0}</em></button>
                 <button className="suite-tree__rename-button" type="button" disabled={folder.default} aria-label={`Rename ${folder.name}`} title={folder.default ? "Default is a reserved subtag" : `Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
                 <button className="suite-tree__delete-button" type="button" disabled={!canDelete} aria-label={`Delete ${folder.name}`} title={deleteTitle} onClick={() => onDeleteFolder(folder.id)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5M14 11v5" /></svg></button>
               </>
@@ -1723,7 +1759,7 @@ function TestSuiteWorkspace({
               return (
                 <div className={`suite-tree__row suite-tree__row--alias ${selectedFolderId === alias.id ? "is-selected" : ""}`} key={alias.id} style={{ "--tree-depth": depth + 1 } as React.CSSProperties}>
                   <span className="suite-tree__alias-marker" aria-hidden="true">◇</span>
-                  <button className="suite-tree__select" type="button" title={`Combined subtag: ${alias.label}`} onClick={() => setSelectedFolderId(alias.id)}><span aria-hidden="true">↗</span><strong>{alias.label}</strong><em>{aliasCount}</em></button>
+                  <button className="suite-tree__select" type="button" title={`Combined subtag: ${alias.label}`} onClick={() => setSelectedFolderId(alias.id)}><span aria-hidden="true">↗</span><strong>{alias.label}</strong><SuiteGroupStatus label={alias.label} summary={aliasResults.get(alias.id)!} /><em>{aliasCount}</em></button>
                   <span />
                 </div>
               );
@@ -1738,7 +1774,7 @@ function TestSuiteWorkspace({
     <section className="suite-workspace" aria-label="Test Suite workspace">
       <aside className="suite-explorer">
         <div className="suite-explorer__heading"><div><span>Tag browser</span><strong>{folders.filter((folder) => !folder.parentId).length} groups</strong></div><button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "" })}>＋ Tag group</button></div>
-        <button className={`suite-tree__all ${selectedFolderId === null ? "is-selected" : ""}`} type="button" onClick={() => setSelectedFolderId(null)}><span>All tests</span><em>{tests.length}</em></button>
+        <button className={`suite-tree__all ${selectedFolderId === null ? "is-selected" : ""}`} type="button" onClick={() => setSelectedFolderId(null)}><span>All tests</span><SuiteGroupStatus label="All tests" summary={allResults} /><em>{tests.length}</em></button>
         <div className="suite-tree">{renderFolderBranch()}</div>
       </aside>
 
@@ -1763,14 +1799,18 @@ function TestSuiteWorkspace({
         {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag group"}` : "New tag group"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create {folderDraft.parentId ? "subtag" : "group"}</button></form>}
 
         <div className="suite-browser__filters">
-          <label><span>Search</span><input type="search" value={query} placeholder="Name, description, or tag…" onChange={(event) => setQuery(event.target.value)} /></label>
+          <label><span>Search</span><input type="search" value={query} placeholder="Name, description, tag, or case ID…" onChange={(event) => setQuery(event.target.value)} /></label>
           <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="failed">Failing</option><option value="passed">Passing</option><option value="untested">Untested</option><option value="hidden">Hidden / ignored</option></select></label>
         </div>
 
-        <div className="suite-browser__content">
+        <div className="suite-browser__content" ref={contentRef}>
+          {visibleTests.length > pageSize && <nav className="suite-pagination" aria-label="Test library pages">
+            <span>{currentPage * pageSize + 1}–{Math.min((currentPage + 1) * pageSize, visibleTests.length)} of {visibleTests.length} cases</span>
+            <div><button type="button" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>← Previous</button><span>Page {currentPage + 1} / {pageCount}</span><button type="button" disabled={currentPage + 1 === pageCount} onClick={() => setPage(currentPage + 1)}>Next →</button></div>
+          </nav>}
           <div className="suite-test-table" role="list">
             {visibleTests.length
-              ? visibleTests.map((test, visibleIndex) => renderTestCard(test, visibleIndex, selectedScopeTests))
+              ? pageTests.map((test, visibleIndex) => renderTestCard(test, currentPage * pageSize + visibleIndex, selectedScopeTests))
               : <div className="suite-browser__empty"><strong>No direct tests found</strong><span>Related combinations are shown below when available.</span></div>}
           </div>
           {relatedAliasSections.length > 0 && <section className="suite-related-combinations" aria-label={`Related combinations for ${selectedFolder?.name ?? "subtag"}`}>
@@ -1842,6 +1882,10 @@ export default function VoxelBench() {
   const [historyState, setHistoryState] = useState({ canRedo: false, canUndo: false });
   const [cameraQuarterTurns, setCameraQuarterTurns] = useState(0);
   const [projectLoaded, setProjectLoaded] = useState(false);
+  const [saveConflict, setSaveConflict] = useState(false);
+  const repoRevisionRef = useRef<string | null>(null);
+  const repoSaveBlockedRef = useRef(false);
+  const repoSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const activeTest = tests.find((test) => test.id === activeId) ?? tests[0];
   const folderPaths = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folderPathLabel(folders, folder.id)])),
@@ -1933,7 +1977,12 @@ export default function VoxelBench() {
       let repoProject: string | null = null;
       try {
         const response = await fetch(LOCAL_PROJECT_ENDPOINT, { cache: "no-store" });
-        if (response.ok) repoProject = await response.text();
+        if (response.ok) {
+          repoProject = await response.text();
+          repoRevisionRef.current = response.headers.get("ETag");
+        } else if (response.status === 404) {
+          repoRevisionRef.current = "*";
+        }
       } catch {
         // Repo persistence is local-development-only. Browser storage remains
         // the fallback for production previews and temporarily offline runs.
@@ -2032,11 +2081,22 @@ export default function VoxelBench() {
         // optional fallback prevent the local-project request below.
         browserBackupPreserved = false;
       }
-      void fetch(LOCAL_PROJECT_ENDPOINT, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: serialized,
-      }).then((response) => {
+      repoSaveQueueRef.current = repoSaveQueueRef.current.catch(() => undefined).then(async () => {
+        if (cancelled || repoSaveBlockedRef.current) return;
+        const response = await fetch(LOCAL_PROJECT_ENDPOINT, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(repoRevisionRef.current ? { "If-Match": repoRevisionRef.current } : {}),
+          },
+          body: serialized,
+        });
+        if (response.status === 409 || response.status === 428) {
+          repoSaveBlockedRef.current = true;
+          setSaveConflict(true);
+          return;
+        }
+        if (response.ok) repoRevisionRef.current = response.headers.get("ETag");
         if (!response.ok && response.status !== 404 && !cancelled) {
           setToast(browserBackupPreserved
             ? "Repo save failed · browser backup preserved"
@@ -2929,14 +2989,6 @@ export default function VoxelBench() {
     setToast(`Cleared ${inspectedCellOccupants.length} objects from the cell`);
   };
 
-  const updateActive = (patch: Partial<TestCase>) => {
-    if (!activeTest || activeTestLocked) {
-      setToast("This test is locked");
-      return;
-    }
-    setTests((current) => current.map((test) => test.id === activeTest.id ? { ...test, ...patch } : test));
-  };
-
   const addFolder = (requestedName: string, parentId?: string) => {
     const name = requestedName.trim();
     if (!name) return;
@@ -3642,6 +3694,12 @@ export default function VoxelBench() {
           {toast && <p className="author-status" role="status"><span />{toast}</p>}
         </div>
       </header>
+
+      {saveConflict && <div className="save-conflict" role="alert">
+        <span>Saving paused: the project changed on disk. Your unsaved edits are still in this tab; export them before reloading.</span>
+        <button type="button" onClick={exportProject}>Export draft</button>
+        <button type="button" onClick={() => { if (window.confirm("Reload the saved project? Unsaved edits in this tab will be discarded. Export your draft first if you need to keep them.")) window.location.reload(); }}>Reload saved project</button>
+      </div>}
 
       {activeWorkspace === "search" && (
         <SearchBench

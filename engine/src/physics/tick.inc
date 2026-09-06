@@ -1277,7 +1277,8 @@ TickResult step_tick(
           state->direction,
           player_dz,
           width,
-          height)) {
+          height,
+          automatic_ice_motion)) {
     return store_and_finish(kMotionComplete, records_initial_tick);
   }
   const int32_t player_from_x = player.x;

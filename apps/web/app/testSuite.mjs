@@ -45,3 +45,25 @@ export function deleteTestCase(tests, testId, activeId) {
 export function runnableTestCases(tests) {
   return tests.filter((test) => test.hidden !== true);
 }
+
+/**
+ * Aggregate the full group, not the currently searched/filtered card list.
+ * A missing result is pending, not a failure or an implicit pass. Hidden cases
+ * never turn a group red or prevent its active cases from turning green.
+ *
+ * @param {Array<{ id: string, hidden?: boolean }>} tests
+ * @param {Record<string, { pass: boolean } | undefined>} results
+ */
+export function summarizeTestResults(tests, results) {
+  let passed = 0, failed = 0, pending = 0, hidden = 0;
+  for (const test of tests) {
+    if (test.hidden === true) { hidden++; continue; }
+    const result = results[test.id];
+    if (!result) pending++;
+    else if (result.pass) passed++;
+    else failed++;
+  }
+  const active = passed + failed + pending;
+  const state = failed ? "fail" : pending ? "pending" : active ? "pass" : "empty";
+  return { state, active, passed, failed, pending, hidden };
+}

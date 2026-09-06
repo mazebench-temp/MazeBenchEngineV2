@@ -8,6 +8,7 @@
   "scripts": {
     "build:physics": "sh scripts/build-physics.sh",
     "test:physics": "sh scripts/test-physics.sh",
+    "test:physics:sanitize": "sh scripts/test-physics-sanitize.sh",
     "benchmark:physics": "sh scripts/benchmark-physics.sh",
     "benchmark:search": "sh scripts/benchmark-search.sh",
     "benchmark:search:wasm": "npm run build:physics && node engine/benchmarks/wasm_search_benchmark.mjs",

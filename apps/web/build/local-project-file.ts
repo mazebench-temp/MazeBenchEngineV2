@@ -2,8 +2,8 @@ import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 import {
   readProjectBundle,
-  writeProjectDirectory,
 } from "../../../scripts/lib/project-store.mjs";
+import { projectRevision, saveProjectRevision } from "../../../scripts/lib/project-revision.mjs";
 
 const ENDPOINT = "/api/local-project";
 const MAX_PROJECT_BYTES = 25 * 1024 * 1024;
@@ -45,10 +45,12 @@ export function localProjectFile(): Plugin {
 
         if (request.method === "GET") {
           try {
+            await saveQueue;
             const project = await readProjectBundle(PROJECT_DIRECTORY);
             response.statusCode = 200;
             response.setHeader("Cache-Control", "no-store");
             response.setHeader("Content-Type", "application/json; charset=utf-8");
+            response.setHeader("ETag", projectRevision(project));
             response.end(JSON.stringify(project));
           } catch (error) {
             if ((error as NodeJS.ErrnoException).code === "ENOENT") {
@@ -64,17 +66,26 @@ export function localProjectFile(): Plugin {
           try {
             const body = await readRequestBody(request);
             const project: unknown = JSON.parse(body);
-            let result: Awaited<ReturnType<typeof writeProjectDirectory>> | undefined;
+            let result: Awaited<ReturnType<typeof saveProjectRevision>> | undefined;
             const pendingSave = saveQueue.catch(() => undefined).then(async () => {
-              result = await writeProjectDirectory(PROJECT_DIRECTORY, project);
+              result = await saveProjectRevision(PROJECT_DIRECTORY, project,
+                request.headers["if-match"] ?? request.headers["if-none-match"]);
             });
             saveQueue = pendingSave.catch(() => undefined);
             await pendingSave;
+            if (!result?.saved) {
+              sendJson(response, result?.status ?? 409, {
+                saved: false,
+                error: "The project changed on disk. Export your browser draft before reloading the saved project.",
+              });
+              return;
+            }
+            response.setHeader("ETag", result.revision);
             sendJson(response, 200, {
               path: "project-data/project.json",
               saved: true,
-              tests: result?.tests ?? 0,
-              changedTests: result?.changedTests ?? 0,
+              tests: "tests" in result ? result.tests : 0,
+              changedTests: "changedTests" in result ? result.changedTests : 0,
             });
           } catch (error) {
             sendJson(response, 500, {

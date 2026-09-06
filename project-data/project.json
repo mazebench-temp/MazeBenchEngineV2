@@ -710,6 +710,34 @@
       "locked": false,
       "name": "Default",
       "parentId": "floating-floor"
+    },
+    {
+      "collapsed": false,
+      "id": "engine-regressions",
+      "locked": false,
+      "name": "Engine regressions"
+    },
+    {
+      "collapsed": false,
+      "default": true,
+      "id": "engine-regressions-default",
+      "locked": false,
+      "name": "Default",
+      "parentId": "engine-regressions"
+    },
+    {
+      "collapsed": false,
+      "id": "engine-regressions-slopes",
+      "locked": false,
+      "name": "Slope geometry",
+      "parentId": "engine-regressions"
+    },
+    {
+      "collapsed": false,
+      "id": "engine-regressions-support",
+      "locked": false,
+      "name": "Support and carrying",
+      "parentId": "engine-regressions"
     }
   ],
   "searches": [
@@ -19099,7 +19127,7 @@
     },
     {
       "id": "test-8-copy-2",
-      "name": "Player can walk on walls copy",
+      "name": "Movement: Player moves north · 1t at (2, 2, 2)",
       "groupTagId": "general",
       "tagIds": [
         "general-default"
@@ -19108,7 +19136,7 @@
     },
     {
       "id": "test-8-copy-2-copy",
-      "name": "Player can walk on walls copy copy",
+      "name": "Movement: Player moves north · 1t at (2, 2, 4)",
       "groupTagId": "general",
       "tagIds": [
         "general-default"
@@ -19154,7 +19182,7 @@
     },
     {
       "id": "test-11-copy",
-      "name": "Slide off very tall ice and onto floor1 copy",
+      "name": "Movement: Player descends · 7t at (0, 5, 4)",
       "groupTagId": "general",
       "tagIds": [
         "on-ice"
@@ -19344,7 +19372,7 @@
     },
     {
       "id": "test-32-copy-copy-2",
-      "name": "Walk on box copy",
+      "name": "3D Box: Blocked command preserves the scene · 1t at (0, 5, 2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "3d-boxes-default"
@@ -19380,7 +19408,7 @@
     },
     {
       "id": "test-34-copy",
-      "name": "Push under box copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19389,7 +19417,7 @@
     },
     {
       "id": "test-34-copy-copy",
-      "name": "Push under box copy copy",
+      "name": "3D Box: Box 0 moves north · 2t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19398,7 +19426,7 @@
     },
     {
       "id": "test-34-copy-copy-2",
-      "name": "Push under box copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "wrapped"
@@ -19407,7 +19435,7 @@
     },
     {
       "id": "test-34-copy-copy-2-copy",
-      "name": "Push under box copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 2) [case 43]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "wrapped"
@@ -19416,7 +19444,7 @@
     },
     {
       "id": "test-34-copy-copy-2-copy-copy",
-      "name": "Push under box copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 2t at (0, 5, 2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "wrapped"
@@ -19425,7 +19453,7 @@
     },
     {
       "id": "test-34-copy-copy-copy",
-      "name": "Push under box copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 45]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19434,7 +19462,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-3",
-      "name": "Push under box copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 46]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked",
@@ -19444,7 +19472,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy",
-      "name": "Push under box copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 4t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19453,7 +19481,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy",
-      "name": "Push under box copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 3t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19462,7 +19490,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy-copy",
-      "name": "Push under box copy copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 2t at (0, 5, 1) [case 49]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19471,7 +19499,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Push under box copy copy copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 50]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19498,7 +19526,7 @@
     },
     {
       "id": "test-36-copy",
-      "name": "Player walks from under box (2) copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 53]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19507,7 +19535,7 @@
     },
     {
       "id": "test-36-copy-copy",
-      "name": "Player walks from under box (2) copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 54]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19516,7 +19544,7 @@
     },
     {
       "id": "test-36-copy-copy-copy-3",
-      "name": "Player walks from under box (2) copy copy copy",
+      "name": "3D Box: Box 0 descends · 2t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "3d-boxes-default"
@@ -19525,7 +19553,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-2",
-      "name": "Push under box copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 56]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19534,7 +19562,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy",
-      "name": "Push under box copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 5t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19543,7 +19571,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy",
-      "name": "Push under box copy copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 4t at (0, 5, 1) [case 58]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19552,7 +19580,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy-copy",
-      "name": "Push under box copy copy copy copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 3t at (0, 5, 1) [case 59]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19561,7 +19589,7 @@
     },
     {
       "id": "test-34-copy-copy-copy-copy-2-copy-copy-copy-copy",
-      "name": "Push under box copy copy copy copy copy copy copy copy",
+      "name": "3D Box: Box 0 descends · 2t at (0, 5, 1) [case 60]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19570,7 +19598,7 @@
     },
     {
       "id": "test-36-copy-copy-copy-2",
-      "name": "Player walks from under box (2) copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 61]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19579,7 +19607,7 @@
     },
     {
       "id": "test-36-copy-copy-copy-2-copy",
-      "name": "Player walks from under box (2) copy copy copy copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 5, 1) [case 62]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "3d-boxes-default"
@@ -19588,7 +19616,7 @@
     },
     {
       "id": "test-36-copy-copy-copy-2-copy-copy",
-      "name": "Player walks from under box (2) copy copy copy copy copy",
+      "name": "3D Box: Player moves north · 1t at (0, 4, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -19597,7 +19625,7 @@
     },
     {
       "id": "test-36-copy-copy-copy-2-copy-copy-copy",
-      "name": "Player walks from under box (2) copy copy copy copy copy copy",
+      "name": "3D Box: Player moves north · 1t at (0, 4, 1) [case 64]",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "3d-boxes-default"
@@ -19606,7 +19634,7 @@
     },
     {
       "id": "test-36-copy-copy-copy",
-      "name": "Player walks from under box (2) copy copy copy",
+      "name": "3D Box: Box 1 moves north · 1t at (0, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "3d-boxes-default"
@@ -19633,7 +19661,7 @@
     },
     {
       "id": "test-38-copy",
-      "name": "holy box (2) copy",
+      "name": "3D Box: Box 0 moves north · 1t at (0, 4, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "wrapped"
@@ -19651,7 +19679,7 @@
     },
     {
       "id": "test-38-copy-copy-copy-2",
-      "name": "interlocking boxes copy",
+      "name": "3D Box + Hole: Box 0 descends · 2t at (1, 3, 4)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19678,7 +19706,7 @@
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy",
-      "name": "interlocking boxes (3) copy",
+      "name": "3D Box + Hole: Box 5 falls into the void · 22t at (0, 5, 2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19687,7 +19715,7 @@
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy-copy",
-      "name": "interlocking boxes (3) copy copy",
+      "name": "3D Box + Hole: Box 8 descends · 19t at (0, 5, 2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19696,7 +19724,7 @@
     },
     {
       "id": "test-38-copy-copy-copy-copy-copy-copy-copy",
-      "name": "interlocking boxes (3) copy copy copy",
+      "name": "3D Box + Hole: Box 8 descends · 18t at (0, 5, 2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19741,7 +19769,7 @@
     },
     {
       "id": "test-43-copy",
-      "name": "fall into put partly (4) copy",
+      "name": "3D Box + Hole: Box 0 moves north · 1t at (0, 4, -2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19750,7 +19778,7 @@
     },
     {
       "id": "test-43-copy-copy",
-      "name": "fall into put partly (4) copy copy",
+      "name": "3D Box + Hole: Box 0 falls into the void · 4t at (0, 3, -2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19759,7 +19787,7 @@
     },
     {
       "id": "test-43-copy-copy-copy",
-      "name": "fall into put partly (4) copy copy copy",
+      "name": "3D Box + Hole: Box 0 moves north · 1t at (0, 3, -2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19804,7 +19832,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy",
-      "name": "shift box on ice copy",
+      "name": "Box + Ice: Box 0 moves 4 north · 4t at (7, 11, 1)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19813,7 +19841,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy",
-      "name": "shift box on ice copy copy",
+      "name": "Box + Ice: Player moves 3 north · 3t at (7, 10, 1)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19822,7 +19850,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy",
-      "name": "shift box on ice copy copy copy",
+      "name": "Box + Ice: Box 0 moves 4 north · 4t at (7, 7, 1)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19831,7 +19859,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy",
-      "name": "shift box on ice copy copy copy copy",
+      "name": "Box + Ice: Box 0 moves 8 north · 8t at (7, 11, 1)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19840,7 +19868,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "shift box on ice copy copy copy copy copy",
+      "name": "Box + Ice: Box 0 moves 8 north · 8t at (7, 11, 1) [case 91]",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19849,7 +19877,7 @@
     },
     {
       "id": "test-44-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "shift box on ice copy copy copy copy copy copy",
+      "name": "Box + Ice: Box 0 moves 6 north · 6t at (7, 11, 1)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -19867,7 +19895,7 @@
     },
     {
       "id": "test-54-copy",
-      "name": "group fall into pit copy",
+      "name": "3D Box + Hole: Box 0 falls into the void · 5t at (1, 5, 2)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19876,7 +19904,7 @@
     },
     {
       "id": "test-54-copy-copy",
-      "name": "group fall into pit copy copy",
+      "name": "3D Box + Hole: Box 0 falls into the void · 4t at (1, 5, 1)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19885,7 +19913,7 @@
     },
     {
       "id": "test-76-copy",
-      "name": "Untitled test 76 copy",
+      "name": "3D Box + Hole: Box 2 falls into the void · 10t at (3, 12, 4)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -19894,7 +19922,7 @@
     },
     {
       "id": "test-68",
-      "name": "Untitled test 68",
+      "name": "3D Box + Ice: Box 0 moves 8 north · 8t at (7, 11, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19903,7 +19931,7 @@
     },
     {
       "id": "test-68-copy",
-      "name": "Untitled test 68 copy",
+      "name": "3D Box + Ice: Box 0 moves 8 north · 8t at (7, 11, 1) [case 98]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19912,7 +19940,7 @@
     },
     {
       "id": "test-68-copy-copy",
-      "name": "Untitled test 68 copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 8t at (5, 10, 4)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19921,7 +19949,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-3",
-      "name": "Untitled test 68 copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 7t at (5, 9, 4)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19930,7 +19958,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-2",
-      "name": "Untitled test 68 copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 7t at (5, 9, 4) [case 101]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19939,7 +19967,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-2-copy-2",
-      "name": "Untitled test 68 copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 7t at (5, 9, 4) [case 102]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19948,7 +19976,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-2-copy",
-      "name": "Untitled test 68 copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 7t at (5, 9, 4) [case 103]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19957,7 +19985,7 @@
     },
     {
       "id": "test-68-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 8t at (5, 10, 4) [case 104]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19966,7 +19994,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19975,7 +20003,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3",
-      "name": "Untitled test 68 copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 106]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19984,7 +20012,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2",
-      "name": "Untitled test 68 copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 107]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -19993,7 +20021,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 108]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20002,7 +20030,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-2-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 109]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20011,7 +20039,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 110]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20020,7 +20048,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-3-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 111]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20029,7 +20057,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 68 copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 2 descends · 5t at (5, 9, 4) [case 112]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20038,7 +20066,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 6t at (6, 10, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20047,7 +20075,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 6t at (6, 10, 2) [case 114]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20056,7 +20084,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 6t at (6, 10, 2) [case 115]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20065,7 +20093,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 descends · 6t at (6, 9, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20074,7 +20102,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 3 descends · 8t at (6, 9, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20083,7 +20111,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 moves north · 1t at (5, 10, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20092,7 +20120,7 @@
     },
     {
       "id": "test-68-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 68 copy copy copy copy copy copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 4 moves north · 1t at (5, 10, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20101,7 +20129,7 @@
     },
     {
       "id": "test-76",
-      "name": "Untitled test 76",
+      "name": "3D Box: Box 2 moves north · 1t at (3, 12, 4)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "wrapped"
@@ -20110,7 +20138,7 @@
     },
     {
       "id": "test-54-copy-copy-copy",
-      "name": "group fall into pit copy copy copy",
+      "name": "3D Box + Hole: Player moves north · 1t at (1, 5, -4)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -20119,7 +20147,7 @@
     },
     {
       "id": "test-54-copy-copy-copy-copy",
-      "name": "group fall into pit copy copy copy copy",
+      "name": "3D Box + Hole: Box 1 falls into the void · 5t at (1, 5, -4)",
       "groupTagId": "3d-box-hole",
       "tagIds": [
         "3d-box-hole-default"
@@ -20128,7 +20156,7 @@
     },
     {
       "id": "test-82",
-      "name": "Untitled test 82",
+      "name": "3D Box + Ice: Box 0 moves 3 north · 3t at (9, 11, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20137,7 +20165,7 @@
     },
     {
       "id": "test-115",
-      "name": "Untitled test 115",
+      "name": "3D Box + Ice: Box 0 descends · 6t at (6, 11, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20146,7 +20174,7 @@
     },
     {
       "id": "test-115-copy",
-      "name": "Untitled test 115 copy",
+      "name": "3D Box + Ice: Box 0 moves 2 north · 2t at (6, 11, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20155,7 +20183,7 @@
     },
     {
       "id": "test-115-copy-copy",
-      "name": "Untitled test 115 copy copy",
+      "name": "3D Box + Ice: Box 0 moves 4 north · 4t at (6, 13, 2)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20164,7 +20192,7 @@
     },
     {
       "id": "test-123",
-      "name": "Untitled test 123",
+      "name": "3D Box + Ice: Box 0 descends · 5t at (0, 5, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20173,7 +20201,7 @@
     },
     {
       "id": "test-124",
-      "name": "Untitled test 124",
+      "name": "3D Box + Ice: Box 0 moves 4 north · 4t at (0, 5, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20182,7 +20210,7 @@
     },
     {
       "id": "test-124-copy",
-      "name": "Untitled test 124 copy",
+      "name": "3D Box + Ice: Box 0 moves 4 north · 4t at (0, 5, 1) [case 129]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20191,7 +20219,7 @@
     },
     {
       "id": "test-124-copy-copy-2",
-      "name": "Untitled test 124 copy copy",
+      "name": "3D Box + Ice: Box 0 moves 4 north · 4t at (0, 5, 1) [case 130]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20200,7 +20228,7 @@
     },
     {
       "id": "test-124-copy-copy",
-      "name": "Untitled test 124 copy copy",
+      "name": "3D Box + Ice: Box 0 moves 4 north · 4t at (0, 5, 1) [case 131]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20209,7 +20237,7 @@
     },
     {
       "id": "test-124-copy-copy-copy",
-      "name": "Untitled test 124 copy copy copy",
+      "name": "3D Box + Ice: Player moves north · 1t at (2, 5, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20218,7 +20246,7 @@
     },
     {
       "id": "test-124-copy-copy-copy-copy",
-      "name": "Untitled test 124 copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 moves north · 1t at (2, 4, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20227,7 +20255,7 @@
     },
     {
       "id": "test-124-copy-copy-copy-copy-copy",
-      "name": "Untitled test 124 copy copy copy copy copy",
+      "name": "3D Box + Ice: Box 0 moves north · 1t at (2, 3, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20236,7 +20264,7 @@
     },
     {
       "id": "test-124-copy-copy-copy-copy-2",
-      "name": "Untitled test 124 copy copy copy copy",
+      "name": "3D Box + Ice: Player moves north · 1t at (2, 5, 1) [case 135]",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20245,7 +20273,7 @@
     },
     {
       "id": "test-124-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 124 copy copy copy copy copy",
+      "name": "3D Box + Ice: Player moves north · 1t at (2, 4, 1)",
       "groupTagId": "3d-box-ice",
       "tagIds": [
         "3d-box-ice-default"
@@ -20254,7 +20282,7 @@
     },
     {
       "id": "test-129",
-      "name": "Untitled test 129",
+      "name": "3D Box: Box 0 descends · 3t at (0, 5, 3)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -20263,7 +20291,7 @@
     },
     {
       "id": "test-129-copy",
-      "name": "Untitled test 129 copy",
+      "name": "3D Box: Player moves north · 1t at (2, 4, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -20272,7 +20300,7 @@
     },
     {
       "id": "test-129-copy-copy",
-      "name": "Untitled test 129 copy copy",
+      "name": "3D Box: Player moves north · 1t at (2, 3, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -20281,7 +20309,7 @@
     },
     {
       "id": "test-131",
-      "name": "Untitled test 131",
+      "name": "Box: Blocked command preserves the scene · 1t at (2, 4, 2)",
       "groupTagId": "weightless-box",
       "tagIds": [
         "weightless-box-default"
@@ -20309,7 +20337,7 @@
     },
     {
       "id": "test-132-copy-copy",
-      "name": "Fall onto gem copy",
+      "name": "Eleven-cell player moves north as one rigid body",
       "groupTagId": "general",
       "tagIds": [
         "on-ice",
@@ -20319,7 +20347,7 @@
     },
     {
       "id": "test-132-copy-copy-copy",
-      "name": "Fall onto gem copy copy",
+      "name": "Three-cell player moves north without splitting",
       "groupTagId": "general",
       "tagIds": [
         "on-ice",
@@ -20329,7 +20357,7 @@
     },
     {
       "id": "test-132-copy-copy-copy-copy",
-      "name": "Fall onto gem copy copy copy",
+      "name": "Three-cell player falls into the void as one rigid body",
       "groupTagId": "general",
       "tagIds": [
         "on-ice",
@@ -20420,7 +20448,7 @@
     },
     {
       "id": "test-143-copy",
-      "name": "Ice slide (10) copy",
+      "name": "Ice slopes: Player rises · 10t at (0, 15, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -20465,7 +20493,7 @@
     },
     {
       "id": "test-148",
-      "name": "Untitled test 148",
+      "name": "ice slopes + box: Box 0 rises and descends · 9t at (6, 11, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20474,7 +20502,7 @@
     },
     {
       "id": "test-149",
-      "name": "Untitled test 149",
+      "name": "ice slopes + box: Box 0 rises · 18t at (6, 11, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20483,7 +20511,7 @@
     },
     {
       "id": "test-150",
-      "name": "Untitled test 150",
+      "name": "ice slopes + box: Loop from tick 6 to 12 · 13t at (7, 11, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20492,7 +20520,7 @@
     },
     {
       "id": "test-151",
-      "name": "Untitled test 151",
+      "name": "ice slopes + box: Loop from tick 5 to 21 · 22t at (3, 13, 6)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20501,7 +20529,7 @@
     },
     {
       "id": "test-152",
-      "name": "Untitled test 152",
+      "name": "ice slopes + box: Box 2 rises and descends · 32t at (4, 14, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20510,7 +20538,7 @@
     },
     {
       "id": "test-153",
-      "name": "Untitled test 153",
+      "name": "ice slopes + box: Box 2 rises and descends · 46t at (4, 14, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20519,7 +20547,7 @@
     },
     {
       "id": "test-154",
-      "name": "Untitled test 154",
+      "name": "ice slopes + box: Box 0 rises · 9t at (4, 11, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20528,7 +20556,7 @@
     },
     {
       "id": "test-155",
-      "name": "Untitled test 155",
+      "name": "ice slopes + box: Box 0 moves north · 7t at (4, 11, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20537,7 +20565,7 @@
     },
     {
       "id": "test-155-copy",
-      "name": "Untitled test 155 copy",
+      "name": "ice slopes + box: Box 1 rises · 1t at (4, 8, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20546,7 +20574,7 @@
     },
     {
       "id": "test-155-copy-copy",
-      "name": "Untitled test 155 copy copy",
+      "name": "ice slopes + box: Player moves north · 1t at (6, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20555,7 +20583,7 @@
     },
     {
       "id": "test-155-copy-copy-copy",
-      "name": "Untitled test 155 copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 2t at (6, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20564,7 +20592,7 @@
     },
     {
       "id": "test-155-copy-copy-copy-copy",
-      "name": "Untitled test 155 copy copy copy copy",
+      "name": "ice slopes + box: Box 3 descends · 9t at (6, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20573,7 +20601,7 @@
     },
     {
       "id": "test-156",
-      "name": "Untitled test 156",
+      "name": "ice slopes + box: Box 3 rises · 11t at (4, 14, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20582,7 +20610,7 @@
     },
     {
       "id": "test-157",
-      "name": "Untitled test 157",
+      "name": "ice slopes + box: Box 3 rises · 17t at (4, 14, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20591,7 +20619,7 @@
     },
     {
       "id": "test-159",
-      "name": "Untitled test 159",
+      "name": "ice slopes + box: Box 0 rises · 5t at (4, 6, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20600,7 +20628,7 @@
     },
     {
       "id": "test-159-copy",
-      "name": "Untitled test 159 copy",
+      "name": "ice slopes + box: Box 0 rises · 4t at (4, 5, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20609,7 +20637,7 @@
     },
     {
       "id": "test-159-copy-copy",
-      "name": "Untitled test 159 copy copy",
+      "name": "ice slopes + box: Box 0 descends · 1t at (9, 5, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20618,7 +20646,7 @@
     },
     {
       "id": "test-159-copy-copy-copy",
-      "name": "Untitled test 159 copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 1t at (9, 5, 2) [case 177]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20627,7 +20655,7 @@
     },
     {
       "id": "test-159-copy-copy-copy-copy",
-      "name": "Untitled test 159 copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 5t at (9, 5, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20636,7 +20664,7 @@
     },
     {
       "id": "test-158",
-      "name": "Untitled test 158",
+      "name": "ice slopes + box: Box 3 moves north · 5t at (4, 14, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20645,7 +20673,7 @@
     },
     {
       "id": "test-160",
-      "name": "Untitled test 160",
+      "name": "ice slopes + box: Box 0 moves 3 north · 6t at (4, 11, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20654,7 +20682,7 @@
     },
     {
       "id": "test-160-copy",
-      "name": "Untitled test 160 copy",
+      "name": "ice slopes + box: Player descends · 3t at (4, 11, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20663,7 +20691,7 @@
     },
     {
       "id": "test-160-copy-copy-2",
-      "name": "Untitled test 160 copy copy",
+      "name": "ice slopes + box: Box 0 moves north · 1t at (4, 9, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20672,7 +20700,7 @@
     },
     {
       "id": "test-160-copy-copy-2-copy",
-      "name": "Untitled test 160 copy copy copy",
+      "name": "ice slopes + box: Box 2 moves north · 1t at (4, 9, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20681,7 +20709,7 @@
     },
     {
       "id": "test-160-copy-copy",
-      "name": "Untitled test 160 copy copy",
+      "name": "ice slopes + box: Player descends · 3t at (4, 11, 4) [case 184]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20690,7 +20718,7 @@
     },
     {
       "id": "test-160-copy-copy-copy",
-      "name": "Untitled test 160 copy copy copy",
+      "name": "ice slopes + box: Player moves north · 1t at (4, 9, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20699,7 +20727,7 @@
     },
     {
       "id": "test-161",
-      "name": "Untitled test 161",
+      "name": "ice slopes + box: Box 1 descends · 5t at (4, 11, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20708,7 +20736,7 @@
     },
     {
       "id": "test-166-copy",
-      "name": "Untitled test 166 copy",
+      "name": "ice slopes + box: Box 0 descends · 3t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20717,7 +20745,7 @@
     },
     {
       "id": "test-162",
-      "name": "Untitled test 162",
+      "name": "ice slopes + box: Box 2 rises · 46t at (4, 14, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20726,7 +20754,7 @@
     },
     {
       "id": "test-163",
-      "name": "Untitled test 163",
+      "name": "ice slopes + box: Box 2 descends · 7t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20735,7 +20763,7 @@
     },
     {
       "id": "test-164",
-      "name": "Untitled test 164",
+      "name": "ice slopes + box: Loop from tick 6 to 14 · 15t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20744,7 +20772,7 @@
     },
     {
       "id": "test-166",
-      "name": "Untitled test 166",
+      "name": "ice slopes + box: Box 0 descends · 5t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20753,7 +20781,7 @@
     },
     {
       "id": "test-166-copy-copy",
-      "name": "Untitled test 166 copy copy",
+      "name": "ice slopes + box: Box 0 descends · 3t at (5, 12, 5) [case 192]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20762,7 +20790,7 @@
     },
     {
       "id": "test-166-copy-copy-copy",
-      "name": "Untitled test 166 copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 3t at (12, 8, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20771,7 +20799,7 @@
     },
     {
       "id": "test-166-copy-copy-copy-copy-2",
-      "name": "Untitled test 166 copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 3t at (12, 8, 1) [case 194]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20780,7 +20808,7 @@
     },
     {
       "id": "test-166-copy-copy-copy-copy",
-      "name": "Untitled test 166 copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 8t at (6, 13, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20789,7 +20817,7 @@
     },
     {
       "id": "test-166-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 166 copy copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 10t at (6, 15, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20798,7 +20826,7 @@
     },
     {
       "id": "test-166-copy-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 166 copy copy copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 9t at (6, 14, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20807,7 +20835,7 @@
     },
     {
       "id": "test-166-copy-copy-copy-copy-copy-2-copy-copy",
-      "name": "Untitled test 166 copy copy copy copy copy copy copy",
+      "name": "ice slopes + box: Box 0 descends · 11t at (6, 15, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20816,7 +20844,7 @@
     },
     {
       "id": "test-167",
-      "name": "Untitled test 166",
+      "name": "ice slopes + box: Loop from tick 4 to 12 · 13t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20825,7 +20853,7 @@
     },
     {
       "id": "test-168",
-      "name": "Untitled test 167",
+      "name": "ice slopes + box: Loop from tick 7 to 15 · 16t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20834,7 +20862,7 @@
     },
     {
       "id": "test-169",
-      "name": "Untitled test 168",
+      "name": "ice slopes + box: Box 0 descends · 16t at (5, 12, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20843,7 +20871,7 @@
     },
     {
       "id": "test-170",
-      "name": "Untitled test 169",
+      "name": "Box + Ice: Box 0 moves 4 north · 4t at (9, 12, 2)",
       "groupTagId": "box-ice",
       "tagIds": [
         "box-ice-default"
@@ -20852,7 +20880,7 @@
     },
     {
       "id": "test-183",
-      "name": "Untitled test 183",
+      "name": "ice slopes + box: Player descends · 2t at (6, 9, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20861,7 +20889,7 @@
     },
     {
       "id": "test-183-copy",
-      "name": "Untitled test 183 copy",
+      "name": "ice slopes + box: Player descends · 4t at (4, 9, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20870,7 +20898,7 @@
     },
     {
       "id": "test-183-copy-copy-2",
-      "name": "Untitled test 183 copy copy",
+      "name": "ice slopes + box: Box 2 descends · 1t at (12, 11, 5)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20879,7 +20907,7 @@
     },
     {
       "id": "test-183-copy-copy-2-copy",
-      "name": "Untitled test 183 copy copy copy",
+      "name": "ice slopes + box: Box 0 moves north · 1t at (12, 10, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20888,7 +20916,7 @@
     },
     {
       "id": "test-183-copy-copy-2-copy-copy",
-      "name": "Untitled test 183 copy copy copy copy",
+      "name": "ice slopes + box: Box 0 moves north · 1t at (12, 9, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20897,7 +20925,7 @@
     },
     {
       "id": "test-183-copy-copy",
-      "name": "Untitled test 183 copy copy",
+      "name": "ice slopes + box: Box 3 moves north · 1t at (7, 10, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20906,7 +20934,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-2",
-      "name": "Untitled test 183 copy copy copy",
+      "name": "ice slopes + box: Box 3 descends · 5t at (7, 8, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20915,7 +20943,7 @@
     },
     {
       "id": "test-183-copy-copy-copy",
-      "name": "Untitled test 183 copy copy copy",
+      "name": "ice slopes + box: Box 3 descends · 2t at (6, 10, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20924,7 +20952,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-copy-2",
-      "name": "Untitled test 183 copy copy copy copy",
+      "name": "ice slopes + box: Box 3 descends · 3t at (5, 10, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20933,7 +20961,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-copy",
-      "name": "Untitled test 183 copy copy copy copy",
+      "name": "ice slopes + box: Player descends · 2t at (6, 10, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20942,7 +20970,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 183 copy copy copy copy copy",
+      "name": "ice slopes + box: Player moves north · 1t at (6, 10, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20951,7 +20979,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 183 copy copy copy copy copy copy",
+      "name": "ice slopes + box: Player moves north · 1t at (6, 10, 3) [case 214]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20960,7 +20988,7 @@
     },
     {
       "id": "test-183-copy-copy-copy-copy-copy",
-      "name": "Untitled test 183 copy copy copy copy copy",
+      "name": "ice slopes + box: Box 4 moves north · 1t at (6, 10, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -20969,7 +20997,7 @@
     },
     {
       "id": "test-195",
-      "name": "Untitled test 195",
+      "name": "Ice slopes: Player descends · 4t at (5, 9, 4)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -20978,7 +21006,7 @@
     },
     {
       "id": "test-195-copy-2",
-      "name": "Untitled test 195 copy",
+      "name": "Ice slopes: Player rises and descends · 8t at (7, 8, 3)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -20987,7 +21015,7 @@
     },
     {
       "id": "test-195-copy",
-      "name": "Untitled test 195 copy",
+      "name": "Ice slopes: Player descends · 4t at (5, 9, 4) [case 218]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -20996,7 +21024,7 @@
     },
     {
       "id": "test-195-copy-copy",
-      "name": "Untitled test 195 copy copy",
+      "name": "Ice slopes: Player descends · 4t at (5, 5, 3)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21005,7 +21033,7 @@
     },
     {
       "id": "test-196",
-      "name": "Untitled test 196",
+      "name": "ice slopes + box: Box 0 descends · 3t at (5, 9, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21014,7 +21042,7 @@
     },
     {
       "id": "test-197",
-      "name": "Untitled test 197",
+      "name": "ice slopes + box: Box 0 descends · 3t at (5, 9, 4) [case 221]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21023,7 +21051,7 @@
     },
     {
       "id": "test-197-copy",
-      "name": "Untitled test 197 copy",
+      "name": "ice slopes + box: Player moves north · 1t at (5, 6, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21032,7 +21060,7 @@
     },
     {
       "id": "test-198",
-      "name": "Untitled test 198",
+      "name": "ice slopes + box: Box 2 descends · 7t at (5, 15, 9)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21041,7 +21069,7 @@
     },
     {
       "id": "test-217",
-      "name": "Untitled test 217",
+      "name": "ice slopes + box: Player moves north · 1t at (5, 8, 6)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21050,7 +21078,7 @@
     },
     {
       "id": "test-198-copy",
-      "name": "Untitled test 198 copy",
+      "name": "ice slopes + box: Box 2 descends · 7t at (5, 15, 9) [case 225]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21059,7 +21087,7 @@
     },
     {
       "id": "test-199",
-      "name": "Untitled test 199",
+      "name": "Ice slopes: Player moves north · 1t at (7, 7, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21068,7 +21096,7 @@
     },
     {
       "id": "test-199-copy-2",
-      "name": "Untitled test 199 copy",
+      "name": "Ice slopes: Blocked command preserves the scene · 1t at (7, 7, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21077,7 +21105,7 @@
     },
     {
       "id": "test-199-copy-2-copy",
-      "name": "Untitled test 199 copy copy",
+      "name": "Ice slopes: Blocked command preserves the scene · 1t at (7, 7, 2) [case 228]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21086,7 +21114,7 @@
     },
     {
       "id": "test-199-copy-2-copy-copy",
-      "name": "Untitled test 199 copy copy copy",
+      "name": "Ice slopes: Blocked command preserves the scene · 1t at (7, 7, 2) [case 229]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21095,7 +21123,7 @@
     },
     {
       "id": "test-199-copy",
-      "name": "Untitled test 199 copy",
+      "name": "Ice slopes: Player moves north · 1t at (7, 6, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21104,7 +21132,7 @@
     },
     {
       "id": "test-199-copy-copy",
-      "name": "Untitled test 199 copy copy",
+      "name": "Ice slopes: Player moves north · 1t at (7, 6, 2) [case 231]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21113,7 +21141,7 @@
     },
     {
       "id": "test-199-copy-copy-copy",
-      "name": "Untitled test 199 copy copy copy",
+      "name": "Ice slopes: Player moves north · 1t at (7, 6, 2) [case 232]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21122,7 +21150,7 @@
     },
     {
       "id": "test-199-copy-copy-copy-copy",
-      "name": "Untitled test 199 copy copy copy copy",
+      "name": "Ice slopes: Player moves north · 1t at (7, 6, 2) [case 233]",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21131,7 +21159,7 @@
     },
     {
       "id": "test-204",
-      "name": "Untitled test 204",
+      "name": "Ice slopes: Player moves north · 1t at (5, 9, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21140,7 +21168,7 @@
     },
     {
       "id": "test-204-copy",
-      "name": "Untitled test 204 copy",
+      "name": "Ice slopes: Player moves north · 1t at (5, 8, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21149,7 +21177,7 @@
     },
     {
       "id": "test-204-copy-copy",
-      "name": "Untitled test 204 copy copy",
+      "name": "Ice slopes: Player descends · 2t at (9, 9, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21158,7 +21186,7 @@
     },
     {
       "id": "test-217-copy",
-      "name": "Untitled test 217 copy",
+      "name": "ice slopes + box: Box 2 descends · 4t at (5, 8, 6)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21167,7 +21195,7 @@
     },
     {
       "id": "test-220",
-      "name": "Untitled test 220",
+      "name": "ice slopes + box: Box 0 descends · 3t at (5, 9, 4) [case 238]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21176,7 +21204,7 @@
     },
     {
       "id": "test-221",
-      "name": "Untitled test 221",
+      "name": "ice slopes + box: Box 0 descends · 4t at (5, 6, 4)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21185,7 +21213,7 @@
     },
     {
       "id": "test-221-copy",
-      "name": "Untitled test 221 copy",
+      "name": "ice slopes + box: Player descends · 3t at (5, 5, 3)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21194,7 +21222,7 @@
     },
     {
       "id": "test-224",
-      "name": "Untitled test 224",
+      "name": "Ice slopes + 3D Boxes: Box 3 moves north · 1t at (7, 9, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21203,7 +21231,7 @@
     },
     {
       "id": "test-224-copy",
-      "name": "Untitled test 224 copy",
+      "name": "Ice slopes + 3D Boxes: Box 3 descends · 6t at (7, 10, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21212,7 +21240,7 @@
     },
     {
       "id": "test-226",
-      "name": "Untitled test 226",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 1t at (7, 10, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21221,7 +21249,7 @@
     },
     {
       "id": "test-226-copy",
-      "name": "Untitled test 226 copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 descends · 2t at (7, 10, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21230,7 +21258,7 @@
     },
     {
       "id": "test-226-copy-copy",
-      "name": "Untitled test 226 copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 1t at (7, 10, 2) [case 245]",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21239,7 +21267,7 @@
     },
     {
       "id": "test-226-copy-copy-copy",
-      "name": "Untitled test 226 copy copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 2t at (7, 10, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21248,7 +21276,7 @@
     },
     {
       "id": "test-226-copy-copy-copy-copy",
-      "name": "Untitled test 226 copy copy copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 1t at (7, 9, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21257,7 +21285,7 @@
     },
     {
       "id": "test-226-copy-copy-copy-copy-copy",
-      "name": "Untitled test 226 copy copy copy copy copy",
+      "name": "Ice slopes + 3D Boxes: Player moves north · 1t at (7, 8, 2)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21266,7 +21294,7 @@
     },
     {
       "id": "test-232",
-      "name": "Untitled test 232",
+      "name": "Ice slopes + 3D Boxes: Player descends · 2t at (7, 8, 5)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21275,7 +21303,7 @@
     },
     {
       "id": "test-232-copy",
-      "name": "Untitled test 232 copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 1t at (7, 6, 4)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21284,7 +21312,7 @@
     },
     {
       "id": "test-232-copy-copy",
-      "name": "Untitled test 232 copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves north · 2t at (7, 5, 3)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21293,7 +21321,7 @@
     },
     {
       "id": "test-232-copy-copy-copy",
-      "name": "Untitled test 232 copy copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves 3 north · 6t at (7, 8, 5)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21302,7 +21330,7 @@
     },
     {
       "id": "test-236",
-      "name": "Untitled test 236",
+      "name": "Ice slopes: Player falls into the void · 4t at (7, 9, 1)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -21311,7 +21339,7 @@
     },
     {
       "id": "test-237",
-      "name": "Untitled test 237",
+      "name": "Ice slopes + 3D Boxes: Box 1 moves 4 north · 6t at (7, 8, 5)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21320,7 +21348,7 @@
     },
     {
       "id": "test-237-copy",
-      "name": "Untitled test 237 copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 moves 4 north · 6t at (7, 8, 5)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21329,7 +21357,7 @@
     },
     {
       "id": "test-237-copy-copy",
-      "name": "Untitled test 237 copy copy",
+      "name": "Ice slopes + 3D Boxes: Player moves north · 1t at (7, 8, 5)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21338,7 +21366,7 @@
     },
     {
       "id": "test-240",
-      "name": "Untitled test 240",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 6, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21347,7 +21375,7 @@
     },
     {
       "id": "test-240-copy-4",
-      "name": "Untitled test 240 copy",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21356,7 +21384,7 @@
     },
     {
       "id": "test-240-copy-3",
-      "name": "Untitled test 240 copy",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 6, 2) [case 259]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21365,7 +21393,7 @@
     },
     {
       "id": "test-240-copy",
-      "name": "Untitled test 240 copy",
+      "name": "ice slopes + box: Box 0 descends · 1t at (7, 6, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21374,7 +21402,7 @@
     },
     {
       "id": "test-240-copy-2",
-      "name": "Untitled test 240 copy",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 8, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21383,7 +21411,7 @@
     },
     {
       "id": "test-240-copy-2-copy",
-      "name": "Untitled test 240 copy copy",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 7, 2) [case 262]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21392,7 +21420,7 @@
     },
     {
       "id": "test-240-copy-2-copy-copy",
-      "name": "Untitled test 240 copy copy copy",
+      "name": "ice slopes + box: Blocked command preserves the scene · 1t at (4, 6, 2) [case 263]",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -21401,7 +21429,7 @@
     },
     {
       "id": "test-249",
-      "name": "Untitled test 249",
+      "name": "Ice slopes + 3D Boxes: Box 0 descends · 4t at (3, 11, 4)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21410,7 +21438,7 @@
     },
     {
       "id": "test-250",
-      "name": "Untitled test 250",
+      "name": "Ice slopes + 3D Boxes: Box 0 descends · 2t at (3, 11, 4)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21419,7 +21447,7 @@
     },
     {
       "id": "test-250-copy",
-      "name": "Untitled test 250 copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 descends · 4t at (3, 11, 6)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21428,7 +21456,7 @@
     },
     {
       "id": "test-250-copy-copy",
-      "name": "Untitled test 250 copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 0 descends · 4t at (3, 11, 6) [case 267]",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21437,7 +21465,7 @@
     },
     {
       "id": "test-250-copy-copy-copy",
-      "name": "Untitled test 250 copy copy copy",
+      "name": "Ice slopes + 3D Boxes: Box 1 descends · 6t at (3, 11, 3)",
       "groupTagId": "ice-slopes-3d-boxes",
       "tagIds": [
         "ice-slopes-3d-boxes-default"
@@ -21446,7 +21474,7 @@
     },
     {
       "id": "test-254",
-      "name": "Untitled test 254",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21455,7 +21483,7 @@
     },
     {
       "id": "test-254-copy-4",
-      "name": "Untitled test 254 copy",
+      "name": "Lift: Player moves north · 1t at (5, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21464,7 +21492,7 @@
     },
     {
       "id": "test-254-copy-4-copy-2",
-      "name": "Untitled test 254 copy copy",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (5, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21473,7 +21501,7 @@
     },
     {
       "id": "test-254-copy-4-copy-2-copy",
-      "name": "Untitled test 254 copy copy copy",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (5, 9, 1) [case 272]",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21482,7 +21510,7 @@
     },
     {
       "id": "test-254-copy-4-copy",
-      "name": "Untitled test 254 copy copy",
+      "name": "Lift: Player moves north · 1t at (5, 9, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21491,7 +21519,7 @@
     },
     {
       "id": "test-254-copy-3-copy-2",
-      "name": "Untitled test 254 copy copy",
+      "name": "Lift: Player moves north · 1t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21500,7 +21528,7 @@
     },
     {
       "id": "test-254-copy-3",
-      "name": "Untitled test 254 copy",
+      "name": "Lift: Player moves north · 1t at (5, 10, 1) [case 275]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21509,7 +21537,7 @@
     },
     {
       "id": "test-254-copy-3-copy",
-      "name": "Untitled test 254 copy copy",
+      "name": "Lift: Player moves north · 1t at (5, 9, 1) [case 276]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21518,7 +21546,7 @@
     },
     {
       "id": "test-254-copy-3-copy-2-copy",
-      "name": "Untitled test 254 copy copy copy",
+      "name": "Lift: Player moves north · 1t at (5, 9, 1) [case 277]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21527,7 +21555,7 @@
     },
     {
       "id": "test-254-copy-2",
-      "name": "Untitled test 254 copy",
+      "name": "Lift: Lift raises (IDs 5) · 2t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21536,7 +21564,7 @@
     },
     {
       "id": "test-254-copy",
-      "name": "Untitled test 254 copy",
+      "name": "Lift: Lift lowers (IDs 0) · 2t at (5, 8, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21545,7 +21573,7 @@
     },
     {
       "id": "test-254-copy-copy",
-      "name": "Untitled test 254 copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (5, 7, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21554,7 +21582,7 @@
     },
     {
       "id": "test-256",
-      "name": "Untitled test 256",
+      "name": "Lift: Box 0 moves north · 1t at (3, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21563,7 +21591,7 @@
     },
     {
       "id": "test-256-copy",
-      "name": "Untitled test 256 copy",
+      "name": "Lift: Box 0 moves north · 1t at (3, 9, 1) [case 282]",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21572,7 +21600,7 @@
     },
     {
       "id": "test-258",
-      "name": "Untitled test 258",
+      "name": "Lift: Box 0 moves north · 1t at (4, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21581,7 +21609,7 @@
     },
     {
       "id": "test-258-copy",
-      "name": "Untitled test 258 copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (4, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21590,7 +21618,7 @@
     },
     {
       "id": "test-258-copy-copy",
-      "name": "Untitled test 258 copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (4, 9, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21599,7 +21627,7 @@
     },
     {
       "id": "test-258-copy-copy-copy",
-      "name": "Untitled test 258 copy copy copy",
+      "name": "Lift: Box 0 falls into the void · 4t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21608,7 +21636,7 @@
     },
     {
       "id": "test-258-copy-copy-copy-copy",
-      "name": "Untitled test 258 copy copy copy copy",
+      "name": "Lift: Box 0 falls into the void · 5t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21617,7 +21645,7 @@
     },
     {
       "id": "test-258-copy-copy-copy-copy-copy",
-      "name": "Untitled test 258 copy copy copy copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21626,7 +21654,7 @@
     },
     {
       "id": "test-258-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 258 copy copy copy copy copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21635,7 +21663,7 @@
     },
     {
       "id": "test-265",
-      "name": "Untitled test 265",
+      "name": "Lift: Box 0 moves 7 north · 7t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-ice"
@@ -21644,7 +21672,7 @@
     },
     {
       "id": "test-266",
-      "name": "Untitled test 266",
+      "name": "Lift: Lift moves north · 1t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21654,7 +21682,7 @@
     },
     {
       "id": "test-266-copy",
-      "name": "Untitled test 266 copy",
+      "name": "Lift: Player moves north · 1t at (3, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "stuck-lift"
@@ -21663,7 +21691,7 @@
     },
     {
       "id": "test-266-copy-copy",
-      "name": "Untitled test 266 copy copy",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (3, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "lift-default"
@@ -21672,7 +21700,7 @@
     },
     {
       "id": "test-269",
-      "name": "Untitled test 269",
+      "name": "Lift: Lift raises (IDs 1) · 3t at (4, 12, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "and-ice"
@@ -21681,7 +21709,7 @@
     },
     {
       "id": "test-271",
-      "name": "Untitled test 271",
+      "name": "Lift: Lift raises (IDs 5) · 2t at (5, 10, 1) [case 295]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21690,7 +21718,7 @@
     },
     {
       "id": "test-272",
-      "name": "Untitled test 272",
+      "name": "Lift: Blocked command preserves the scene · 1t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21699,7 +21727,7 @@
     },
     {
       "id": "test-272-copy",
-      "name": "Untitled test 272 copy",
+      "name": "Lift: Player moves north · 1t at (6, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21708,7 +21736,7 @@
     },
     {
       "id": "test-272-copy-copy",
-      "name": "Untitled test 272 copy copy",
+      "name": "Lift: Lift lowers (IDs 6) · 1t at (6, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift"
@@ -21717,7 +21745,7 @@
     },
     {
       "id": "test-272-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (5, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21727,7 +21755,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (5, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21737,7 +21765,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (4, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21747,7 +21775,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 272 copy copy copy copy copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (4, 8, 1) [case 302]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21757,7 +21785,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 272 copy copy copy copy copy copy copy",
+      "name": "Lift: Blocked command preserves the scene · 1t at (4, 8, 1) [case 303]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21767,7 +21795,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 7) · 2t at (6, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21777,7 +21805,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 272 copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 2t at (6, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21787,7 +21815,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy copy copy copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (6, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21797,7 +21825,7 @@
     },
     {
       "id": "test-272-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 272 copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift lowers (IDs 6) · 1t at (6, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21807,7 +21835,7 @@
     },
     {
       "id": "test-284",
-      "name": "Untitled test 284",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (6, 8, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21816,7 +21844,7 @@
     },
     {
       "id": "test-284-copy-2",
-      "name": "Untitled test 284 copy",
+      "name": "Lift: Lift raises (IDs 1) · 2t at (6, 8, 1) [case 309]",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2"
@@ -21825,7 +21853,7 @@
     },
     {
       "id": "test-284-copy",
-      "name": "Untitled test 284 copy",
+      "name": "Lift: Box 0 moves north · 1t at (6, 8, 1) [case 310]",
       "groupTagId": "lift",
       "tagIds": [
         "stuck-lift"
@@ -21834,7 +21862,7 @@
     },
     {
       "id": "test-284-copy-copy",
-      "name": "Untitled test 284 copy copy",
+      "name": "Lift: Box 0 moves north · 2t at (6, 7, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "stuck-lift"
@@ -21843,7 +21871,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2",
-      "name": "Untitled test 284 copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 5t at (5, 10, 4)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21853,7 +21881,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 2t at (5, 10, 1) [case 313]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21863,7 +21891,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-3",
-      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "name": "Lift: Box 0 moves west · 2t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21873,7 +21901,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-2",
-      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "name": "Lift: Box 8 moves east · 2t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21883,7 +21911,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "name": "Lift: Player moves north · 1t at (5, 10, 1) [case 316]",
       "groupTagId": "lift",
       "tagIds": [
         "and-box-2",
@@ -21893,7 +21921,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy",
-      "name": "Untitled test 284 copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 5t at (5, 10, 4) [case 317]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21903,7 +21931,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 1t at (5, 9, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21913,7 +21941,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5) · 6t at (5, 10, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21924,7 +21952,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 7) · 10t at (8, 10, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21935,7 +21963,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Player moves 3 north · 3t at (8, 10, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21946,7 +21974,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (8, 7, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21957,7 +21985,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift lowers (IDs 6) · 1t at (8, 7, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21968,7 +21996,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 3, 7) · 9t at (8, 8, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21979,7 +22007,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 5, 7, 9) · 14t at (5, 10, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -21990,7 +22018,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift moves 3 north and 1 down · 4t at (5, 10, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22001,7 +22029,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-2-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Lift moves 3 north and 1 down · 5t at (4, 10, 2)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22012,7 +22040,7 @@
     },
     {
       "id": "test-284-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy",
+      "name": "Lift: Player descends · 4t at (4, 11, 5)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22023,7 +22051,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-4",
-      "name": "Untitled test 284 copy copy copy copy",
+      "name": "Lift: Lift moves north · 6t at (4, 7, 3)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22034,7 +22062,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-3",
-      "name": "Untitled test 284 copy copy copy copy",
+      "name": "Lift: Player descends · 3t at (4, 11, 5)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22045,7 +22073,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy",
+      "name": "Lift: Lift moves north · 1t at (4, 8, 4)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22056,7 +22084,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy",
+      "name": "Lift: Lift moves north · 6t at (4, 7, 3) [case 332]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22067,7 +22095,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "name": "Lift: Player descends · 2t at (4, 11, 6)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22078,7 +22106,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy",
+      "name": "Lift: Box 1 moves north · 1t at (4, 9, 5)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22089,7 +22117,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy",
+      "name": "Lift: Box 1 moves north · 1t at (4, 8, 4)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22100,7 +22128,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy copy copy",
+      "name": "Lift: Box 1 moves north · 6t at (4, 7, 3)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22111,7 +22139,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-2",
-      "name": "Untitled test 284 copy copy copy copy",
+      "name": "Lift: Lift moves 6 north and 1 down · 10t at (4, 11, 6)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22122,7 +22150,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-2",
-      "name": "Untitled test 284 copy copy copy copy copy",
+      "name": "Lift: Lift moves 5 north and 1 down · 10t at (4, 11, 6)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22133,7 +22161,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 284 copy copy copy copy copy",
+      "name": "Lift: Lift moves 5 north and 1 down · 10t at (4, 11, 6) [case 339]",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22144,7 +22172,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy",
+      "name": "Lift: Lift raises (IDs 9) · 7t at (4, 11, 6)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22155,7 +22183,7 @@
     },
     {
       "id": "test-284-copy-copy-copy-copy-2-copy-copy-copy",
-      "name": "Untitled test 284 copy copy copy copy copy copy copy",
+      "name": "Lift: Player descends · 10t at (4, 11, 6)",
       "groupTagId": "lift",
       "tagIds": [
         "side-lift",
@@ -22193,7 +22221,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy-3",
-      "name": "Press sideways button copy",
+      "name": "Orange Walls: Loop from tick 2 to 4 · 5t at (2, 5, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22203,7 +22231,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy-2",
-      "name": "Press sideways button copy",
+      "name": "Orange Walls: Orange walls moves down · 2t at (0, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22252,7 +22280,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy",
-      "name": "Press sideways button copy",
+      "name": "Orange Walls: Box 0 descends · 2t at (2, 4, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22262,7 +22290,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy-copy",
-      "name": "Press sideways button copy copy",
+      "name": "Orange Walls: Buttons moves north and 1 down · 2t at (2, 4, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22273,7 +22301,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy-copy-copy",
-      "name": "Press sideways button copy copy copy",
+      "name": "Orange Walls: Orange walls moves 2 down · 3t at (2, 4, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22284,7 +22312,7 @@
     },
     {
       "id": "test-319-copy-copy-2-copy-copy-copy-copy",
-      "name": "Press sideways button copy copy copy copy",
+      "name": "Orange Walls: Loop from tick 2 to 4 · 5t at (2, 4, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22295,7 +22323,7 @@
     },
     {
       "id": "test-319-copy-2-copy-copy",
-      "name": "Buttons attached to box copy",
+      "name": "Orange Walls: Loop from tick 3 to 5 · 6t at (1, 3, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "sideways-button",
@@ -22323,7 +22351,7 @@
     },
     {
       "id": "test-323-copy-copy-2-copy",
-      "name": "box resting on orange (2) copy",
+      "name": "Orange Walls: Orange walls moves up · 2t at (0, 4, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes"
@@ -22332,7 +22360,7 @@
     },
     {
       "id": "test-323-copy-copy-2-copy-copy",
-      "name": "box resting on orange (2) copy copy",
+      "name": "Orange Walls: Orange walls moves up · 2t at (0, 4, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "orange-walls-boxes"
@@ -22360,7 +22388,7 @@
     },
     {
       "id": "test-323-copy-2-copy-3",
-      "name": "Buttons attached to orange (2) copy",
+      "name": "Orange Walls: Orange walls moves down · 2t at (0, 5, 1) [case 362]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22370,7 +22398,7 @@
     },
     {
       "id": "test-323-copy-2-copy-3-copy",
-      "name": "Buttons attached to orange (2) copy copy",
+      "name": "Orange Walls: Orange walls moves down · 2t at (0, 5, 1) [case 363]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22380,7 +22408,7 @@
     },
     {
       "id": "test-323-copy-2-copy-2",
-      "name": "Buttons attached to orange (2) copy",
+      "name": "Orange Walls: Buttons changes its authored arrangement · 3t at (0, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22390,7 +22418,7 @@
     },
     {
       "id": "test-323-copy-2-copy-2-copy",
-      "name": "Buttons attached to orange (2) copy copy",
+      "name": "Orange Walls: Loop from tick 3 to 5 · 6t at (0, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22400,7 +22428,7 @@
     },
     {
       "id": "test-323-copy-2-copy",
-      "name": "Buttons attached to orange (2) copy",
+      "name": "Orange Walls: Loop from tick 3 to 5 · 6t at (0, 5, 1) [case 366]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22484,7 +22512,7 @@
     },
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
+      "name": "Orange Walls: Orange walls moves up · 2t at (1, 1, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "stuck-orange-walls"
@@ -22493,7 +22521,7 @@
     },
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-2",
-      "name": "Untitled test 325 copy copy copy copy copy copy copy copy",
+      "name": "Orange Walls: Player moves north · 1t at (1, 1, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "stuck-orange-walls"
@@ -22502,7 +22530,7 @@
     },
     {
       "id": "test-325-copy-copy-copy-copy-copy-copy-copy-2-copy-copy",
-      "name": "Untitled test 325 copy copy copy copy copy copy copy copy copy",
+      "name": "Orange Walls: Orange walls moves up · 2t at (1, 1, 1) [case 377]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "stuck-orange-walls"
@@ -22511,7 +22539,7 @@
     },
     {
       "id": "test-331",
-      "name": "Untitled test 331",
+      "name": "Orange Walls: Orange walls completes a state transition · 6t at (2, 5, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "buttons-on-ice"
@@ -22520,7 +22548,7 @@
     },
     {
       "id": "test-332",
-      "name": "Untitled test 332",
+      "name": "Orange Walls: Orange walls completes a state transition · 6t at (2, 5, 2) [case 379]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22530,7 +22558,7 @@
     },
     {
       "id": "test-332-copy-2",
-      "name": "Untitled test 332 copy",
+      "name": "Orange Walls: Orange walls completes a state transition · 6t at (2, 5, 2) [case 380]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22540,7 +22568,7 @@
     },
     {
       "id": "test-332-copy-2-copy",
-      "name": "Untitled test 332 copy copy",
+      "name": "Orange Walls: Box 0 descends · 6t at (2, 5, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22551,7 +22579,7 @@
     },
     {
       "id": "test-332-copy-2-copy-copy",
-      "name": "Untitled test 332 copy copy copy",
+      "name": "Orange Walls: Loop from tick 3 to 13 · 14t at (3, 8, 4)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22562,7 +22590,7 @@
     },
     {
       "id": "test-332-copy-2-copy-copy-copy",
-      "name": "Untitled test 332 copy copy copy copy",
+      "name": "Orange Walls: Loop from tick 3 to 13 · 14t at (3, 8, 4) [case 383]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22583,7 +22611,7 @@
     },
     {
       "id": "test-338-copy",
-      "name": "Untitled test 338 copy",
+      "name": "Orange Walls: Orange walls moves 4 up · 5t at (1, 3, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "stuck-orange-walls",
@@ -22593,7 +22621,7 @@
     },
     {
       "id": "test-339",
-      "name": "Untitled test 339",
+      "name": "Orange Walls: Box 0 rises · 5t at (3, 4, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22603,7 +22631,7 @@
     },
     {
       "id": "test-340",
-      "name": "Untitled test 340",
+      "name": "Orange Walls: Orange walls moves 2 down · 3t at (2, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22613,7 +22641,7 @@
     },
     {
       "id": "test-342",
-      "name": "Untitled test 342",
+      "name": "Orange Walls: Box 0 moves north · 4t at (2, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22623,7 +22651,7 @@
     },
     {
       "id": "test-345",
-      "name": "Untitled test 345",
+      "name": "Orange Walls: Box 0 moves north · 3t at (2, 4, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "multiple-buttons",
@@ -22642,7 +22670,7 @@
     },
     {
       "id": "test-346-copy-2",
-      "name": "Clone copy",
+      "name": "Clone: Player moves north · 1t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22651,7 +22679,7 @@
     },
     {
       "id": "test-346-copy-2-copy",
-      "name": "Clone copy copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22660,7 +22688,7 @@
     },
     {
       "id": "test-346-copy",
-      "name": "Untitled test 346 copy",
+      "name": "Clone: Clone 0 moves 4 north · 4t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "on-ice-2"
@@ -22669,7 +22697,7 @@
     },
     {
       "id": "test-350",
-      "name": "Untitled test 350",
+      "name": "Clone: Clone 0 moves north · 4t at (2, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22678,7 +22706,7 @@
     },
     {
       "id": "test-346-copy-copy",
-      "name": "Untitled test 346 copy copy",
+      "name": "Clone: Clone 0 descends · 5t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "on-ice-2"
@@ -22687,7 +22715,7 @@
     },
     {
       "id": "test-346-copy-copy-copy",
-      "name": "Untitled test 346 copy copy copy",
+      "name": "Clone: Clone 0 descends · 5t at (2, 5, 3)",
       "groupTagId": "clone",
       "tagIds": [
         "on-ice-2"
@@ -22696,7 +22724,7 @@
     },
     {
       "id": "test-351",
-      "name": "Untitled test 351",
+      "name": "Clone: Player moves north · 1t at (0, 5, 1) [case 397]",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22705,7 +22733,7 @@
     },
     {
       "id": "test-351-copy",
-      "name": "Untitled test 351 copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 1) [case 398]",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22714,7 +22742,7 @@
     },
     {
       "id": "test-351-copy-copy",
-      "name": "Untitled test 351 copy copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 1) [case 399]",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22723,7 +22751,7 @@
     },
     {
       "id": "test-351-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy",
+      "name": "Clone: Clone 1 moves north · 1t at (0, 5, 2)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22732,7 +22760,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy",
+      "name": "Clone: Clone 1 moves north · 1t at (0, 5, 2) [case 401]",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22741,7 +22769,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 1) [case 402]",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22750,7 +22778,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy copy copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 2)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22759,7 +22787,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy copy copy copy",
+      "name": "Clone: Clone 1 moves north · 1t at (1, 3, 2)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22768,7 +22796,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy copy copy copy copy",
+      "name": "Clone: Clone 1 descends · 2t at (1, 3, 2)",
       "groupTagId": "clone",
       "tagIds": [
         "clone-default"
@@ -22777,7 +22805,7 @@
     },
     {
       "id": "test-351-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 351 copy copy copy copy copy copy copy copy copy",
+      "name": "Clone: Clone 0 falls into the void · 4t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "on-void"
@@ -22786,7 +22814,7 @@
     },
     {
       "id": "test-363",
-      "name": "Untitled test 363",
+      "name": "Clone: Box 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "clone",
       "tagIds": [
         "and-box"
@@ -22795,7 +22823,7 @@
     },
     {
       "id": "test-363-copy",
-      "name": "Untitled test 363 copy",
+      "name": "Clone: Clone 0 moves north · 1t at (0, 5, 1) [case 408]",
       "groupTagId": "clone",
       "tagIds": [
         "and-box"
@@ -22804,7 +22832,7 @@
     },
     {
       "id": "test-363-copy-copy",
-      "name": "Untitled test 363 copy copy",
+      "name": "Clone: Player moves north · 1t at (0, 5, 1) [case 409]",
       "groupTagId": "clone",
       "tagIds": [
         "and-box"
@@ -22813,7 +22841,7 @@
     },
     {
       "id": "test-369",
-      "name": "Untitled test 369",
+      "name": "Box Slopes: Player rises · 2t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22822,7 +22850,7 @@
     },
     {
       "id": "test-369-copy-3",
-      "name": "Untitled test 369 copy",
+      "name": "Box Slopes: Player rises · 3t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22831,7 +22859,7 @@
     },
     {
       "id": "test-369-copy-2",
-      "name": "Untitled test 369 copy",
+      "name": "Box Slopes: Box 1 rises · 2t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22840,7 +22868,7 @@
     },
     {
       "id": "test-369-copy",
-      "name": "Untitled test 369 copy",
+      "name": "Box Slopes: Box 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22849,7 +22877,7 @@
     },
     {
       "id": "test-369-copy-copy",
-      "name": "Untitled test 369 copy copy",
+      "name": "Box Slopes: Box 0 moves north · 1t at (0, 5, 1) [case 414]",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22858,7 +22886,7 @@
     },
     {
       "id": "test-369-copy-copy-copy",
-      "name": "Untitled test 369 copy copy copy",
+      "name": "Box Slopes: Blocked command preserves the scene · 1t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22867,7 +22895,7 @@
     },
     {
       "id": "test-369-copy-copy-copy-copy",
-      "name": "Untitled test 369 copy copy copy copy",
+      "name": "Box Slopes: Box 0 moves north · 1t at (1, 3, 2)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22876,7 +22904,7 @@
     },
     {
       "id": "test-369-copy-copy-copy-copy-copy",
-      "name": "Untitled test 369 copy copy copy copy copy",
+      "name": "Box Slopes: Player rises and descends · 6t at (1, 3, 2)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22912,7 +22940,7 @@
     },
     {
       "id": "test-377-copy-copy",
-      "name": "how to slide up a clone copy",
+      "name": "Clone Slopes: Box 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "clone-slopes",
       "tagIds": [
         "clone-slopes-default"
@@ -22921,7 +22949,7 @@
     },
     {
       "id": "test-377-copy-copy-copy",
-      "name": "how to slide up a clone copy copy",
+      "name": "Clone Slopes: Box 0 rises · 1t at (0, 5, 1)",
       "groupTagId": "clone-slopes",
       "tagIds": [
         "clone-slopes-default"
@@ -22930,7 +22958,7 @@
     },
     {
       "id": "test-377-copy-copy-copy-copy",
-      "name": "how to slide up a clone copy copy copy",
+      "name": "Clone Slopes: Clone 0 moves north · 2t at (0, 5, 1)",
       "groupTagId": "clone-slopes",
       "tagIds": [
         "clone-slopes-default"
@@ -22939,7 +22967,7 @@
     },
     {
       "id": "test-377-copy-copy-copy-copy-copy",
-      "name": "how to slide up a clone copy copy copy copy",
+      "name": "Clone Slopes: Clone 0 moves north · 2t at (0, 5, 1) [case 424]",
       "groupTagId": "clone-slopes",
       "tagIds": [
         "clone-slopes-default"
@@ -22948,7 +22976,7 @@
     },
     {
       "id": "test-377-copy-copy-copy-copy-2",
-      "name": "how to slide up a clone copy copy copy",
+      "name": "Clone Slopes: Box 0 rises · 2t at (0, 5, 1)",
       "groupTagId": "clone-slopes",
       "tagIds": [
         "clone-slopes-default"
@@ -22957,7 +22985,7 @@
     },
     {
       "id": "test-382",
-      "name": "Untitled test 382",
+      "name": "Box Slopes: Box 1 rises · 1t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22966,7 +22994,7 @@
     },
     {
       "id": "test-383",
-      "name": "Untitled test 383",
+      "name": "Box Slopes: Box 0 moves north · 2t at (3, 3, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22975,7 +23003,7 @@
     },
     {
       "id": "test-383-copy",
-      "name": "Untitled test 383 copy",
+      "name": "Box Slopes: Box 0 moves north · 4t at (3, 3, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22984,7 +23012,7 @@
     },
     {
       "id": "test-388",
-      "name": "Untitled test 388",
+      "name": "Box Slopes: Box 1 moves north · 1t at (0, 5, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -22993,7 +23021,7 @@
     },
     {
       "id": "test-382-copy",
-      "name": "Untitled test 382 copy",
+      "name": "Box Slopes: Box 1 rises · 1t at (0, 5, 1) [case 430]",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23002,7 +23030,7 @@
     },
     {
       "id": "test-382-copy-copy",
-      "name": "Untitled test 382 copy copy",
+      "name": "Box Slopes: Box 3 rises · 1t at (0, 9, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23011,7 +23039,7 @@
     },
     {
       "id": "test-382-copy-copy-copy",
-      "name": "Untitled test 382 copy copy copy",
+      "name": "Box Slopes: Box 2 rises · 2t at (0, 8, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23020,7 +23048,7 @@
     },
     {
       "id": "test-382-copy-copy-copy-copy",
-      "name": "Untitled test 382 copy copy copy copy",
+      "name": "Box Slopes: Box 1 rises · 1t at (0, 7, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23029,7 +23057,7 @@
     },
     {
       "id": "test-382-copy-copy-copy-copy-copy",
-      "name": "Untitled test 382 copy copy copy copy copy",
+      "name": "Box Slopes: Box 0 rises · 4t at (0, 7, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23038,7 +23066,7 @@
     },
     {
       "id": "test-382-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 382 copy copy copy copy copy copy",
+      "name": "Box Slopes: Box 4 rises · 4t at (0, 7, 1)",
       "groupTagId": "box-slopes",
       "tagIds": [
         "box-slopes-default"
@@ -23056,7 +23084,7 @@
     },
     {
       "id": "test-413-copy-2",
-      "name": "Lift is attached to orange wall copy",
+      "name": "Orange Walls: Orange walls moves down · 2t at (1, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23065,7 +23093,7 @@
     },
     {
       "id": "test-413-copy",
-      "name": "Lift is attached to orange wall copy",
+      "name": "Orange Walls: Player moves north · 1t at (1, 5, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23074,7 +23102,7 @@
     },
     {
       "id": "test-413-copy-copy-2",
-      "name": "Lift is attached to orange wall copy copy",
+      "name": "Orange Walls: Player moves north · 1t at (1, 5, 1) [case 439]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23083,7 +23111,7 @@
     },
     {
       "id": "test-413-copy-copy-2-copy",
-      "name": "Lift is attached to orange wall copy copy copy",
+      "name": "Orange Walls: Player moves north · 1t at (1, 5, 1) [case 440]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23092,7 +23120,7 @@
     },
     {
       "id": "test-413-copy-copy",
-      "name": "Lift is attached to orange wall copy copy",
+      "name": "Orange Walls: Orange walls moves down · 2t at (1, 5, 1) [case 441]",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23101,7 +23129,7 @@
     },
     {
       "id": "test-413-copy-copy-copy",
-      "name": "Lift is attached to orange wall copy copy copy",
+      "name": "Orange Walls: Orange walls moves down · 3t at (2, 2, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23110,7 +23138,7 @@
     },
     {
       "id": "test-413-copy-copy-copy-copy-2",
-      "name": "Lift is attached to orange wall copy copy copy copy",
+      "name": "Orange Walls: Lift lowers (IDs 0) · 2t at (1, 2, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23119,7 +23147,7 @@
     },
     {
       "id": "test-413-copy-copy-copy-copy-2-copy",
-      "name": "Lift is attached to orange wall copy copy copy copy copy",
+      "name": "Orange Walls: Lift raises (IDs 1) · 2t at (1, 2, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23128,7 +23156,7 @@
     },
     {
       "id": "test-413-copy-copy-copy-copy-2-copy-2",
-      "name": "Lift is attached to orange wall copy copy copy copy copy",
+      "name": "Orange Walls: Lift lowers (IDs 0) · 3t at (1, 2, 2)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23137,7 +23165,7 @@
     },
     {
       "id": "test-413-copy-copy-copy-copy-2-copy-copy",
-      "name": "Lift is attached to orange wall copy copy copy copy copy copy",
+      "name": "Orange Walls: Lift raises (IDs 1) · 3t at (1, 2, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments"
@@ -23146,7 +23174,7 @@
     },
     {
       "id": "test-413-copy-copy-copy-copy",
-      "name": "Lift is attached to orange wall copy copy copy copy",
+      "name": "Orange Walls: Orange walls completes a state transition · 4t at (2, 2, 1)",
       "groupTagId": "orange-walls",
       "tagIds": [
         "lift-attachments",
@@ -23156,7 +23184,7 @@
     },
     {
       "id": "test-426",
-      "name": "Untitled test 426",
+      "name": "Lift: Lift lowers (IDs 1) · 2t at (2, 3, 3)",
       "groupTagId": "lift",
       "tagIds": [
         "stacked-2"
@@ -23165,7 +23193,7 @@
     },
     {
       "id": "test-426-copy",
-      "name": "Untitled test 426 copy",
+      "name": "Lift: Box 0 moves north · 1t at (1, 4, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "stacked-2"
@@ -23174,7 +23202,7 @@
     },
     {
       "id": "test-426-copy-copy-2",
-      "name": "Untitled test 426 copy copy",
+      "name": "Lift: Player moves north · 1t at (1, 3, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23183,7 +23211,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-2",
-      "name": "Untitled test 426 copy copy copy",
+      "name": "Lift: Lift lowers (IDs 4) · 1t at (1, 3, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23192,7 +23220,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy",
-      "name": "Untitled test 426 copy copy copy",
+      "name": "Lift: Lift moves north · 1t at (1, 2, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23201,7 +23229,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-copy-2",
-      "name": "Untitled test 426 copy copy copy copy",
+      "name": "Lift: Lift falls into the void · 4t at (1, 2, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23210,7 +23238,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-copy",
-      "name": "Untitled test 426 copy copy copy copy",
+      "name": "Lift: Lift moves north · 1t at (1, 2, 1) [case 454]",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23219,7 +23247,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-copy-copy",
-      "name": "Untitled test 426 copy copy copy copy copy",
+      "name": "Lift: Lift moves north · 1t at (1, 2, 1) [case 455]",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23228,7 +23256,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-copy-copy-copy",
-      "name": "Untitled test 426 copy copy copy copy copy copy",
+      "name": "Lift: Lift moves north · 1t at (2, 2, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23237,7 +23265,7 @@
     },
     {
       "id": "test-426-copy-copy-2-copy-copy-copy-copy-copy",
-      "name": "Untitled test 426 copy copy copy copy copy copy copy",
+      "name": "Lift: Lift falls into the void · 4t at (2, 2, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "attach-to-player"
@@ -23246,7 +23274,7 @@
     },
     {
       "id": "test-426-copy-copy",
-      "name": "Untitled test 426 copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (1, 4, 1) [case 458]",
       "groupTagId": "lift",
       "tagIds": [
         "stacked-2"
@@ -23255,7 +23283,7 @@
     },
     {
       "id": "test-426-copy-copy-copy",
-      "name": "Untitled test 426 copy copy copy",
+      "name": "Lift: Box 0 moves north · 1t at (1, 3, 1)",
       "groupTagId": "lift",
       "tagIds": [
         "stacked-2"
@@ -23264,7 +23292,7 @@
     },
     {
       "id": "test-460",
-      "name": "Untitled test 460",
+      "name": "punchers: Puncher completes a state transition · 4t at (1, 3, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23273,7 +23301,7 @@
     },
     {
       "id": "test-460-copy",
-      "name": "Untitled test 460 copy",
+      "name": "punchers: Puncher completes a state transition · 9t at (1, 3, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23282,7 +23310,7 @@
     },
     {
       "id": "test-460-copy-copy",
-      "name": "Untitled test 460 copy copy",
+      "name": "punchers: Loop from tick 1 to 11 · 12t at (1, 3, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23291,7 +23319,7 @@
     },
     {
       "id": "test-460-copy-2",
-      "name": "Untitled test 460 copy",
+      "name": "punchers: Puncher completes a state transition · 6t at (1, 5, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23300,7 +23328,7 @@
     },
     {
       "id": "test-460-copy-3",
-      "name": "Untitled test 460 copy",
+      "name": "punchers: Puncher completes a state transition · 5t at (1, 3, 2)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23309,7 +23337,7 @@
     },
     {
       "id": "test-465",
-      "name": "Untitled test 465",
+      "name": "punchers: Puncher completes a state transition · 4t at (1, 7, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23318,7 +23346,7 @@
     },
     {
       "id": "test-465-copy-3",
-      "name": "Untitled test 465 copy",
+      "name": "punchers: Puncher completes a state transition · 4t at (1, 7, 1) [case 466]",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23327,7 +23355,7 @@
     },
     {
       "id": "test-465-copy-4",
-      "name": "Untitled test 465 copy",
+      "name": "punchers: Puncher completes a state transition · 5t at (2, 8, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23336,7 +23364,7 @@
     },
     {
       "id": "test-460-copy-3-copy",
-      "name": "Untitled test 460 copy copy",
+      "name": "punchers: Puncher completes a state transition · 5t at (1, 4, 2)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23345,7 +23373,7 @@
     },
     {
       "id": "test-465-copy-4-copy-2",
-      "name": "Untitled test 465 copy copy",
+      "name": "punchers: Puncher completes a state transition · 8t at (2, 8, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23354,7 +23382,7 @@
     },
     {
       "id": "test-465-copy-4-copy-2-copy",
-      "name": "Untitled test 465 copy copy copy",
+      "name": "punchers: Puncher completes a state transition · 7t at (2, 8, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23363,7 +23391,7 @@
     },
     {
       "id": "test-465-copy-4-copy",
-      "name": "Untitled test 465 copy copy",
+      "name": "punchers: Loop from tick 1 to 15 · 16t at (2, 8, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23372,7 +23400,7 @@
     },
     {
       "id": "test-465-copy-2",
-      "name": "Untitled test 465 copy",
+      "name": "punchers: Box 0 moves north · 1t at (1, 3, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23381,7 +23409,7 @@
     },
     {
       "id": "test-465-copy",
-      "name": "Untitled test 465 copy",
+      "name": "punchers: Box 0 descends · 2t at (1, 3, 2)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23390,7 +23418,7 @@
     },
     {
       "id": "test-465-copy-copy",
-      "name": "Untitled test 465 copy copy",
+      "name": "punchers: Box 0 descends · 4t at (1, 3, 2)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23399,7 +23427,7 @@
     },
     {
       "id": "test-475",
-      "name": "Untitled test 475",
+      "name": "punchers: Puncher completes a state transition · 3t at (1, 3, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23408,7 +23436,7 @@
     },
     {
       "id": "test-476",
-      "name": "Untitled test 476",
+      "name": "punchers: Puncher completes a state transition · 4t at (1, 4, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23417,7 +23445,7 @@
     },
     {
       "id": "test-476-copy",
-      "name": "Untitled test 476 copy",
+      "name": "punchers: Puncher completes a state transition · 13t at (1, 4, 1)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23426,7 +23454,7 @@
     },
     {
       "id": "test-476-copy-copy",
-      "name": "Untitled test 476 copy copy",
+      "name": "punchers: Puncher completes a state transition · 23t at (1, 4, 4)",
       "groupTagId": "punchers",
       "tagIds": [
         "punchers-default"
@@ -23435,7 +23463,7 @@
     },
     {
       "id": "test-479",
-      "name": "Untitled test 479",
+      "name": "gate: Gate raises (IDs 1) · 2t at (0, 5, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23444,7 +23472,7 @@
     },
     {
       "id": "test-479-copy",
-      "name": "Untitled test 479 copy",
+      "name": "gate: Blocked command preserves the scene · 1t at (0, 4, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23453,7 +23481,7 @@
     },
     {
       "id": "test-479-copy-copy",
-      "name": "Untitled test 479 copy copy",
+      "name": "gate: Gate lowers (IDs 0) · 2t at (0, 2, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23462,7 +23490,7 @@
     },
     {
       "id": "test-479-copy-2",
-      "name": "Untitled test 479 copy",
+      "name": "gate: Box 0 moves north · 1t at (0, 5, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23471,7 +23499,7 @@
     },
     {
       "id": "test-479-copy-2-copy",
-      "name": "Untitled test 479 copy copy",
+      "name": "gate: Box 0 moves north · 1t at (0, 4, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23480,7 +23508,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy",
-      "name": "Untitled test 479 copy copy copy",
+      "name": "gate: Gate raises (IDs 1) · 2t at (2, 3, 2)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23489,7 +23517,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy-copy",
-      "name": "Untitled test 479 copy copy copy copy",
+      "name": "gate: Gate lowers (IDs 0, 1) · 2t at (2, 2, 2)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23498,7 +23526,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy-copy-copy-2",
-      "name": "Untitled test 479 copy copy copy copy copy",
+      "name": "gate: Gate changes its arrangement (IDs 0, 1) · 2t at (2, 2, 2)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23507,7 +23535,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy-copy-copy-2-copy",
-      "name": "Untitled test 479 copy copy copy copy copy copy",
+      "name": "gate: Gate changes its arrangement (IDs 0, 1) · 2t at (2, 2, 2) [case 487]",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23516,7 +23544,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy-copy-2",
-      "name": "Untitled test 479 copy copy copy copy",
+      "name": "gate: Gate raises (IDs 0, 1) · 2t at (2, 3, 5)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23525,7 +23553,7 @@
     },
     {
       "id": "test-479-copy-2-copy-copy-copy-copy",
-      "name": "Untitled test 479 copy copy copy copy copy",
+      "name": "gate: Gate raises (IDs 0, 1) · 6t at (2, 5, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23534,7 +23562,7 @@
     },
     {
       "id": "test-490",
-      "name": "Untitled test 490",
+      "name": "gate: Box 0 moves north · 1t at (2, 4, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23543,7 +23571,7 @@
     },
     {
       "id": "test-490-copy",
-      "name": "Untitled test 490 copy",
+      "name": "gate: Gate raises (IDs 0, 1) · 2t at (2, 3, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23552,7 +23580,7 @@
     },
     {
       "id": "test-490-copy-copy",
-      "name": "Untitled test 490 copy copy",
+      "name": "gate: Gate changes its arrangement (IDs 0, 1) · 2t at (2, 2, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23561,7 +23589,7 @@
     },
     {
       "id": "test-493",
-      "name": "Untitled test 493",
+      "name": "gate: Gate raises (IDs 1) · 2t at (0, 5, 1) [case 493]",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -23570,7 +23598,7 @@
     },
     {
       "id": "test-494",
-      "name": "Untitled test 494",
+      "name": "floating floor: Floating floor moves north · 1t at (0, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23579,7 +23607,7 @@
     },
     {
       "id": "test-494-copy",
-      "name": "Untitled test 494 copy",
+      "name": "floating floor: Floating floor fills the hole · 2t at (0, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23588,7 +23616,7 @@
     },
     {
       "id": "test-494-copy-2",
-      "name": "Untitled test 494 copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 5, 2)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23597,7 +23625,7 @@
     },
     {
       "id": "test-494-copy-copy",
-      "name": "Untitled test 494 copy copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23606,7 +23634,7 @@
     },
     {
       "id": "test-494-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy",
+      "name": "floating floor: Box 1 moves north · 1t at (0, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23615,7 +23643,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy",
+      "name": "floating floor: Box 1 moves north · 1t at (0, 5, 1) [case 499]",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23624,7 +23652,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 5, 1) [case 500]",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23633,7 +23661,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy-copy-2",
-      "name": "Untitled test 494 copy copy copy copy copy copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 5, 1) [case 501]",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23642,7 +23670,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy copy copy",
+      "name": "floating floor: Floating floor moves north · 1t at (0, 5, 1) [case 502]",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23651,7 +23679,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy copy copy copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 4, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23660,7 +23688,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy copy copy copy copy",
+      "name": "floating floor: Blocked command preserves the scene · 1t at (0, 4, 4)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23669,7 +23697,7 @@
     },
     {
       "id": "test-494-copy-copy-copy-copy-copy-copy-copy-copy-copy",
-      "name": "Untitled test 494 copy copy copy copy copy copy copy copy copy",
+      "name": "floating floor: Floating floor descends · 5t at (0, 4, 4)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23678,7 +23706,7 @@
     },
     {
       "id": "test-506",
-      "name": "Untitled test 506",
+      "name": "floating floor: Floating floor moves 4 north · 4t at (3, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23687,7 +23715,7 @@
     },
     {
       "id": "test-506-copy",
-      "name": "Untitled test 506 copy",
+      "name": "floating floor: Floating floor moves 3 north · 3t at (3, 4, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23696,7 +23724,7 @@
     },
     {
       "id": "test-506-copy-copy",
-      "name": "Untitled test 506 copy copy",
+      "name": "floating floor: Player moves 2 north · 2t at (3, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23705,7 +23733,7 @@
     },
     {
       "id": "test-506-copy-copy-copy",
-      "name": "Untitled test 506 copy copy copy",
+      "name": "floating floor: Floating floor rises · 2t at (0, 5, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23714,7 +23742,7 @@
     },
     {
       "id": "test-506-copy-copy-copy-copy",
-      "name": "Untitled test 506 copy copy copy copy",
+      "name": "floating floor: Floating floor descends · 2t at (0, 3, 2)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23723,7 +23751,7 @@
     },
     {
       "id": "test-506-copy-copy-copy-copy-copy",
-      "name": "Untitled test 506 copy copy copy copy copy",
+      "name": "floating floor: Floating floor changes its authored arrangement · 2t at (0, 4, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23732,7 +23760,7 @@
     },
     {
       "id": "test-512",
-      "name": "Untitled test 512",
+      "name": "floating floor: Puncher completes a state transition · 4t at (1, 4, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23741,7 +23769,7 @@
     },
     {
       "id": "test-512-copy",
-      "name": "Untitled test 512 copy",
+      "name": "floating floor: Puncher completes a state transition · 5t at (1, 4, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23750,7 +23778,7 @@
     },
     {
       "id": "test-512-copy-copy",
-      "name": "Untitled test 512 copy copy",
+      "name": "floating floor: Puncher completes a state transition · 7t at (1, 4, 3)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -23759,7 +23787,7 @@
     },
     {
       "id": "test-515",
-      "name": "Untitled test 515",
+      "name": "Movement: Player moves north · 1t at (2, 5, 2)",
       "groupTagId": "general",
       "tagIds": [
         "general-default"
@@ -23768,12 +23796,238 @@
     },
     {
       "id": "test-515-copy",
-      "name": "Untitled test 515 copy",
+      "name": "Movement: Player moves north · 1t at (2, 5, 1)",
       "groupTagId": "general",
       "tagIds": [
         "general-default"
       ],
       "file": "test-515-copy.json"
+    },
+    {
+      "id": "test-517",
+      "name": "Tall wide box climbs two slopes, crosses the crest, then falls",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-517.json"
+    },
+    {
+      "id": "test-518",
+      "name": "Player leaves a bridge supported by a stationary four-cell pedestal",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "stacked",
+        "wrapped"
+      ],
+      "file": "test-518.json"
+    },
+    {
+      "id": "audit-slope-1x1",
+      "name": "1×1 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-1x1.json"
+    },
+    {
+      "id": "audit-slope-1x1-blocked",
+      "name": "1×1 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-1x1-blocked.json"
+    },
+    {
+      "id": "audit-slope-1x4",
+      "name": "1×4 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-1x4.json"
+    },
+    {
+      "id": "audit-slope-1x4-blocked",
+      "name": "1×4 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-1x4-blocked.json"
+    },
+    {
+      "id": "audit-slope-2x1",
+      "name": "2×1 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-2x1.json"
+    },
+    {
+      "id": "audit-slope-2x1-blocked",
+      "name": "2×1 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-2x1-blocked.json"
+    },
+    {
+      "id": "audit-slope-2x4",
+      "name": "2×4 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-2x4.json"
+    },
+    {
+      "id": "audit-slope-2x4-blocked",
+      "name": "2×4 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-2x4-blocked.json"
+    },
+    {
+      "id": "audit-slope-4x1",
+      "name": "4×1 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-4x1.json"
+    },
+    {
+      "id": "audit-slope-4x1-blocked",
+      "name": "4×1 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-4x1-blocked.json"
+    },
+    {
+      "id": "audit-slope-4x7",
+      "name": "4×7 box: one ramp contact lifts every cell",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-4x7.json"
+    },
+    {
+      "id": "audit-slope-4x7-blocked",
+      "name": "4×7 box: remote ceiling blocks the entire ramp ascent",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "audit-slope-4x7-blocked.json"
+    },
+    {
+      "id": "audit-pedestal-1-floor",
+      "name": "1-cell pedestal on Floor: the bridge stays put",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-1-floor.json"
+    },
+    {
+      "id": "audit-pedestal-1-ice",
+      "name": "1-cell pedestal on Ice: the player carries the bridge",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-1-ice.json"
+    },
+    {
+      "id": "audit-pedestal-2-floor",
+      "name": "2-cell pedestal on Floor: the bridge stays put",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-2-floor.json"
+    },
+    {
+      "id": "audit-pedestal-2-ice",
+      "name": "2-cell pedestal on Ice: the player carries the bridge",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-2-ice.json"
+    },
+    {
+      "id": "audit-pedestal-4-floor",
+      "name": "4-cell pedestal on Floor: the bridge stays put",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-4-floor.json"
+    },
+    {
+      "id": "audit-pedestal-4-ice",
+      "name": "4-cell pedestal on Ice: the player carries the bridge",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-pedestal-4-ice.json"
+    },
+    {
+      "id": "test-537",
+      "name": "Untitled test 537",
+      "groupTagId": "lifts",
+      "tagIds": [
+        "lifts-default"
+      ],
+      "file": "test-537.json"
+    },
+    {
+      "id": "test-538",
+      "name": "Untitled test 538",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-538.json"
+    },
+    {
+      "id": "test-538-copy",
+      "name": "Untitled test 538 copy",
+      "groupTagId": "ice-slopes-box",
+      "tagIds": [
+        "ice-slopes-box-default"
+      ],
+      "file": "test-538-copy.json"
+    },
+    {
+      "id": "test-540",
+      "name": "Untitled test 540",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "stacked"
+      ],
+      "file": "test-540.json"
+    },
+    {
+      "id": "test-540-copy",
+      "name": "Untitled test 540 copy",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "stacked"
+      ],
+      "file": "test-540-copy.json"
     }
   ]
 }
