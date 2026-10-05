@@ -69,6 +69,31 @@ export function summarizeTestResults(tests, results) {
 }
 
 const naturalOrder = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+
+/**
+ * Keep matching folders, their descendants, and the path back to each root.
+ * Search is presentation-only; imported folders may contain broken parent links.
+ * @param {{ id: string, name: string, parentId?: string }[]} folders
+ * @param {string} query
+ * @returns {Set<string>}
+ */
+export function matchingFolderIds(folders, query) {
+  const needle = query.trim().toLocaleLowerCase();
+  const byId = new Map(folders.map(folder => [folder.id, folder]));
+  const visible = new Set();
+  for (const folder of folders) {
+    const path = [], seen = new Set();
+    let cursor = folder;
+    while (cursor && !seen.has(cursor.id)) {
+      seen.add(cursor.id); path.push(cursor);
+      cursor = byId.get(cursor.parentId);
+    }
+    if (!needle || path.some(item => item.name.toLocaleLowerCase().includes(needle))) {
+      for (const item of path) visible.add(item.id);
+    }
+  }
+  return visible;
+}
 /**
  * Presentation sorting never rewrites the author's manual order or tag placement.
  * @template {{ id: string, name: string, folderId: string, hidden?: boolean, intermediate?: unknown[] }} T

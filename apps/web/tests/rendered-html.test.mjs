@@ -156,7 +156,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /className="suite-tree__rename"/);
   assert.match(component, /onRenameFolder\(folder\.id, name\)/);
   assert.match(component, /onDeleteFolder\(folder\.id\)/);
-  assert.match(component, /folderMembershipCounts/);
+  assert.match(component, /const folderTestCounts[\s\S]*?tests\.filter\(\(test\) => testUsesTag\(test, folder\)\)\.length/);
   assert.match(component, /testUsesTag\(test, folder\)/);
   assert.match(component, /Default is a reserved subtag and cannot be deleted/);
   assert.match(component, /The final parent tag group cannot be deleted/);

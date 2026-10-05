@@ -745,6 +745,62 @@
       "locked": false,
       "name": "Actor collisions",
       "parentId": "engine-regressions"
+    },
+    {
+      "collapsed": true,
+      "id": "box-slopes-rigid",
+      "locked": false,
+      "name": "Rigid bodies",
+      "parentId": "box-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "box-slopes-support",
+      "locked": false,
+      "name": "Riders and Ice",
+      "parentId": "box-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "box-slopes-interactions",
+      "locked": false,
+      "name": "Pushes and gems",
+      "parentId": "box-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "box-slopes-ramp-contacts",
+      "locked": false,
+      "name": "Ramp contacts",
+      "parentId": "box-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "clone-slopes-rigid",
+      "locked": false,
+      "name": "Rigid bodies",
+      "parentId": "clone-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "clone-slopes-support",
+      "locked": false,
+      "name": "Riders and Ice",
+      "parentId": "clone-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "clone-slopes-interactions",
+      "locked": false,
+      "name": "Pushes and gems",
+      "parentId": "clone-slopes"
+    },
+    {
+      "collapsed": true,
+      "id": "clone-slopes-ramp-contacts",
+      "locked": false,
+      "name": "Ramp contacts",
+      "parentId": "clone-slopes"
     }
   ],
   "searches": [
@@ -24015,7 +24071,7 @@
     },
     {
       "id": "test-538",
-      "name": "ice slopes + box: Box 0 moves north · 1t at (3, 8, 2)",
+      "name": "Ice slopes · Boxes: Box 0 moves north · 1t at (3, 8, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24024,7 +24080,7 @@
     },
     {
       "id": "test-538-copy",
-      "name": "ice slopes + box: Box 0 descends · 2t at (3, 7, 2)",
+      "name": "Ice slopes · Boxes: Box 0 descends · 2t at (3, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24033,7 +24089,7 @@
     },
     {
       "id": "test-538-copy-copy",
-      "name": "ice slopes + box: Box 0 moves north · 3t at (3, 6, 1)",
+      "name": "Ice slopes · Boxes: Box 0 moves north · 3t at (3, 6, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24042,7 +24098,7 @@
     },
     {
       "id": "test-538-copy-copy-copy",
-      "name": "ice slopes + box: Box 0 moves north · 3t at (3, 7, 1)",
+      "name": "Ice slopes · Boxes: Box 0 moves north · 3t at (3, 7, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24051,7 +24107,7 @@
     },
     {
       "id": "test-540",
-      "name": "3D Box: Box 0 moves north · 1t at (4, 6, 1)",
+      "name": "3D boxes: Box 0 moves north · 1t at (4, 6, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24060,7 +24116,7 @@
     },
     {
       "id": "test-540-copy",
-      "name": "3D Box: Box 0 moves north · 4t at (4, 5, 1)",
+      "name": "3D boxes: Box 0 moves north · 4t at (4, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24069,7 +24125,7 @@
     },
     {
       "id": "test-543",
-      "name": "ice slopes + box: Box 0 descends · 6t at (3, 6, 1)",
+      "name": "Ice slopes · Boxes: Box 0 descends · 6t at (3, 6, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24078,7 +24134,7 @@
     },
     {
       "id": "test-543-copy",
-      "name": "ice slopes + box: Box 0 descends · 6t at (3, 7, 1)",
+      "name": "Ice slopes · Boxes: Box 0 descends · 6t at (3, 7, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24087,7 +24143,7 @@
     },
     {
       "id": "test-546",
-      "name": "3D Box: Box 0 moves north · 1t at (7, 11, 2)",
+      "name": "3D boxes: Box 0 moves north · 1t at (7, 11, 2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24132,7 +24188,7 @@
     },
     {
       "id": "test-551",
-      "name": "gate: Floating floor moves north · 1t at (6, 9, 1)",
+      "name": "Gates: Floating floor moves north · 1t at (6, 9, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -24141,7 +24197,7 @@
     },
     {
       "id": "test-551-copy",
-      "name": "gate: Floating floor moves north · 1t at (6, 8, 1)",
+      "name": "Gates: Floating floor moves north · 1t at (6, 8, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -24150,7 +24206,7 @@
     },
     {
       "id": "test-553",
-      "name": "floating floor: Floating floor moves north · 2t at (7, 8, 1)",
+      "name": "Floating floors: Floating floor moves north · 2t at (7, 8, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -24159,7 +24215,7 @@
     },
     {
       "id": "test-553-copy",
-      "name": "floating floor: Player rises · 2t at (7, 8, 1)",
+      "name": "Floating floors: Player rises · 2t at (7, 8, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -24168,7 +24224,7 @@
     },
     {
       "id": "test-553-copy-copy",
-      "name": "floating floor: Floating floor moves north · 2t at (7, 8, 2)",
+      "name": "Floating floors: Floating floor moves north · 2t at (7, 8, 2)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -24390,6 +24446,420 @@
         "engine-regressions-actors"
       ],
       "file": "audit-clone-vacancy-ramp-ceiling-remote-ramp.json"
+    },
+    {
+      "id": "slope-box-rigid",
+      "name": "Box slope · rigid",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-rigid.json"
+    },
+    {
+      "id": "slope-box-blocked-slope",
+      "name": "Box slope · blocked slope",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-blocked-slope.json"
+    },
+    {
+      "id": "slope-box-blocked-crown",
+      "name": "Box slope · blocked crown",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-blocked-crown.json"
+    },
+    {
+      "id": "slope-box-rider",
+      "name": "Box slope · rider",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-support"
+      ],
+      "file": "slope-box-rider.json"
+    },
+    {
+      "id": "slope-box-ice",
+      "name": "Box slope · ice",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-support"
+      ],
+      "file": "slope-box-ice.json"
+    },
+    {
+      "id": "slope-box-mixed-ice",
+      "name": "Box slope · mixed ice",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-support"
+      ],
+      "file": "slope-box-mixed-ice.json"
+    },
+    {
+      "id": "slope-box-independent",
+      "name": "Box slope · independent",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-independent.json"
+    },
+    {
+      "id": "slope-box-other-family",
+      "name": "Box slope · other family",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-other-family.json"
+    },
+    {
+      "id": "slope-box-push-crate",
+      "name": "Box slope · push crate",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-interactions"
+      ],
+      "file": "slope-box-push-crate.json"
+    },
+    {
+      "id": "slope-box-two-crates",
+      "name": "Box slope · two crates",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-interactions"
+      ],
+      "file": "slope-box-two-crates.json"
+    },
+    {
+      "id": "slope-box-push-floor",
+      "name": "Box slope · push floor",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-interactions"
+      ],
+      "file": "slope-box-push-floor.json"
+    },
+    {
+      "id": "slope-box-gem",
+      "name": "Box slope · gem",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-interactions"
+      ],
+      "file": "slope-box-gem.json"
+    },
+    {
+      "id": "slope-box-slope-gem",
+      "name": "Box slope · slope gem",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-interactions"
+      ],
+      "file": "slope-box-slope-gem.json"
+    },
+    {
+      "id": "slope-box-remote-ramp",
+      "name": "Box slope · remote ramp",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-rigid"
+      ],
+      "file": "slope-box-remote-ramp.json"
+    },
+    {
+      "id": "slope-box-rider-descends",
+      "name": "Box slope · rider descends",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-rider-descends.json"
+    },
+    {
+      "id": "slope-box-rider-over-ice",
+      "name": "Box slope · rider over ice",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-rider-over-ice.json"
+    },
+    {
+      "id": "slope-box-lift-cargo",
+      "name": "Box slope · lift cargo",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-lift-cargo.json"
+    },
+    {
+      "id": "slope-box-lift-ceiling",
+      "name": "Box slope · lift ceiling",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-lift-ceiling.json"
+    },
+    {
+      "id": "slope-box-low-face",
+      "name": "Box slope · low face",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-low-face.json"
+    },
+    {
+      "id": "slope-box-low-face-ceiling",
+      "name": "Box slope · low face ceiling",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-low-face-ceiling.json"
+    },
+    {
+      "id": "slope-box-high-face-blocked",
+      "name": "Box slope · high face blocked",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-high-face-blocked.json"
+    },
+    {
+      "id": "slope-box-cargo-climbs",
+      "name": "Box slope · cargo climbs",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-cargo-climbs.json"
+    },
+    {
+      "id": "slope-box-opposing-slopes",
+      "name": "Box slope · opposing slopes",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-ramp-contacts"
+      ],
+      "file": "slope-box-opposing-slopes.json"
+    },
+    {
+      "id": "slope-clone-rigid",
+      "name": "Clone slope · rigid",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-rigid.json"
+    },
+    {
+      "id": "slope-clone-blocked-slope",
+      "name": "Clone slope · blocked slope",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-blocked-slope.json"
+    },
+    {
+      "id": "slope-clone-blocked-crown",
+      "name": "Clone slope · blocked crown",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-blocked-crown.json"
+    },
+    {
+      "id": "slope-clone-rider",
+      "name": "Clone slope · rider",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-support"
+      ],
+      "file": "slope-clone-rider.json"
+    },
+    {
+      "id": "slope-clone-ice",
+      "name": "Clone slope · ice",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-support"
+      ],
+      "file": "slope-clone-ice.json"
+    },
+    {
+      "id": "slope-clone-mixed-ice",
+      "name": "Clone slope · mixed ice",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-support"
+      ],
+      "file": "slope-clone-mixed-ice.json"
+    },
+    {
+      "id": "slope-clone-independent",
+      "name": "Clone slope · independent",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-independent.json"
+    },
+    {
+      "id": "slope-clone-other-family",
+      "name": "Clone slope · other family",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-other-family.json"
+    },
+    {
+      "id": "slope-clone-push-crate",
+      "name": "Clone slope · push crate",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-interactions"
+      ],
+      "file": "slope-clone-push-crate.json"
+    },
+    {
+      "id": "slope-clone-two-crates",
+      "name": "Clone slope · two crates",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-interactions"
+      ],
+      "file": "slope-clone-two-crates.json"
+    },
+    {
+      "id": "slope-clone-push-floor",
+      "name": "Clone slope · push floor",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-interactions"
+      ],
+      "file": "slope-clone-push-floor.json"
+    },
+    {
+      "id": "slope-clone-gem",
+      "name": "Clone slope · gem",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-interactions"
+      ],
+      "file": "slope-clone-gem.json"
+    },
+    {
+      "id": "slope-clone-slope-gem",
+      "name": "Clone slope · slope gem",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-interactions"
+      ],
+      "file": "slope-clone-slope-gem.json"
+    },
+    {
+      "id": "slope-clone-remote-ramp",
+      "name": "Clone slope · remote ramp",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-rigid"
+      ],
+      "file": "slope-clone-remote-ramp.json"
+    },
+    {
+      "id": "slope-clone-rider-descends",
+      "name": "Clone slope · rider descends",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-rider-descends.json"
+    },
+    {
+      "id": "slope-clone-rider-over-ice",
+      "name": "Clone slope · rider over ice",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-rider-over-ice.json"
+    },
+    {
+      "id": "slope-clone-lift-cargo",
+      "name": "Clone slope · lift cargo",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-lift-cargo.json"
+    },
+    {
+      "id": "slope-clone-lift-ceiling",
+      "name": "Clone slope · lift ceiling",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-lift-ceiling.json"
+    },
+    {
+      "id": "slope-clone-low-face",
+      "name": "Clone slope · low face",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-low-face.json"
+    },
+    {
+      "id": "slope-clone-low-face-ceiling",
+      "name": "Clone slope · low face ceiling",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-low-face-ceiling.json"
+    },
+    {
+      "id": "slope-clone-high-face-blocked",
+      "name": "Clone slope · high face blocked",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-high-face-blocked.json"
+    },
+    {
+      "id": "slope-clone-cargo-climbs",
+      "name": "Clone slope · cargo climbs",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-cargo-climbs.json"
+    },
+    {
+      "id": "slope-clone-opposing-slopes",
+      "name": "Clone slope · opposing slopes",
+      "groupTagId": "clone-slopes",
+      "tagIds": [
+        "clone-slopes-ramp-contacts"
+      ],
+      "file": "slope-clone-opposing-slopes.json"
     }
   ]
 }

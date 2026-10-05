@@ -34,7 +34,7 @@ import {
   offsetGenericObjectId,
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
-import { deleteTestCase, runnableTestCases, sortTestCases, summarizeTestResults } from "./testSuite.mjs";
+import { deleteTestCase, matchingFolderIds, runnableTestCases, sortTestCases, summarizeTestResults } from "./testSuite.mjs";
 import {
   canonicalTagCombination,
   combinationViewIncludesTest,
@@ -1479,7 +1479,6 @@ function TestSuiteWorkspace({
   onRenameFolder,
   onReorderTest,
   onRunTest,
-  onToggleFolderCollapsed,
   onToggleTestHidden,
   onToggleTestLocked,
   onUpdateTest,
@@ -1501,7 +1500,6 @@ function TestSuiteWorkspace({
   onRenameFolder: (folderId: string, name: string) => void;
   onReorderTest: (testId: string, targetTestId: string) => void;
   onRunTest: (test: TestCase) => void;
-  onToggleFolderCollapsed: (folderId: string) => void;
   onToggleTestHidden: (testId: string) => void;
   onToggleTestLocked: (testId: string) => void;
   onUpdateTest: (testId: string, patch: Partial<Pick<TestCase, "name" | "description">>) => void;
@@ -1511,6 +1509,14 @@ function TestSuiteWorkspace({
   const activeTest = tests.find((test) => test.id === activeId);
   const [requestedFolderId, setSelectedFolderId] = useState<string | null>(activeTest?.folderId ?? null);
   const [query, setQuery] = useState("");
+  const [folderQuery, setFolderQuery] = useState("");
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => new Set(activeTest ? [activeTest.folderId] : []));
+  const visibleFolderIds = useMemo(() => matchingFolderIds(folders, folderQuery), [folders, folderQuery]);
+  const toggleExpandedFolder = (id: string) => setExpandedFolders(current => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
   const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "hidden" | "passed" | "untested">("all");
   const [sortOrder, setSortOrder] = useState<"group" | "name" | "id" | "frames" | "status" | "manual">("group");
   const [pagination, setPagination] = useState({ scope: "", index: 0 });
@@ -1572,21 +1578,7 @@ function TestSuiteWorkspace({
     () => new Map(folders.map((folder) => [folder.id, folderPathLabel(folders, folder.id)])),
     [folders],
   );
-  const folderTestCounts = useMemo(() => {
-    const counts = new Map(folders.map((folder) => [folder.id, 0]));
-    for (const test of tests) {
-      for (const folder of folders) {
-        const included = folder.parentId
-          ? test.folderId === folder.parentId && directSubtagViewIncludesTest(test.tagIds, folder.id)
-          : test.folderId === folder.id;
-        if (included) {
-          counts.set(folder.id, (counts.get(folder.id) ?? 0) + 1);
-        }
-      }
-    }
-    return counts;
-  }, [folders, tests]);
-  const folderMembershipCounts = useMemo(() => new Map(folders.map((folder) => [
+  const folderTestCounts = useMemo(() => new Map(folders.map((folder) => [
     folder.id,
     tests.filter((test) => testUsesTag(test, folder)).length,
   ])), [folders, tests]);
@@ -1702,10 +1694,6 @@ function TestSuiteWorkspace({
             </label>
             <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
           </div>
-          <details className="suite-case-description"><summary>Expected behavior</summary><label>
-            <span className="sr-only">Description</span>
-            <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
-          </label></details>
           <small title={test.id}>{test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · ignored" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
         </div>
         <div className="suite-test-row__actions">
@@ -1720,18 +1708,25 @@ function TestSuiteWorkspace({
           <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>Delete test</button>
           </div></details>
         </div>
+        <details className="suite-case-description"><summary>Expected behavior</summary><label>
+          <span className="sr-only">Description</span>
+          <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
+        </label></details>
       </article>
     );
   };
 
   const renderFolderBranch = (parentId = "__root__", depth = 0): React.ReactNode => (
-    (childrenByParent.get(parentId) ?? []).map((folder) => {
-      const children = childrenByParent.get(folder.id) ?? [];
+    (childrenByParent.get(parentId) ?? []).filter(folder => visibleFolderIds.has(folder.id)).map((folder) => {
+      const storedChildren = childrenByParent.get(folder.id) ?? [];
+      // A sole Default subfolder duplicates its parent and adds no navigation.
+      const children = storedChildren.length === 1 && storedChildren[0].default ? [] : storedChildren;
       const aliases = folder.parentId
         ? []
         : combinationAliases.filter((alias) => alias.groupTagId === folder.id);
       const hasChildren = children.length > 0 || aliases.length > 0;
-      const membershipCount = folderMembershipCounts.get(folder.id) ?? 0;
+      const expanded = expandedFolders.has(folder.id);
+      const membershipCount = folderTestCounts.get(folder.id) ?? 0;
       const canDelete = membershipCount === 0 && !folder.default && (folder.parentId !== undefined || rootFolderCount > 1);
       const deleteTitle = folder.default
         ? "Default is a reserved subtag"
@@ -1743,7 +1738,7 @@ function TestSuiteWorkspace({
       return (
         <div className="suite-tree__branch" key={folder.id}>
           <div className={`suite-tree__row ${selectedFolderId === folder.id ? "is-selected" : ""}`} style={{ "--tree-depth": depth } as React.CSSProperties}>
-            <button className="suite-tree__collapse" type="button" disabled={!hasChildren} aria-label={`${folder.collapsed ? "Expand" : "Collapse"} ${folder.name}`} aria-expanded={!folder.collapsed} onClick={() => onToggleFolderCollapsed(folder.id)}><span aria-hidden="true">▾</span></button>
+            {hasChildren ? <button className="suite-tree__collapse" type="button" aria-label={`${expanded ? "Collapse" : "Expand"} ${folder.name}`} aria-expanded={expanded} onClick={() => toggleExpandedFolder(folder.id)}><span aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m4 6 4 4 4-4" /></svg></span></button> : <span className="suite-tree__leaf" aria-hidden="true">{folder.parentId ? "·" : <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 6V4h6l2 2h8v10H2Z" /></svg>}</span>}
             {folderRenameDraft?.id === folder.id ? (
               <form className="suite-tree__rename" onSubmit={(event) => { event.preventDefault(); const name = folderRenameDraft.name.trim(); if (!name) return; onRenameFolder(folder.id, name); setFolderRenameDraft(null); }}>
                 <input aria-label={`New name for ${folder.name}`} value={folderRenameDraft.name} onChange={(event) => setFolderRenameDraft({ id: folder.id, name: event.target.value })} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); setFolderRenameDraft(null); } }} />
@@ -1752,13 +1747,16 @@ function TestSuiteWorkspace({
               </form>
             ) : (
               <>
-                <button className="suite-tree__select" type="button" onClick={() => setSelectedFolderId(folder.id)}><span aria-hidden="true">{folder.collapsed ? "▸" : "⌄"}</span><strong>{folder.name}</strong><SuiteGroupStatus label={folder.name} summary={folderResults.get(folder.id)!} /><em>{folderTestCounts.get(folder.id) ?? 0}</em></button>
-                <button className="suite-tree__rename-button" type="button" disabled={folder.default} aria-label={`Rename ${folder.name}`} title={folder.default ? "Default is a reserved subtag" : `Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
-                <button className="suite-tree__delete-button" type="button" disabled={!canDelete} aria-label={`Delete ${folder.name}`} title={deleteTitle} onClick={() => onDeleteFolder(folder.id)}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="m19 6-1 14H6L5 6" /><path d="M10 11v5M14 11v5" /></svg></button>
+                <button className="suite-tree__select" type="button" title={folderPathLabel(folders, folder.id)} aria-current={selectedFolderId === folder.id ? "page" : undefined} onClick={() => { setSelectedFolderId(folder.id); if (hasChildren) setExpandedFolders(current => new Set([...current, folder.id])); }}><strong>{folder.name}</strong><SuiteGroupStatus label={folder.name} summary={folderResults.get(folder.id)!} /><em>{folderTestCounts.get(folder.id) ?? 0}</em></button>
+                <details className="suite-folder-actions" name="suite-folder-menu"><summary onKeyDown={event => { if (event.key === "Escape") event.currentTarget.closest("details")?.removeAttribute("open"); }} aria-label={`Folder actions for ${folder.name}`}>•••</summary><div>
+                  <button type="button" onClick={event => { event.currentTarget.closest("details")?.removeAttribute("open"); setFolderDraft({name: "", parentId: folder.parentId ?? folder.id}); }}>{folder.parentId ? "New sibling folder" : "New subfolder"}</button>
+                  <button className="suite-tree__rename-button" type="button" disabled={folder.default} aria-label={`Rename ${folder.name}`} onClick={() => { setSelectedFolderId(folder.id); setFolderRenameDraft({ id: folder.id, name: folder.name }); }}>Rename</button>
+                  <button className="suite-tree__delete-button" type="button" disabled={!canDelete} aria-label={`Delete ${folder.name}`} title={deleteTitle} onClick={() => onDeleteFolder(folder.id)}>Delete empty folder</button>
+                </div></details>
               </>
             )}
           </div>
-          {!folder.collapsed && hasChildren && <div className="suite-tree__children">
+          {expanded && hasChildren && <div className="suite-tree__children">
             {children.length > 0 && renderFolderBranch(folder.id, depth + 1)}
             {aliases.map((alias) => {
               const aliasCount = tests.filter((test) =>
@@ -1781,9 +1779,10 @@ function TestSuiteWorkspace({
   return (
     <section className="suite-workspace" aria-label="Test Suite workspace">
       <aside className="suite-explorer">
-        <div className="suite-explorer__heading"><div><span>Tag browser</span><strong>{folders.filter((folder) => !folder.parentId).length} groups</strong></div><button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "" })}>＋ Tag group</button></div>
+        <div className="suite-explorer__heading"><strong>Folders</strong><div className="suite-explorer__tools"><button type="button" aria-label="Collapse all folders" title="Collapse all folders" onClick={() => { setFolderQuery(""); setExpandedFolders(new Set()); }}>⌃</button><button type="button" aria-label="New folder" title="New folder" onClick={() => setFolderDraft({ name: "" })}>＋</button></div></div>
+        <input className="suite-folder-search" type="search" aria-label="Find folders" placeholder="Find a folder…" value={folderQuery} onChange={event => { const value = event.target.value; setFolderQuery(value); if (value.trim()) setExpandedFolders(matchingFolderIds(folders, value)); }} />
         <button className={`suite-tree__all ${selectedFolderId === null ? "is-selected" : ""}`} type="button" onClick={() => setSelectedFolderId(null)}><span>All tests</span><SuiteGroupStatus label="All tests" summary={allResults} /><em>{tests.length}</em></button>
-        <div className="suite-tree">{renderFolderBranch()}</div>
+        <div className="suite-tree">{visibleFolderIds.size ? renderFolderBranch() : <p className="suite-folder-empty">No matching folders</p>}</div>
       </aside>
 
       <section className="suite-browser">
@@ -1794,7 +1793,7 @@ function TestSuiteWorkspace({
             <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {scopeSummary.passed} passing · {scopeSummary.failed} failing · {scopeSummary.pending} untested{scopeSummary.hidden ? ` · ${scopeSummary.hidden} hidden` : ""}</small>
           </div>
           <div className="suite-browser__actions">
-            {!selectedAlias && <button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.parentId ?? selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subtag" : "Tag group"}</button>}
+            {!selectedAlias && <button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.parentId ?? selectedFolder.id } : {}) })}>＋ {selectedFolder?.parentId ? "Sibling folder" : selectedFolder ? "Subfolder" : "Folder"}</button>}
             <button className="tool-button tool-button--primary" type="button" onClick={() => onAddTest(selectedAlias?.groupTagId ?? selectedFolder?.id, selectedAlias?.tagIds)}>＋ New test</button>
           </div>
         </header>
@@ -1804,7 +1803,7 @@ function TestSuiteWorkspace({
           <span>{completed.length ? `Entire suite · ${passed}/${runnableTests.length} passing` : "Entire suite · Not run yet"}{hidden ? ` · ${hidden} hidden` : ""}</span>
         </div>
 
-        {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag group"}` : "New tag group"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create {folderDraft.parentId ? "subtag" : "group"}</button></form>}
+        {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subfolder in ${foldersById.get(folderDraft.parentId)?.name ?? "folder"}` : "New folder"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create folder</button></form>}
 
         <div className="suite-browser__filters">
           <label><span>Search</span><input type="search" value={query} placeholder="Name, description, tag, or case ID…" onChange={(event) => setQuery(event.target.value)} /></label>
@@ -3077,12 +3076,6 @@ export default function VoxelBench() {
     setToast(`${folder.name} deleted`);
   };
 
-  const toggleFolderCollapsed = (folderId: string) => {
-    setFolders((current) => current.map((folder) =>
-      folder.id === folderId ? { ...folder, collapsed: !folder.collapsed } : folder,
-    ));
-  };
-
   const toggleTestLocked = (testId: string) => {
     const test = tests.find((item) => item.id === testId);
     if (!test) return;
@@ -3757,7 +3750,6 @@ export default function VoxelBench() {
           onRenameFolder={(folderId, name) => setFolders((current) => current.map((folder) => folder.id === folderId ? { ...folder, name } : folder))}
           onReorderTest={reorderTest}
           onRunTest={runTest}
-          onToggleFolderCollapsed={toggleFolderCollapsed}
           onToggleTestHidden={toggleTestHidden}
           onToggleTestLocked={toggleTestLocked}
           onUpdateTest={updateTestMetadata}

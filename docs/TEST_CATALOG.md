@@ -1,5 +1,7 @@
 # Authored test catalogue
 
+The subsequent [sloped-entity expansion](SLOPED_ENTITY_COVERAGE.md) adds 46 cases under Box slopes and Clone slopes.
+
 Every original ID and authored frame is preserved. Titles and descriptions summarize the authored expectation, independently of engine output.
 
 The previous title is retained here so existing references remain searchable.
