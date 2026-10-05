@@ -33,9 +33,9 @@ The script is idempotent and never overwrites existing authored tests. All 579
 previous test records, expected frames, hidden flags, and existing tags are
 preserved.
 
-The suite UI now uses approximately 167 px cards at the standard desktop width,
-with previews beside the title/actions and expected behavior available on
-expansion. Folder search preserves ancestor paths; folders expand independently
+The suite UI uses full-width 204 px previews with a single-line title and a
+small action row. Tags, counts, and expected behavior are available in Details;
+the preview is the dominant part of each card. Folder search preserves ancestor paths; folders expand independently
 and collapse-all clears the search. Rename/create/delete actions use a compact
 menu, redundant sole Default rows are hidden, and counts include combination
 memberships consistently with status indicators. Folder expansion is local UI

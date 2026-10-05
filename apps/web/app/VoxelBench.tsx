@@ -1687,14 +1687,10 @@ function TestSuiteWorkspace({
         <span className={`test-status ${test.hidden ? "hidden" : !result ? "idle" : result.pass ? "pass" : "fail"}`}>{test.hidden ? "—" : !result ? displayIndex + 1 : result.pass ? "✓" : "!"}</span>
         <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
         <div className="suite-test-row__details">
-          <div className="suite-test-row__identity">
-            <label className="suite-test-row__title">
-              <span>Title</span>
-              <textarea aria-label={`Title for ${test.name || "untitled test"}`} rows={2} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
-            </label>
-            <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
-          </div>
-          <small title={test.id}>{test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · ignored" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+          <label className="suite-test-row__title">
+            <span>Title</span>
+            <input aria-label={`Title for ${test.name || "untitled test"}`} title={test.name} value={test.name} placeholder="Untitled test" onChange={(event) => onUpdateTest(test.id, { name: event.target.value })} />
+          </label>
         </div>
         <div className="suite-test-row__actions">
           <button type="button" disabled={test.hidden} title={test.hidden ? "Unhide this case before running it" : "Run this case"} onClick={() => onRunTest(test)}>Run</button>
@@ -1708,10 +1704,17 @@ function TestSuiteWorkspace({
           <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>Delete test</button>
           </div></details>
         </div>
-        <details className="suite-case-description"><summary>Expected behavior</summary><label>
-          <span className="sr-only">Description</span>
-          <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
-        </label></details>
+        <details className="suite-case-description" name="suite-case-details">
+          <summary aria-label={`Details for ${test.name || "untitled test"}`}>Details</summary>
+          <div className="suite-case-description__panel">
+            <small title={test.id}>{test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · ignored" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
+            <TestTagPicker folders={folders} folderPaths={folderPaths} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} />
+            <label>
+              <span>Expected behavior</span>
+              <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
+            </label>
+          </div>
+        </details>
       </article>
     );
   };
