@@ -46,3 +46,6 @@ yarn-error.log*
 /.zig-cache/
 /.zig-global-cache/
 /.build/
+
+# TypeScript incremental compiler cache
+*.tsbuildinfo

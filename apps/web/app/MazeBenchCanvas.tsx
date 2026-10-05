@@ -346,7 +346,8 @@ async function loadMazeBenchRuntime() {
     const threeModuleUrl = new URL("vendor/three.module.js", document.baseURI).href;
     window.__MAZEBENCH_THREE__ = await import(/* @vite-ignore */ threeModuleUrl);
   }
-  if (window.PlayModules?.createPlayCore && window.PlayModules?.registerRenderFunctions) {
+  if (typeof window.PlayModules?.createPlayCore === "function" &&
+      typeof window.PlayModules?.registerRenderFunctions === "function") {
     return Promise.resolve(window.PlayModules);
   }
   if (!window.__MAZEBENCH_VOXEL_RUNTIME__) {
@@ -354,7 +355,8 @@ async function loadMazeBenchRuntime() {
       (chain, source) => chain.then(() => loadScript(source)),
       Promise.resolve(),
     ).then(() => {
-      if (!window.PlayModules?.createPlayCore || !window.PlayModules?.registerRenderFunctions) {
+      if (typeof window.PlayModules?.createPlayCore !== "function" ||
+          typeof window.PlayModules?.registerRenderFunctions !== "function") {
         throw new Error("MazeBench render modules did not initialize");
       }
       return window.PlayModules;

@@ -34,7 +34,7 @@ import {
   offsetGenericObjectId,
   offsetToolbarIndex,
 } from "./toolbarNavigation.mjs";
-import { deleteTestCase, runnableTestCases, summarizeTestResults } from "./testSuite.mjs";
+import { deleteTestCase, runnableTestCases, sortTestCases, summarizeTestResults } from "./testSuite.mjs";
 import {
   canonicalTagCombination,
   combinationViewIncludesTest,
@@ -92,6 +92,7 @@ import {
 import {
   adjustCycleForDeletedTick,
   clearCycleExpectation,
+  compareCycleExpectation,
   markCycleRepeat,
   markCycleStart,
   normalizeCycleExpectation,
@@ -210,6 +211,7 @@ type FrameComparisonContext = {
 
 type RotationDegrees = 0 | 90 | 180 | 270;
 type RotationCheck = FrameComparison & {
+  cycleDifference: string | null;
   expected: Frame;
   firstMismatchFrame: number | null;
   input: Direction;
@@ -355,7 +357,7 @@ function normalizeBlocks(
   const normalized = blocks
     .filter((block, index) =>
       blocks.findIndex((candidate) => candidate.id === block.id) === index)
-    .map((block) => {
+    .map((block): BlockDefinition => {
     const requestedRoleId = block.roleId ?? block.behavior ?? fallbackRoleId;
     const roleId = roleIds.has(requestedRoleId) ? requestedRoleId : fallbackRoleId;
     const visualKind = block.visual?.kind === "lift"
@@ -627,7 +629,7 @@ function normalizeGenericIds(
   const legacyIds = new Map(legacyBlocks.map((block) => [block.id, block.genericId]));
   const legacyDefinitions = new Map(legacyBlocks.map((block) => [block.id, block]));
   const normalized = {
-    voxels: enforceFloorLayer(frame.voxels, floorBlockIds).map((storedVoxel) => {
+    voxels: enforceFloorLayer(frame.voxels, floorBlockIds).map((storedVoxel: Voxel) => {
       const legacy = legacyDefinitions.get(storedVoxel.blockId);
       const legacyRoleId = legacy?.roleId ?? legacy?.behavior;
       const legacyOrangeForm = legacy?.visual?.orangeForm;
@@ -1025,16 +1027,18 @@ async function runRotationalTest(
       },
     );
     const firstMismatchFrame = trace.findIndex((frame) => !frame.pass);
+    const cycleDifference = compareCycleExpectation(rotatedTest.cycle, simulation.cycle);
     const selectedFrame = firstMismatchFrame >= 0
       ? trace[firstMismatchFrame]
       : trace.at(-1)!;
     const tick = firstMismatchFrame > 0 ? firstMismatchFrame : undefined;
     checks.push({
       ...selectedFrame,
+      cycleDifference,
       expected: selectedFrame.expected,
       firstMismatchFrame: firstMismatchFrame >= 0 ? firstMismatchFrame : null,
       input,
-      pass: firstMismatchFrame < 0,
+      pass: firstMismatchFrame < 0 && cycleDifference === null,
       rotation: degrees,
       trace,
       tick,
@@ -1129,6 +1133,7 @@ function FailureTraceComparison({
         </div>
         <button aria-label="Close comparison" onClick={onClose}>×</button>
       </div>
+      {check.cycleDifference && <p className="trace-cycle-difference" role="status">{check.cycleDifference}</p>}
       <div className="trace-navigation">
         <div className="trace-rotations" role="group" aria-label="Rotation trace">
           {result.checks.map((rotationCheck, index) => (
@@ -1507,6 +1512,7 @@ function TestSuiteWorkspace({
   const [requestedFolderId, setSelectedFolderId] = useState<string | null>(activeTest?.folderId ?? null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "failed" | "hidden" | "passed" | "untested">("all");
+  const [sortOrder, setSortOrder] = useState<"group" | "name" | "id" | "frames" | "status" | "manual">("group");
   const [pagination, setPagination] = useState({ scope: "", index: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
@@ -1626,15 +1632,16 @@ function TestSuiteWorkspace({
     return !needle || `${test.id} ${test.name} ${test.description} ${tagPaths} ${aliasLabel}`.toLowerCase().includes(needle);
   };
   const selectedScopeTests = tests.filter(testIsInSelectedView);
-  const visibleTests = selectedScopeTests.filter(testMatchesFilters);
+  const visibleTests = sortTestCases(selectedScopeTests.filter(testMatchesFilters), sortOrder, tagOrder, results);
+  const scopeSummary = summarizeTestResults(selectedScopeTests, results);
   const pageSize = 24;
-  const pageScope = JSON.stringify([selectedFolderId, query, statusFilter]);
+  const pageScope = JSON.stringify([selectedFolderId, query, statusFilter, sortOrder]);
   const page = pagination.scope === pageScope ? pagination.index : 0;
   const setPage = (index: number) => setPagination({ scope: pageScope, index });
   const pageCount = Math.max(1, Math.ceil(visibleTests.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const pageTests = visibleTests.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  useEffect(() => { contentRef.current?.scrollTo({ top: 0 }); }, [currentPage, selectedFolderId, query, statusFilter]);
+  useEffect(() => { contentRef.current?.scrollTo({ top: 0 }); }, [currentPage, selectedFolderId, query, statusFilter, sortOrder]);
   const selectedFolder = selectedFolderId ? foldersById.get(selectedFolderId) : undefined;
   const selectedAlias = selectedFolderId ? aliasesById.get(selectedFolderId) : undefined;
   const relatedAliasSections = selectedFolder?.parentId
@@ -1644,7 +1651,7 @@ function TestSuiteWorkspace({
         const scopeTests = tests.filter((test) =>
           test.folderId === alias.groupTagId &&
           combinationViewIncludesTest(test.tagIds, alias.tagIds, tagOrder));
-        return { alias, scopeTests, tests: scopeTests.filter(testMatchesFilters) };
+        return { alias, scopeTests, tests: sortTestCases(scopeTests.filter(testMatchesFilters), sortOrder, tagOrder, results) };
       })
       .filter((section) => section.tests.length > 0)
     : [];
@@ -1655,7 +1662,6 @@ function TestSuiteWorkspace({
     .filter(([testId]) => runnableTestIds.has(testId))
     .map(([, result]) => result);
   const passed = completed.filter((result) => result.pass).length;
-  const failed = completed.length - passed;
   const hidden = tests.length - runnableTests.length;
   const previewJob = previewQueue.find((job) => {
     const test = tests.find((item) => item.id === job.testId);
@@ -1696,21 +1702,23 @@ function TestSuiteWorkspace({
             </label>
             <div className="suite-test-row__folder-field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={test} onChangeGroup={(groupTagId) => onChangeTestGroup(test.id, groupTagId)} onToggle={(tagId) => onToggleTestTag(test.id, tagId)} /></div>
           </div>
-          <label>
-            <span>Description</span>
+          <details className="suite-case-description"><summary>Expected behavior</summary><label>
+            <span className="sr-only">Description</span>
             <textarea aria-label={`Description for ${test.name || "untitled test"}`} rows={2} value={test.description} placeholder="Describe the intended behavior…" onChange={(event) => onUpdateTest(test.id, { description: event.target.value })} />
-          </label>
+          </label></details>
           <small title={test.id}>{test.world.width}×{test.world.height} · {test.intermediate.length + 2} frames · {cropFrameToWorld(test.start, test.world).voxels.length} voxels{test.hidden ? " · ignored" : result ? ` · ${passedRotations}/4 rotations` : ""}</small>
         </div>
         <div className="suite-test-row__actions">
           <button type="button" disabled={test.hidden} title={test.hidden ? "Unhide this case before running it" : "Run this case"} onClick={() => onRunTest(test)}>Run</button>
           <button type="button" onClick={() => onOpenTest(test.id)}>Edit</button>
-          <button type="button" disabled={scopeIndex === 0} aria-label={`Move ${test.name} left`} title="Move left" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex - 1].id)}>←</button>
-          <button type="button" disabled={scopeIndex === scopeTests.length - 1} aria-label={`Move ${test.name} right`} title="Move right" onClick={() => onReorderTest(test.id, scopeTests[scopeIndex + 1].id)}>→</button>
-          <button type="button" aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉</button>
-          <button className={test.hidden ? "is-hidden" : ""} type="button" aria-label={`${test.hidden ? "Unhide" : "Hide"} ${test.name}`} title={test.hidden ? "Include this case in physics runs" : "Hide and ignore this case in physics runs"} onClick={() => onToggleTestHidden(test.id)}><VisibilityIcon hidden={test.hidden} /></button>
-          <button className={effectiveLocked ? "is-locked" : ""} type="button" aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} /></button>
-          <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>×</button>
+          <details className="suite-case-actions"><summary aria-label={`More actions for ${test.name}`}>•••</summary><div>
+          <button type="button" disabled={sortOrder !== "manual" || scopeIndex === 0} aria-label={`Move ${test.name} left`} title={sortOrder === "manual" ? "Move earlier" : "Choose Manual order to rearrange tests"} onClick={() => onReorderTest(test.id, scopeTests[scopeIndex - 1].id)}>← Move earlier</button>
+          <button type="button" disabled={sortOrder !== "manual" || scopeIndex === scopeTests.length - 1} aria-label={`Move ${test.name} right`} title={sortOrder === "manual" ? "Move later" : "Choose Manual order to rearrange tests"} onClick={() => onReorderTest(test.id, scopeTests[scopeIndex + 1].id)}>→ Move later</button>
+          <button type="button" aria-label={`Duplicate ${test.name}`} onClick={() => onDuplicateTest(test.id)}>⧉ Duplicate</button>
+          <button className={test.hidden ? "is-hidden" : ""} type="button" aria-label={`${test.hidden ? "Unhide" : "Hide"} ${test.name}`} title={test.hidden ? "Include this case in physics runs" : "Hide and ignore this case in physics runs"} onClick={() => onToggleTestHidden(test.id)}><VisibilityIcon hidden={test.hidden} />{test.hidden ? "Include in suite" : "Hide from suite"}</button>
+          <button className={effectiveLocked ? "is-locked" : ""} type="button" aria-label={`${test.locked ? "Unlock" : "Lock"} ${test.name}`} title={test.locked ? "Unlock test" : "Lock test"} onClick={() => onToggleTestLocked(test.id)}><LockIcon open={!effectiveLocked} />{test.locked ? "Unlock" : "Lock"}</button>
+          <button className="suite-test-row__delete" type="button" disabled={effectiveLocked || tests.length <= 1} aria-label={`Delete ${test.name}`} onClick={() => onDeleteTest(test.id)}>Delete test</button>
+          </div></details>
         </div>
       </article>
     );
@@ -1783,7 +1791,7 @@ function TestSuiteWorkspace({
           <div className="suite-browser__title">
             <span>{selectedFolder ? folderPaths.get(selectedFolder.id) : selectedAlias ? `${foldersById.get(selectedAlias.groupTagId)?.name ?? "Unknown group"} / Combined subtags` : "Entire project"}</span>
             {selectedFolder ? <input aria-label={`Rename ${selectedFolder.name} tag`} disabled={selectedFolder.default} value={selectedFolder.name} onChange={(event) => onRenameFolder(selectedFolder.id, event.target.value)} /> : <h2>{selectedAlias?.label ?? "All tests"}</h2>}
-            <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {passed} passing · {failed} failing · {runnableTests.length - completed.length} untested{hidden ? ` · ${hidden} hidden` : ""}</small>
+            <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {scopeSummary.passed} passing · {scopeSummary.failed} failing · {scopeSummary.pending} untested{scopeSummary.hidden ? ` · ${scopeSummary.hidden} hidden` : ""}</small>
           </div>
           <div className="suite-browser__actions">
             {!selectedAlias && <button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.parentId ?? selectedFolder.id } : {}) })}>＋ {selectedFolder ? "Subtag" : "Tag group"}</button>}
@@ -1793,13 +1801,14 @@ function TestSuiteWorkspace({
 
         <div className="suite-summary" aria-label="Suite result summary">
           <div className="summary-track"><i style={{ width: completed.length && runnableTests.length ? `${(passed / runnableTests.length) * 100}%` : "0%" }} /></div>
-          <span>{completed.length ? `${passed}/${runnableTests.length} passing` : "Suite has not been run"}{hidden ? ` · ${hidden} hidden` : ""}</span>
+          <span>{completed.length ? `Entire suite · ${passed}/${runnableTests.length} passing` : "Entire suite · Not run yet"}{hidden ? ` · ${hidden} hidden` : ""}</span>
         </div>
 
         {folderDraft && <form className="suite-folder-form" onSubmit={(event) => { event.preventDefault(); const name = folderDraft.name.trim(); if (!name) return; onAddFolder(name, folderDraft.parentId); setFolderDraft(null); }}><label className="field"><span>{folderDraft.parentId ? `New subtag in ${foldersById.get(folderDraft.parentId)?.name ?? "tag group"}` : "New tag group"}</span><input aria-label="New test tag name" value={folderDraft.name} placeholder="e.g. Orange walls" onChange={(event) => setFolderDraft((current) => current ? { ...current, name: event.target.value } : current)} onKeyDown={(event) => { if (event.key === "Escape") setFolderDraft(null); }} /></label><button className="tool-button" type="button" onClick={() => setFolderDraft(null)}>Cancel</button><button className="tool-button tool-button--primary" type="submit">Create {folderDraft.parentId ? "subtag" : "group"}</button></form>}
 
         <div className="suite-browser__filters">
           <label><span>Search</span><input type="search" value={query} placeholder="Name, description, tag, or case ID…" onChange={(event) => setQuery(event.target.value)} /></label>
+          <label><span>Sort</span><select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as typeof sortOrder)}><option value="group">Group & name</option><option value="name">Name</option><option value="id">Case ID</option><option value="frames">Longest timeline</option><option value="status">Needs attention</option><option value="manual">Manual order</option></select></label>
           <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="failed">Failing</option><option value="passed">Passing</option><option value="untested">Untested</option><option value="hidden">Hidden / ignored</option></select></label>
         </div>
 
@@ -1811,7 +1820,7 @@ function TestSuiteWorkspace({
           <div className="suite-test-table" role="list">
             {visibleTests.length
               ? pageTests.map((test, visibleIndex) => renderTestCard(test, currentPage * pageSize + visibleIndex, selectedScopeTests))
-              : <div className="suite-browser__empty"><strong>No direct tests found</strong><span>Related combinations are shown below when available.</span></div>}
+              : <div className="suite-browser__empty"><strong>{statusFilter === "failed" && !query ? "No failing tests" : "No matching tests"}</strong><span>{relatedTestCount ? "Related combinations are shown below." : "Try another group, search, or status filter."}</span></div>}
           </div>
           {relatedAliasSections.length > 0 && <section className="suite-related-combinations" aria-label={`Related combinations for ${selectedFolder?.name ?? "subtag"}`}>
             <header><div><span>Related combinations</span><strong>Also tagged {selectedFolder?.name}</strong></div><em>{relatedTestCount} tests</em></header>
@@ -1819,7 +1828,7 @@ function TestSuiteWorkspace({
               <section className="suite-related-combination" key={alias.id}>
                 <header><div><span aria-hidden="true">◇</span><h3>{alias.label}</h3><em>{relatedTests.length}</em></div><button type="button" onClick={() => setSelectedFolderId(alias.id)}>Open combination →</button></header>
                 <div className="suite-test-table" role="list" aria-label={`${alias.label} tests`}>
-                  {relatedTests.map((test, index) => renderTestCard(test, index, scopeTests))}
+                  {relatedTests.slice(0, 6).map((test, index) => renderTestCard(test, index, scopeTests))}
                 </div>
               </section>
             ))}
@@ -1861,6 +1870,10 @@ export default function VoxelBench() {
   const [genericPromptError, setGenericPromptError] = useState("");
   const layer = 1;
   const [results, setResults] = useState<Record<string, TestResult>>({});
+  const [suiteProgress, setSuiteProgress] = useState<number | null>(null);
+  const suiteRunningRef = useRef(false);
+  const suiteRevisionRef = useRef(0);
+  useEffect(() => { ++suiteRevisionRef.current; }, [tests, blocks, roles]);
   const [showResult, setShowResult] = useState(false);
   const [toast, setToast] = useState("");
   const [addingBlock, setAddingBlock] = useState(false);
@@ -2115,6 +2128,7 @@ export default function VoxelBench() {
   }, [blocks, folders, projectLoaded, roles, savedSearchLevels, tests]);
 
   const runTest = useCallback(async (test: TestCase) => {
+    if (suiteRunningRef.current) return null;
     if (test.hidden) {
       setToast(`${test.name} is hidden from physics runs`);
       return null;
@@ -2136,6 +2150,7 @@ export default function VoxelBench() {
   }, [activeId, blocks, roles]);
 
   const runSuite = useCallback(async () => {
+    if (suiteRunningRef.current) return;
     const runnableTests = runnableTestCases(tests);
     const hiddenCount = tests.length - runnableTests.length;
     if (!runnableTests.length) {
@@ -2144,11 +2159,14 @@ export default function VoxelBench() {
       setToast(`All ${hiddenCount} tests are hidden from physics runs`);
       return;
     }
+    suiteRunningRef.current = true;
+    const revision = suiteRevisionRef.current;
+    setSuiteProgress(0);
     setToast(`Running ${runnableTests.length * 4} rotated checks through the C++ engine${hiddenCount ? ` · ignoring ${hiddenCount} hidden` : ""}…`);
     try {
       const nextResults: Record<string, TestResult> = {};
       const comparisonContext = createFrameComparisonContext(blocks);
-      for (const test of runnableTests) {
+      for (const [index, test] of runnableTests.entries()) {
         nextResults[test.id] = await runRotationalTest(
           test,
           blocks,
@@ -2156,6 +2174,14 @@ export default function VoxelBench() {
           comparisonContext,
           true,
         );
+        if ((index + 1) % 16 === 0 || index + 1 === runnableTests.length) {
+          setSuiteProgress(index + 1);
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+          if (revision !== suiteRevisionRef.current) {
+            setToast("Tests changed during the run. Run the suite again for current results.");
+            return;
+          }
+        }
       }
       setResults(nextResults);
       const passed = Object.values(nextResults).filter((result) => result.pass).length;
@@ -2163,6 +2189,9 @@ export default function VoxelBench() {
       setToast(`${passed} of ${runnableTests.length} active tests passed in C++${hiddenCount ? ` · ${hiddenCount} hidden` : ""}`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "The C++ physics engine could not run");
+    } finally {
+      suiteRunningRef.current = false;
+      setSuiteProgress(null);
     }
   }, [activeId, blocks, roles, tests]);
 
@@ -2283,10 +2312,7 @@ export default function VoxelBench() {
     const slopeOption = slopeDirection
       ? SLOPE_DIRECTION_OPTIONS.find((option) => option.id === slopeDirection)
       : null;
-    const wallDepth = block.visual.kind === "orange-wall"
-      ? selectedOrangeWallDepths[block.id] ?? 0
-      : null;
-    setToast(`${block.name}${wallDepth === null ? "" : ` · rise ${wallDepth}`}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" || block.visual.kind === "button" || block.visual.kind === "puncher" ? " · click a face to choose its mounting" : ""} selected`);
+    setToast(`${block.name}${slopeOption ? ` ${slopeOption.glyph} ${slopeOption.label}` : ""}${block.visual.kind === "lift" || block.visual.kind === "button" || block.visual.kind === "puncher" ? " · click a face to choose its mounting" : ""} selected`);
   }, [blocks, cameraQuarterTurns, genericRoleIds, selectedGenericIds, selectedOrangeWallDepths]);
 
   const selectToolbarRelative = useCallback((direction: -1 | 1) => {
@@ -3676,19 +3702,20 @@ export default function VoxelBench() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/favicon.svg" alt="" />Maze Bench
             </span>
-            <span className="nav-link">Build</span>
-            <button className={`nav-link ${activeWorkspace === "tests" ? "is-active" : ""}`} onClick={() => setActiveWorkspace("tests")}>Editor</button>
-            <button className={`nav-link ${activeWorkspace === "suite" ? "is-active" : ""}`} onClick={() => setActiveWorkspace("suite")}>Test Suite</button>
-            <button className={`nav-link ${activeWorkspace === "search" ? "is-active" : ""}`} onClick={() => setActiveWorkspace("search")}>Search</button>
+            <button className={`nav-link ${activeWorkspace === "tests" ? "is-active" : ""}`} aria-pressed={activeWorkspace === "tests"} onClick={() => setActiveWorkspace("tests")}>Editor</button>
+            <button className={`nav-link ${activeWorkspace === "suite" ? "is-active" : ""}`} aria-pressed={activeWorkspace === "suite"} onClick={() => setActiveWorkspace("suite")}>Test Suite</button>
+            <button className={`nav-link ${activeWorkspace === "search" ? "is-active" : ""}`} aria-pressed={activeWorkspace === "search"} onClick={() => setActiveWorkspace("search")}>Search</button>
           </nav>
           <div className="author-title">
             <span>{activeWorkspace === "tests" ? "PHYSICS WORKBENCH" : activeWorkspace === "suite" ? "TEST LIBRARY" : "EVOLUTIONARY LAB"}</span>
             <h1>{activeWorkspace === "tests" ? "Voxel Test Lab" : activeWorkspace === "suite" ? "Test Suite" : "3D Puzzle Search"}</h1>
           </div>
           <div className="author-actions">
-            <button className="tool-button" onClick={() => importRef.current?.click()}>Import</button>
-            <button className="tool-button" onClick={exportProject}>Export</button>
-            {activeWorkspace !== "search" && <button className="tool-button tool-button--primary" onClick={runSuite}>Run suite</button>}
+            <details className="project-actions"><summary>Project <span aria-hidden="true">⌄</span></summary><div>
+              <button type="button" onClick={() => importRef.current?.click()}>Import JSON…</button>
+              <button type="button" onClick={exportProject}>Export JSON</button>
+            </div></details>
+            {activeWorkspace !== "search" && <button className="tool-button tool-button--primary" onClick={runSuite} disabled={suiteProgress !== null}>{suiteProgress === null ? "Run suite" : `Running ${suiteProgress} / ${runnableTestCases(tests).length}`}</button>}
           </div>
           <input ref={importRef} type="file" accept="application/json" hidden onChange={importProject} />
           {toast && <p className="author-status" role="status"><span />{toast}</p>}

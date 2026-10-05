@@ -337,7 +337,7 @@
       "collapsed": true,
       "id": "weightless-box",
       "locked": false,
-      "name": "Box"
+      "name": "Boxes"
     },
     {
       "collapsed": false,
@@ -351,7 +351,7 @@
       "collapsed": false,
       "id": "3d-boxes",
       "locked": false,
-      "name": "3D Box"
+      "name": "3D boxes"
     },
     {
       "collapsed": false,
@@ -365,7 +365,7 @@
       "collapsed": true,
       "id": "3d-box-hole",
       "locked": false,
-      "name": "3D Box + Hole"
+      "name": "3D boxes · Holes"
     },
     {
       "collapsed": false,
@@ -379,7 +379,7 @@
       "collapsed": true,
       "id": "box-ice",
       "locked": false,
-      "name": "Box + Ice"
+      "name": "Boxes · Ice"
     },
     {
       "collapsed": false,
@@ -393,7 +393,7 @@
       "collapsed": true,
       "id": "3d-box-ice",
       "locked": false,
-      "name": "3D Box + Ice"
+      "name": "3D boxes · Ice"
     },
     {
       "collapsed": false,
@@ -421,7 +421,7 @@
       "collapsed": true,
       "id": "ice-slopes-box",
       "locked": false,
-      "name": "ice slopes + box"
+      "name": "Ice slopes · Boxes"
     },
     {
       "collapsed": false,
@@ -435,7 +435,7 @@
       "collapsed": true,
       "id": "ice-slopes-3d-boxes",
       "locked": false,
-      "name": "Ice slopes + 3D Boxes"
+      "name": "Ice slopes · 3D boxes"
     },
     {
       "collapsed": false,
@@ -449,7 +449,7 @@
       "collapsed": true,
       "id": "lift",
       "locked": false,
-      "name": "Lift"
+      "name": "Lifts"
     },
     {
       "collapsed": false,
@@ -463,7 +463,7 @@
       "collapsed": true,
       "id": "orange-walls",
       "locked": false,
-      "name": "Orange Walls"
+      "name": "Orange walls"
     },
     {
       "collapsed": false,
@@ -561,7 +561,7 @@
       "collapsed": true,
       "id": "clone",
       "locked": false,
-      "name": "Clone"
+      "name": "Clones"
     },
     {
       "collapsed": false,
@@ -596,7 +596,7 @@
       "collapsed": true,
       "id": "box-slopes",
       "locked": false,
-      "name": "Box Slopes"
+      "name": "Box slopes"
     },
     {
       "collapsed": false,
@@ -610,7 +610,7 @@
       "collapsed": false,
       "id": "clone-slopes",
       "locked": false,
-      "name": "Clone Slopes"
+      "name": "Clone slopes"
     },
     {
       "collapsed": false,
@@ -673,7 +673,7 @@
       "collapsed": false,
       "id": "punchers",
       "locked": false,
-      "name": "punchers"
+      "name": "Punchers"
     },
     {
       "collapsed": false,
@@ -687,7 +687,7 @@
       "collapsed": false,
       "id": "gate",
       "locked": false,
-      "name": "gate"
+      "name": "Gates"
     },
     {
       "collapsed": false,
@@ -701,7 +701,7 @@
       "collapsed": false,
       "id": "floating-floor",
       "locked": false,
-      "name": "floating floor"
+      "name": "Floating floors"
     },
     {
       "collapsed": false,
@@ -737,6 +737,13 @@
       "id": "engine-regressions-support",
       "locked": false,
       "name": "Support and carrying",
+      "parentId": "engine-regressions"
+    },
+    {
+      "collapsed": true,
+      "id": "engine-regressions-actors",
+      "locked": false,
+      "name": "Actor collisions",
       "parentId": "engine-regressions"
     }
   ],
@@ -2475,6 +2482,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 64911,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -4765,6 +4773,7 @@
       "iceSlides": 1,
       "boxesDropped": 2,
       "nodesPerSecond": 39908,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -7753,6 +7762,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 48376,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -8548,6 +8558,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 68776,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -9258,6 +9269,7 @@
       "iceSlides": 0,
       "boxesDropped": 2,
       "nodesPerSecond": 85000,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -9789,6 +9801,7 @@
       "iceSlides": 0,
       "boxesDropped": 1,
       "nodesPerSecond": 138333,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -11998,6 +12011,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 66579,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -13038,6 +13052,7 @@
       "iceSlides": 1,
       "boxesDropped": 0,
       "nodesPerSecond": 203814,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -14174,6 +14189,7 @@
       "iceSlides": 17,
       "boxesDropped": 1,
       "nodesPerSecond": 226615,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -15539,6 +15555,7 @@
       "iceSlides": 0,
       "boxesDropped": 1,
       "nodesPerSecond": 39163,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -16972,6 +16989,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 43333,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -18006,6 +18024,7 @@
       "iceSlides": 0,
       "boxesDropped": 2,
       "nodesPerSecond": 52481,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -19045,6 +19064,7 @@
       "iceSlides": 0,
       "boxesDropped": 0,
       "nodesPerSecond": 94724,
+      "solvesPerSecond": 0,
       "optimal": true,
       "provisional": false,
       "limitHit": false,
@@ -23986,7 +24006,7 @@
     },
     {
       "id": "test-537",
-      "name": "Untitled test 537",
+      "name": "Ice slopes: Player descends · 4t at (2, 5, 2)",
       "groupTagId": "lifts",
       "tagIds": [
         "lifts-default"
@@ -23995,7 +24015,7 @@
     },
     {
       "id": "test-538",
-      "name": "Untitled test 538",
+      "name": "ice slopes + box: Box 0 moves north · 1t at (3, 8, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24004,7 +24024,7 @@
     },
     {
       "id": "test-538-copy",
-      "name": "Untitled test 538 copy",
+      "name": "ice slopes + box: Box 0 descends · 2t at (3, 7, 2)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24013,7 +24033,7 @@
     },
     {
       "id": "test-538-copy-copy",
-      "name": "Untitled test 538 copy copy",
+      "name": "ice slopes + box: Box 0 moves north · 3t at (3, 6, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24022,7 +24042,7 @@
     },
     {
       "id": "test-538-copy-copy-copy",
-      "name": "Untitled test 538 copy copy copy",
+      "name": "ice slopes + box: Box 0 moves north · 3t at (3, 7, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24031,7 +24051,7 @@
     },
     {
       "id": "test-540",
-      "name": "Untitled test 540",
+      "name": "3D Box: Box 0 moves north · 1t at (4, 6, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24040,7 +24060,7 @@
     },
     {
       "id": "test-540-copy",
-      "name": "Untitled test 540 copy",
+      "name": "3D Box: Box 0 moves north · 4t at (4, 5, 1)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24049,7 +24069,7 @@
     },
     {
       "id": "test-543",
-      "name": "Untitled test 543",
+      "name": "ice slopes + box: Box 0 descends · 6t at (3, 6, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24058,7 +24078,7 @@
     },
     {
       "id": "test-543-copy",
-      "name": "Untitled test 543 copy",
+      "name": "ice slopes + box: Box 0 descends · 6t at (3, 7, 1)",
       "groupTagId": "ice-slopes-box",
       "tagIds": [
         "ice-slopes-box-default"
@@ -24067,7 +24087,7 @@
     },
     {
       "id": "test-546",
-      "name": "Untitled test 546",
+      "name": "3D Box: Box 0 moves north · 1t at (7, 11, 2)",
       "groupTagId": "3d-boxes",
       "tagIds": [
         "stacked"
@@ -24112,7 +24132,7 @@
     },
     {
       "id": "test-551",
-      "name": "Untitled test 551",
+      "name": "gate: Floating floor moves north · 1t at (6, 9, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -24121,7 +24141,7 @@
     },
     {
       "id": "test-551-copy",
-      "name": "Untitled test 551 copy",
+      "name": "gate: Floating floor moves north · 1t at (6, 8, 1)",
       "groupTagId": "gate",
       "tagIds": [
         "gate-default"
@@ -24130,7 +24150,7 @@
     },
     {
       "id": "test-553",
-      "name": "Untitled test 553",
+      "name": "floating floor: Floating floor moves north · 2t at (7, 8, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -24139,7 +24159,7 @@
     },
     {
       "id": "test-553-copy",
-      "name": "Untitled test 553 copy",
+      "name": "floating floor: Player rises · 2t at (7, 8, 1)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
@@ -24148,12 +24168,228 @@
     },
     {
       "id": "test-553-copy-copy",
-      "name": "Untitled test 553 copy copy",
+      "name": "floating floor: Floating floor moves north · 2t at (7, 8, 2)",
       "groupTagId": "floating-floor",
       "tagIds": [
         "floating-floor-default"
       ],
       "file": "test-553-copy-copy.json"
+    },
+    {
+      "id": "test-556",
+      "name": "Interlocked bodies move once on solid support",
+      "groupTagId": "3d-boxes",
+      "tagIds": [
+        "3d-boxes-default"
+      ],
+      "file": "test-556.json"
+    },
+    {
+      "id": "audit-oxo-interlocked-push",
+      "name": "O×O: interlocked bodies stop after one push",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-oxo-interlocked-push.json"
+    },
+    {
+      "id": "audit-oxo-no-ramps",
+      "name": "O×O: same push without distant ramps",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-oxo-no-ramps.json"
+    },
+    {
+      "id": "audit-interlocked-remote-ramp",
+      "name": "Interlocked bodies: a distant ramp cannot start a slide",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-interlocked-remote-ramp.json"
+    },
+    {
+      "id": "audit-tunnel-plain-clear-bare",
+      "name": "Interlocked tunnel: one push, one tile",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-plain-clear-bare.json"
+    },
+    {
+      "id": "audit-tunnel-plain-clear-rider",
+      "name": "Interlocked tunnel: one push, one tile with a passenger",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-plain-clear-rider.json"
+    },
+    {
+      "id": "audit-tunnel-plain-blocked-bare",
+      "name": "Interlocked tunnel: ceiling blocks the whole push",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-plain-blocked-bare.json"
+    },
+    {
+      "id": "audit-tunnel-plain-blocked-rider",
+      "name": "Interlocked tunnel: ceiling blocks the whole push with a passenger",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-plain-blocked-rider.json"
+    },
+    {
+      "id": "audit-tunnel-ramp-clear-bare",
+      "name": "Interlocked tunnel: one push, one tile · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-ramp-clear-bare.json"
+    },
+    {
+      "id": "audit-tunnel-ramp-clear-rider",
+      "name": "Interlocked tunnel: one push, one tile with a passenger · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-ramp-clear-rider.json"
+    },
+    {
+      "id": "audit-tunnel-ramp-blocked-bare",
+      "name": "Interlocked tunnel: ceiling blocks the whole push · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-ramp-blocked-bare.json"
+    },
+    {
+      "id": "audit-tunnel-ramp-blocked-rider",
+      "name": "Interlocked tunnel: ceiling blocks the whole push with a passenger · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-support"
+      ],
+      "file": "audit-tunnel-ramp-blocked-rider.json"
+    },
+    {
+      "id": "audit-clone-vacancy-wall-local",
+      "name": "Trailing clone: wall",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-wall-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-wall-remote-ramp",
+      "name": "Trailing clone: wall · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-wall-remote-ramp.json"
+    },
+    {
+      "id": "audit-clone-vacancy-two-crates-local",
+      "name": "Trailing clone: two crates",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-two-crates-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-two-crates-remote-ramp",
+      "name": "Trailing clone: two crates · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-two-crates-remote-ramp.json"
+    },
+    {
+      "id": "audit-clone-vacancy-two-floors-local",
+      "name": "Trailing clone: two floors",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-two-floors-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-two-floors-remote-ramp",
+      "name": "Trailing clone: two floors · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-two-floors-remote-ramp.json"
+    },
+    {
+      "id": "audit-clone-vacancy-clear-local",
+      "name": "Trailing clone: clear",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-clear-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-clear-remote-ramp",
+      "name": "Trailing clone: clear · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-clear-remote-ramp.json"
+    },
+    {
+      "id": "audit-clone-vacancy-ramp-local",
+      "name": "Trailing clone: ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-ramp-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-ramp-remote-ramp",
+      "name": "Trailing clone: ramp · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-ramp-remote-ramp.json"
+    },
+    {
+      "id": "audit-clone-vacancy-ramp-ceiling-local",
+      "name": "Trailing clone: ramp ceiling",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-ramp-ceiling-local.json"
+    },
+    {
+      "id": "audit-clone-vacancy-ramp-ceiling-remote-ramp",
+      "name": "Trailing clone: ramp ceiling · distant ramp",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-actors"
+      ],
+      "file": "audit-clone-vacancy-ramp-ceiling-remote-ramp.json"
     }
   ]
 }

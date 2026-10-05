@@ -313,6 +313,7 @@ export function normalizeSearchLevels(
       iceSlides: Math.max(0, finiteInteger(candidate.iceSlides, 0)),
       boxesDropped: Math.max(0, finiteInteger(candidate.boxesDropped, 0)),
       nodesPerSecond: Math.max(0, finiteInteger(candidate.nodesPerSecond, 0)),
+      solvesPerSecond: Math.max(0, finiteInteger(candidate.solvesPerSecond, 0)),
       optimal: Boolean(candidate.optimal),
       provisional: Boolean(candidate.provisional),
       limitHit: Boolean(candidate.limitHit),

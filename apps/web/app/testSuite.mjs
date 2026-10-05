@@ -67,3 +67,26 @@ export function summarizeTestResults(tests, results) {
   const state = failed ? "fail" : pending ? "pending" : active ? "pass" : "empty";
   return { state, active, passed, failed, pending, hidden };
 }
+
+const naturalOrder = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+/**
+ * Presentation sorting never rewrites the author's manual order or tag placement.
+ * @template {{ id: string, name: string, folderId: string, hidden?: boolean, intermediate?: unknown[] }} T
+ * @param {T[]} tests
+ * @param {'group' | 'name' | 'id' | 'frames' | 'status' | 'manual'} mode
+ * @param {Map<string, number>} groupOrder
+ * @param {Record<string, { pass: boolean } | undefined>} results
+ * @returns {T[]}
+ */
+export function sortTestCases(tests, mode, groupOrder = new Map(), results = {}) {
+  if (mode === 'manual') return tests.slice();
+  const groupRank = t => groupOrder.get(t.folderId) ?? Number.MAX_SAFE_INTEGER;
+  const statusRank = t => t.hidden ? 3 : !results[t.id] ? 1 : results[t.id].pass ? 2 : 0;
+  return tests.toSorted((a, b) => {
+    const primary = mode === 'group' ? groupRank(a) - groupRank(b)
+      : mode === 'frames' ? (b.intermediate?.length ?? 0) - (a.intermediate?.length ?? 0)
+      : mode === 'status' ? statusRank(a) - statusRank(b)
+      : mode === 'id' ? naturalOrder.compare(a.id, b.id) : 0;
+    return primary || naturalOrder.compare(a.name, b.name) || naturalOrder.compare(a.id, b.id);
+  });
+}

@@ -636,3 +636,74 @@ These 18 scenes have independently specified geometry, not generated engine expe
 | [audit-pedestal-2-ice](../project-data/tests/audit-pedestal-2-ice.json) | 2-cell pedestal on Ice: the player carries the bridge | 1 |
 | [audit-pedestal-4-floor](../project-data/tests/audit-pedestal-4-floor.json) | 4-cell pedestal on Floor: the bridge stays put | 1 |
 | [audit-pedestal-4-ice](../project-data/tests/audit-pedestal-4-ice.json) | 4-cell pedestal on Ice: the player carries the bridge | 1 |
+
+## October 2026 additions
+
+See [the October audit](ENGINE_AUDIT_2026-10-05.md) for failure causes, coverage, and verification. These changes preserve all original IDs, frames, metadata, and hidden choices except the titles and descriptions listed below.
+
+### Previously untitled cases
+
+| Test | Title | Previous title |
+| --- | --- | --- |
+| [test-537](../project-data/tests/test-537.json) | Ice slopes: Player descends · 4t at (2, 5, 2) | Untitled test 537 |
+| [test-538](../project-data/tests/test-538.json) | Ice slopes · Boxes: Box 0 moves north · 1t at (3, 8, 2) | Untitled test 538 |
+| [test-538-copy](../project-data/tests/test-538-copy.json) | Ice slopes · Boxes: Box 0 descends · 2t at (3, 7, 2) | Untitled test 538 copy |
+| [test-538-copy-copy](../project-data/tests/test-538-copy-copy.json) | Ice slopes · Boxes: Box 0 moves north · 3t at (3, 6, 1) | Untitled test 538 copy copy |
+| [test-538-copy-copy-copy](../project-data/tests/test-538-copy-copy-copy.json) | Ice slopes · Boxes: Box 0 moves north · 3t at (3, 7, 1) | Untitled test 538 copy copy copy |
+| [test-540](../project-data/tests/test-540.json) | 3D boxes: Box 0 moves north · 1t at (4, 6, 1) | Untitled test 540 |
+| [test-540-copy](../project-data/tests/test-540-copy.json) | 3D boxes: Box 0 moves north · 4t at (4, 5, 1) | Untitled test 540 copy |
+| [test-543](../project-data/tests/test-543.json) | Ice slopes · Boxes: Box 0 descends · 6t at (3, 6, 1) | Untitled test 543 |
+| [test-543-copy](../project-data/tests/test-543-copy.json) | Ice slopes · Boxes: Box 0 descends · 6t at (3, 7, 1) | Untitled test 543 copy |
+| [test-546](../project-data/tests/test-546.json) | 3D boxes: Box 0 moves north · 1t at (7, 11, 2) | Untitled test 546 |
+| [test-551](../project-data/tests/test-551.json) | Gates: Floating floor moves north · 1t at (6, 9, 1) | Untitled test 551 |
+| [test-551-copy](../project-data/tests/test-551-copy.json) | Gates: Floating floor moves north · 1t at (6, 8, 1) | Untitled test 551 copy |
+| [test-553](../project-data/tests/test-553.json) | Floating floors: Floating floor moves north · 2t at (7, 8, 1) | Untitled test 553 |
+| [test-553-copy](../project-data/tests/test-553-copy.json) | Floating floors: Player rises · 2t at (7, 8, 1) | Untitled test 553 copy |
+| [test-553-copy-copy](../project-data/tests/test-553-copy-copy.json) | Floating floors: Floating floor moves north · 2t at (7, 8, 2) | Untitled test 553 copy copy |
+| [test-556](../project-data/tests/test-556.json) | Interlocked bodies move once on solid support | Untitled test 556 |
+
+### New regressions
+
+| Test | Expected behavior |
+| --- | --- |
+| [audit-clone-vacancy-clear-local](../project-data/tests/audit-clone-vacancy-clear-local.json) | Trailing clone: clear |
+| [audit-clone-vacancy-clear-remote-ramp](../project-data/tests/audit-clone-vacancy-clear-remote-ramp.json) | Trailing clone: clear · distant ramp |
+| [audit-clone-vacancy-ramp-ceiling-local](../project-data/tests/audit-clone-vacancy-ramp-ceiling-local.json) | Trailing clone: ramp ceiling |
+| [audit-clone-vacancy-ramp-ceiling-remote-ramp](../project-data/tests/audit-clone-vacancy-ramp-ceiling-remote-ramp.json) | Trailing clone: ramp ceiling · distant ramp |
+| [audit-clone-vacancy-ramp-local](../project-data/tests/audit-clone-vacancy-ramp-local.json) | Trailing clone: ramp |
+| [audit-clone-vacancy-ramp-remote-ramp](../project-data/tests/audit-clone-vacancy-ramp-remote-ramp.json) | Trailing clone: ramp · distant ramp |
+| [audit-clone-vacancy-two-crates-local](../project-data/tests/audit-clone-vacancy-two-crates-local.json) | Trailing clone: two crates |
+| [audit-clone-vacancy-two-crates-remote-ramp](../project-data/tests/audit-clone-vacancy-two-crates-remote-ramp.json) | Trailing clone: two crates · distant ramp |
+| [audit-clone-vacancy-two-floors-local](../project-data/tests/audit-clone-vacancy-two-floors-local.json) | Trailing clone: two floors |
+| [audit-clone-vacancy-two-floors-remote-ramp](../project-data/tests/audit-clone-vacancy-two-floors-remote-ramp.json) | Trailing clone: two floors · distant ramp |
+| [audit-clone-vacancy-wall-local](../project-data/tests/audit-clone-vacancy-wall-local.json) | Trailing clone: wall |
+| [audit-clone-vacancy-wall-remote-ramp](../project-data/tests/audit-clone-vacancy-wall-remote-ramp.json) | Trailing clone: wall · distant ramp |
+| [audit-interlocked-remote-ramp](../project-data/tests/audit-interlocked-remote-ramp.json) | Interlocked bodies: a distant ramp cannot start a slide |
+| [audit-oxo-interlocked-push](../project-data/tests/audit-oxo-interlocked-push.json) | O×O: interlocked bodies stop after one push |
+| [audit-oxo-no-ramps](../project-data/tests/audit-oxo-no-ramps.json) | O×O: same push without distant ramps |
+| [audit-pedestal-1-floor](../project-data/tests/audit-pedestal-1-floor.json) | 1-cell pedestal on Floor: the bridge stays put |
+| [audit-pedestal-1-ice](../project-data/tests/audit-pedestal-1-ice.json) | 1-cell pedestal on Ice: the player carries the bridge |
+| [audit-pedestal-2-floor](../project-data/tests/audit-pedestal-2-floor.json) | 2-cell pedestal on Floor: the bridge stays put |
+| [audit-pedestal-2-ice](../project-data/tests/audit-pedestal-2-ice.json) | 2-cell pedestal on Ice: the player carries the bridge |
+| [audit-pedestal-4-floor](../project-data/tests/audit-pedestal-4-floor.json) | 4-cell pedestal on Floor: the bridge stays put |
+| [audit-pedestal-4-ice](../project-data/tests/audit-pedestal-4-ice.json) | 4-cell pedestal on Ice: the player carries the bridge |
+| [audit-slope-1x1-blocked](../project-data/tests/audit-slope-1x1-blocked.json) | 1×1 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-1x1](../project-data/tests/audit-slope-1x1.json) | 1×1 box: one ramp contact lifts every cell |
+| [audit-slope-1x4-blocked](../project-data/tests/audit-slope-1x4-blocked.json) | 1×4 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-1x4](../project-data/tests/audit-slope-1x4.json) | 1×4 box: one ramp contact lifts every cell |
+| [audit-slope-2x1-blocked](../project-data/tests/audit-slope-2x1-blocked.json) | 2×1 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-2x1](../project-data/tests/audit-slope-2x1.json) | 2×1 box: one ramp contact lifts every cell |
+| [audit-slope-2x4-blocked](../project-data/tests/audit-slope-2x4-blocked.json) | 2×4 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-2x4](../project-data/tests/audit-slope-2x4.json) | 2×4 box: one ramp contact lifts every cell |
+| [audit-slope-4x1-blocked](../project-data/tests/audit-slope-4x1-blocked.json) | 4×1 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-4x1](../project-data/tests/audit-slope-4x1.json) | 4×1 box: one ramp contact lifts every cell |
+| [audit-slope-4x7-blocked](../project-data/tests/audit-slope-4x7-blocked.json) | 4×7 box: remote ceiling blocks the entire ramp ascent |
+| [audit-slope-4x7](../project-data/tests/audit-slope-4x7.json) | 4×7 box: one ramp contact lifts every cell |
+| [audit-tunnel-plain-blocked-bare](../project-data/tests/audit-tunnel-plain-blocked-bare.json) | Interlocked tunnel: ceiling blocks the whole push |
+| [audit-tunnel-plain-blocked-rider](../project-data/tests/audit-tunnel-plain-blocked-rider.json) | Interlocked tunnel: ceiling blocks the whole push with a passenger |
+| [audit-tunnel-plain-clear-bare](../project-data/tests/audit-tunnel-plain-clear-bare.json) | Interlocked tunnel: one push, one tile |
+| [audit-tunnel-plain-clear-rider](../project-data/tests/audit-tunnel-plain-clear-rider.json) | Interlocked tunnel: one push, one tile with a passenger |
+| [audit-tunnel-ramp-blocked-bare](../project-data/tests/audit-tunnel-ramp-blocked-bare.json) | Interlocked tunnel: ceiling blocks the whole push · distant ramp |
+| [audit-tunnel-ramp-blocked-rider](../project-data/tests/audit-tunnel-ramp-blocked-rider.json) | Interlocked tunnel: ceiling blocks the whole push with a passenger · distant ramp |
+| [audit-tunnel-ramp-clear-bare](../project-data/tests/audit-tunnel-ramp-clear-bare.json) | Interlocked tunnel: one push, one tile · distant ramp |
+| [audit-tunnel-ramp-clear-rider](../project-data/tests/audit-tunnel-ramp-clear-rider.json) | Interlocked tunnel: one push, one tile with a passenger · distant ramp |

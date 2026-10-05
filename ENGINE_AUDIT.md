@@ -1,5 +1,9 @@
 # Engine and test-library audit
 
+The subsequent [October 2026 audit](docs/ENGINE_AUDIT_2026-10-05.md) covers the
+O×O momentum fix, clone collision and gate search fixes, added coverage, and
+the refreshed test library. The report below records the September audit.
+
 ## Work checklist
 
 - [x] Run the unchanged native, browser, and authored suites.

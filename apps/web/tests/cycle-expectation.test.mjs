@@ -5,6 +5,7 @@ import {
   adjustCycleForDeletedTick,
   adjustCycleForInsertedTick,
   clearCycleExpectation,
+  compareCycleExpectation,
   markCycleRepeat,
   markCycleStart,
   normalizeCycleExpectation,
@@ -12,6 +13,25 @@ import {
 } from "../app/cycleExpectation.mjs";
 
 const frames = (count) => Array.from({ length: count }, () => ({ voxels: [] }));
+
+test("cycle comparison accepts absent or identical metadata", () => {
+  const cycle = { startTick: 2, repeatTick: 4, onCycle: "rollback-command" };
+  assert.equal(compareCycleExpectation(undefined, null), null);
+  assert.equal(compareCycleExpectation(cycle, { ...cycle }), null);
+});
+
+test("matching voxel frames do not hide missing or unexpected cycles", () => {
+  const cycle = { startTick: 2, repeatTick: 4, onCycle: "rollback-command" };
+  assert.match(compareCycleExpectation(cycle, null), /Engine cycle: none/);
+  assert.match(compareCycleExpectation(null, cycle), /Expected cycle: none/);
+});
+
+test("cycle comparison rejects different periods and rollback policies", () => {
+  const cycle = { startTick: 2, repeatTick: 4, onCycle: "rollback-command" };
+  for (const changed of [{ startTick: 1 }, { repeatTick: 5 }, { onCycle: "stop" }]) {
+    assert.notEqual(compareCycleExpectation(cycle, { ...cycle, ...changed }), null);
+  }
+});
 
 test("a cycle records its first state, repeated state, period, and rollback policy", () => {
   const source = { intermediate: frames(12) };

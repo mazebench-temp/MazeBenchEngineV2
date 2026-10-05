@@ -138,7 +138,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /test\.tagIds\.includes\(folder\.id\)/);
   assert.doesNotMatch(component, /via subtag/);
   assert.match(component, /onToggleTestTag\(test\.id, tagId\)/);
-  assert.match(component, /disabled=\{scopeIndex === 0\}/);
+  assert.match(component, /disabled=\{sortOrder !== "manual" \|\| scopeIndex === 0\}/);
   assert.doesNotMatch(component, /Locked tests cannot be reordered/);
   assert.doesNotMatch(component, /Locked by tag|Unlock the affected tags|Unlock tag|Lock tag/);
   assert.match(component, /testIsInSelectedView/);
@@ -165,7 +165,7 @@ test("the suite uses proper lock icons and one lazy serialized 3D preview render
   assert.match(component, /Move \$\{test\.name\} right/);
   assert.match(styles, /\.suite-test-table[^}]*grid-template-columns: repeat\(auto-fill, minmax\(320px, 1fr\)\)/);
   assert.match(styles, /\.suite-test-preview__scene img[^}]*object-fit: contain/);
-  assert.match(styles, /\.suite-test-preview[^}]*grid-template-rows: minmax\(0, 1fr\) 34px/);
+  assert.match(styles, /\.suite-test-preview[^}]*grid-template-rows: minmax\(0, 1fr\) 32px/);
   assert.match(styles, /\.suite-test-row__identity[^}]*grid-template-columns/);
   assert.match(styles, /\.test-tag-picker__menu/);
   assert.match(styles, /\.suite-tree__row--alias/);

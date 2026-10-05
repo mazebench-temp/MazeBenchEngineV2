@@ -1,5 +1,18 @@
 export const CYCLE_ROLLBACK_POLICY = "rollback-command";
 
+/** Compare cycle metadata independently of the visible voxel frames. */
+export function compareCycleExpectation(expected, actual) {
+  if (!expected && !actual) return null;
+  if (expected?.startTick === actual?.startTick &&
+      expected?.repeatTick === actual?.repeatTick &&
+      expected?.onCycle === actual?.onCycle) return null;
+  const describe = (cycle) => cycle
+    ? `${cycle.startTick} → ${cycle.repeatTick} (${cycle.onCycle})`
+    : "none";
+  return `Expected cycle: ${describe(expected)}. Engine cycle: ${describe(actual)}.`;
+}
+
+/** @returns {{ startTick: number, repeatTick: number, onCycle: "rollback-command" } | null} */
 export function normalizeCycleExpectation(cycle, intermediateCount) {
   if (!cycle || typeof cycle !== "object") return null;
   const startTick = Number(cycle.startTick);

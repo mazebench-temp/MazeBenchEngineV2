@@ -68,8 +68,10 @@ async function loadPhysics() {
         if (!response.ok) throw new Error(`C++ physics engine failed to load (${response.status})`);
         return response.arrayBuffer();
       })
-      .then((bytes) => WebAssembly.instantiate(bytes, {}))
-      .then(({ instance }) => instance.exports as PhysicsExports);
+      .then((bytes) => WebAssembly.compile(bytes))
+      .then((module) => WebAssembly.instantiate(module, {}))
+      .then((instance) => instance.exports as PhysicsExports)
+      .catch((error) => { physicsPromise = null; throw error; });
   }
   return physicsPromise;
 }
@@ -159,7 +161,7 @@ async function physicsAdapterContext(
     if (!block) return 0;
     if (block.visual?.kind === "slope") {
       const orientation = slopeDirections.includes(voxel.orientation ?? "")
-        ? voxel.orientation
+        ? voxel.orientation!
         : slopeDirections[Math.max(0, Math.floor(voxel.variantId ?? 0)) % 4];
       return rolesById.get(slopePhysicsRoleId(block.roleId, orientation)) ?? 0;
     }
@@ -186,7 +188,7 @@ async function physicsAdapterContext(
       );
     }
     if (visual?.kind === "orange-wall") {
-      return orangeWallMechanismValue(voxel, blocksById);
+      return orangeWallMechanismValue(voxel);
     }
     if (visual?.kind === "puncher") {
       return puncherMechanismId(
@@ -263,7 +265,7 @@ export async function simulateCommandWithCpp(
     voxelBuffer[offset] = voxel.x;
     voxelBuffer[offset + 1] = voxel.y;
     voxelBuffer[offset + 2] = blocksById.get(voxel.blockId)?.roleId === "orange-wall"
-      ? orangeWallEngineAnchorZ(voxel, blocksById)
+      ? orangeWallEngineAnchorZ(voxel)
       : voxel.z;
     voxelBuffer[offset + 3] = blockRole(voxel);
     voxelBuffer[offset + 4] = mechanismValue(voxel);

@@ -1,6 +1,7 @@
 import { cellObjectSelectionKey, objectCanShareCell } from "./cellObjects.mjs";
 
 /** @typedef {{ x: number, y: number, z: number, blockId: string, genericId?: number, groupId?: number, instanceId?: string, stateId?: number, variantId?: number, orientation?: string }} Voxel */
+/** @typedef {Map<string, { roleId: string, occupancy?: string, visual?: { kind?: string } }>} BlockDefinitions */
 /** @typedef {{ width: number, height: number }} HorizontalWorld */
 
 const FACE_NEIGHBORS = [
@@ -54,6 +55,8 @@ function connectedFamilyIdentity(voxel, definitions) {
  *
  * @param {Voxel[]} voxels
  * @param {{ x: number, y: number, z: number, selectionKey?: string }} origin
+ * @param {Set<string>} [shareableBlockIds]
+ * @param {BlockDefinitions | null} [definitions]
  * @returns {string[]}
  */
 export function selectConnectedVoxelGroup(
@@ -171,6 +174,8 @@ export function removeSelectedVoxels(voxels, selectedCoordinateKeys) {
  * @param {number} dy
  * @param {HorizontalWorld} world
  * @param {number} [dz]
+ * @param {Set<string>} [shareableBlockIds]
+ * @param {BlockDefinitions | null} [definitions]
  * @returns {{ moved: boolean, selectedKeys: string[], voxels: Voxel[] }}
  */
 export function moveVoxelGroup(

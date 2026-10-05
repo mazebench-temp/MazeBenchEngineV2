@@ -86,6 +86,7 @@ Each candidate is evaluated by one generalized C++ exact shortest-command solver
 ```bash
 npm test
 npm run lint
+npm run typecheck
 ```
 
 Every physics change must finish with a clean `npm test`. Record a performance baseline with:
