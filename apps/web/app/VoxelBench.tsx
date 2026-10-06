@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
 } from "react";
@@ -15,6 +16,7 @@ import {
   cameraFacingSlopeDirection,
   cameraRelativeDirection,
 } from "./cameraNavigation.mjs";
+import { createSuitePreviewState, suitePreviewReducer } from "./suitePreviewCamera.mjs";
 import { simulateCommandWithCpp } from "./physicsEngine";
 import {
   applyWorldToTest,
@@ -1329,20 +1331,24 @@ function suitePreviewFrames(test: TestCase) {
 }
 
 function SuiteTestPreview({
+  cameraGeneration,
   onOpen,
   onRequest,
   previews,
   test,
 }: {
+  cameraGeneration: number;
   onOpen: () => void;
   onRequest: (testId: string, frameIndex: number) => void;
-  previews: Readonly<Record<string, string>>;
+  previews: Readonly<Record<string, { dataUrl: string; generation: number }>>;
   test: TestCase;
 }) {
   const [frameIndex, setFrameIndex] = useState(0);
   const previewRef = useRef<HTMLDivElement>(null);
   const frames = suitePreviewFrames(test);
-  const preview = previews[suitePreviewKey(test.id, frameIndex)];
+  const image = previews[suitePreviewKey(test.id, frameIndex)];
+  const preview = image?.dataUrl;
+  const isCurrent = image?.generation === cameraGeneration;
   const frameLabel = frameIndex === 0
     ? "Start"
     : frameIndex === frames.length - 1
@@ -1351,7 +1357,7 @@ function SuiteTestPreview({
 
   useEffect(() => {
     const element = previewRef.current;
-    if (!element || preview !== undefined) return;
+    if (!element || isCurrent) return;
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((entry) => entry.isIntersecting)) return;
       onRequest(test.id, frameIndex);
@@ -1359,10 +1365,10 @@ function SuiteTestPreview({
     }, { rootMargin: "240px 0px" });
     observer.observe(element);
     return () => observer.disconnect();
-  }, [frameIndex, onRequest, preview, test.id]);
+  }, [cameraGeneration, frameIndex, isCurrent, onRequest, test.id]);
 
   return (
-    <div ref={previewRef} className="suite-test-preview">
+    <div ref={previewRef} className="suite-test-preview" aria-busy={!isCurrent} data-camera-generation={image?.generation}>
       <button className="suite-test-preview__scene" type="button" aria-label={`Open ${test.name} from its ${frameLabel.toLowerCase()} 3D preview`} onClick={onOpen}>
         {preview ? (
           // Generated locally from the shared, serialized WebGL renderer.
@@ -1523,13 +1529,30 @@ function TestSuiteWorkspace({
   const contentRef = useRef<HTMLDivElement>(null);
   const [folderDraft, setFolderDraft] = useState<{ name: string; parentId?: string } | null>(null);
   const [folderRenameDraft, setFolderRenameDraft] = useState<{ id: string; name: string } | null>(null);
-  const [previewQueue, setPreviewQueue] = useState<Array<{
-    frameIndex: number;
-    key: string;
-    testId: string;
-  }>>([]);
-  const [previews, setPreviews] = useState<Record<string, string>>({});
-  const requestedPreviewKeysRef = useRef(new Set<string>());
+  const [previewState, dispatchPreview] = useReducer(suitePreviewReducer, undefined, createSuitePreviewState);
+  const { camera: previewCamera, generation: cameraGeneration, queue: previewQueue, previews } = previewState;
+
+  useEffect(() => {
+    let lastTiltAt = 0;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']"))) return;
+      const key = event.key.toLowerCase();
+      if (!["w", "a", "s", "d"].includes(key)) return;
+      event.preventDefault();
+      if (key === "a" || key === "d") {
+        if (event.repeat) return;
+      } else {
+        const now = performance.now();
+        if (event.repeat && now - lastTiltAt < 120) return;
+        lastTiltAt = now;
+      }
+      dispatchPreview({ type: "camera", key });
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   const foldersById = useMemo(
     () => new Map(folders.map((folder) => [folder.id, folder])),
     [folders],
@@ -1666,15 +1689,11 @@ function TestSuiteWorkspace({
     ? suitePreviewFrames(previewTest)[previewJob.frameIndex]
     : undefined;
   const requestPreview = useCallback((testId: string, frameIndex: number) => {
-    const key = suitePreviewKey(testId, frameIndex);
-    if (requestedPreviewKeysRef.current.has(key)) return;
-    requestedPreviewKeysRef.current.add(key);
-    setPreviewQueue((current) => [...current, { frameIndex, key, testId }]);
-  }, []);
+    dispatchPreview({ type: "request", key: suitePreviewKey(testId, frameIndex), testId, frameIndex, generation: cameraGeneration });
+  }, [cameraGeneration]);
   const acceptPreview = useCallback((dataUrl: string) => {
     if (!previewJob) return;
-    setPreviews((current) => ({ ...current, [previewJob.key]: dataUrl }));
-    setPreviewQueue((current) => current.filter((job) => job.key !== previewJob.key));
+    dispatchPreview({ type: "complete", key: previewJob.key, generation: previewJob.generation, dataUrl });
   }, [previewJob]);
 
   const renderTestCard = (test: TestCase, displayIndex: number, scopeTests: TestCase[]) => {
@@ -1685,7 +1704,7 @@ function TestSuiteWorkspace({
     return (
       <article className={`suite-test-row ${test.id === activeId ? "is-active" : ""} ${effectiveLocked ? "is-locked" : ""} ${test.hidden ? "is-hidden" : ""}`} key={test.id} role="listitem">
         <span className={`test-status ${test.hidden ? "hidden" : !result ? "idle" : result.pass ? "pass" : "fail"}`}>{test.hidden ? "—" : !result ? displayIndex + 1 : result.pass ? "✓" : "!"}</span>
-        <SuiteTestPreview previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
+        <SuiteTestPreview cameraGeneration={cameraGeneration} previews={previews} test={test} onOpen={() => onOpenTest(test.id)} onRequest={requestPreview} />
         <div className="suite-test-row__details">
           <label className="suite-test-row__title">
             <span>Title</span>
@@ -1796,6 +1815,7 @@ function TestSuiteWorkspace({
             <small>{visibleTests.length} shown{relatedTestCount ? ` · ${relatedTestCount} in related combinations` : ""} · {scopeSummary.passed} passing · {scopeSummary.failed} failing · {scopeSummary.pending} untested{scopeSummary.hidden ? ` · ${scopeSummary.hidden} hidden` : ""}</small>
           </div>
           <div className="suite-browser__actions">
+            <div className="suite-preview-camera" aria-label="Preview camera" title="A/D rotate · W/S tilt"><span>WASD · Camera</span><button type="button" aria-label="Reset preview camera" title="Reset preview camera" onClick={() => dispatchPreview({ type: "reset" })}>↺</button></div>
             {!selectedAlias && <button className="tool-button" type="button" onClick={() => setFolderDraft({ name: "", ...(selectedFolder ? { parentId: selectedFolder.parentId ?? selectedFolder.id } : {}) })}>＋ {selectedFolder?.parentId ? "Sibling folder" : selectedFolder ? "Subfolder" : "Folder"}</button>}
             <button className="tool-button tool-button--primary" type="button" onClick={() => onAddTest(selectedAlias?.groupTagId ?? selectedFolder?.id, selectedAlias?.tagIds)}>＋ New test</button>
           </div>
@@ -1836,7 +1856,7 @@ function TestSuiteWorkspace({
             ))}
           </section>}
         </div>
-        {previewTest && previewFrame && previewJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewJob.key} /></div>}
+        {previewTest && previewFrame && previewJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas key={`${previewJob.generation}:${previewJob.key}`} initialCamera={previewCamera} cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewJob.key} /></div>}
       </section>
     </section>
   );

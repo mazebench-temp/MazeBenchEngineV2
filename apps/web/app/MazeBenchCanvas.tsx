@@ -243,6 +243,8 @@ type CanvasProps = {
   compact?: boolean;
   cameraLayerRange?: { minimum: number; maximum: number };
   cameraSceneKey?: string;
+  // Snapshot jobs remount with a new key when their shared camera changes.
+  initialCamera?: { yaw: number; tilt: number };
   onSnapshot?: (dataUrl: string) => void;
   snapshotRequestId?: number | string;
   onPaint?: (
@@ -593,6 +595,7 @@ export default function MazeBenchCanvas({
   compact = false,
   cameraLayerRange,
   cameraSceneKey,
+  initialCamera,
   onSnapshot,
   snapshotRequestId,
   onPaint,
@@ -617,7 +620,7 @@ export default function MazeBenchCanvas({
     cameraLayerRange,
   ));
   const orbitRef = useRef<{ x: number; y: number; yaw: number; tilt: number } | null>(null);
-  const cameraRef = useRef({ yaw: 0, tilt: 0.22, zoom: compact ? 0.9 : 1 });
+  const cameraRef = useRef({ yaw: initialCamera?.yaw ?? 0, tilt: initialCamera?.tilt ?? 0.22, zoom: compact ? 0.9 : 1 });
   const cameraMotionRef = useRef<CameraMotion>({
     frameId: 0,
     heldTiltKeys: new Set(),

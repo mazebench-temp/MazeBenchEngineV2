@@ -974,6 +974,9 @@ summary::-webkit-details-marker { display: none; }
 .suite-tree__rename input { font-size: 12px; background: #242426; }
 .suite-browser { padding: 16px 18px 0; }
 .suite-browser__header { min-height: 48px; }
+.suite-preview-camera { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.suite-preview-camera button { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 19px; }
+.suite-preview-camera button:hover { color: var(--ink); background: #2c2c2e; }
 .suite-browser__title > span { letter-spacing: 0; text-transform: none; font-weight: 500; }
 .suite-browser__title h2, .suite-browser__title input { font-size: 22px; }
 .suite-browser__filters input, .suite-browser__filters select { background: #242426; border-color: transparent; border-radius: 9px; min-height: 34px; }

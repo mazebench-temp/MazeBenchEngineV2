@@ -41,6 +41,16 @@ menu, redundant sole Default rows are hidden, and counts include combination
 memberships consistently with status indicators. Folder expansion is local UI
 state, not a project-file edit.
 
+In the suite, **A/D** rotate every preview by 90 degrees and **W/S** tilt by
+15 degrees per step. Holding W/S repeats at a bounded rate. Typing in search,
+titles, descriptions, and other text fields does not move the camera. The
+camera reset button restores the initial view. Only visible/nearby frames are
+queued through the shared renderer; the previous picture stays visible until
+its replacement arrives. Camera generations reject stale in-flight results
+and retain only one image per test/frame, rather than an angle history.
+The camera update passes 168 app tests, production build, lint, and typecheck,
+plus browser checks for all four keys, rapid changes, text entry, and timelines.
+
 Validation:
 
 - `npm test`: 102 native C++ tests passed; production build passed; 949
