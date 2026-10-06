@@ -1,7 +1,7 @@
 /** @typedef {{ yaw: number, tilt: number }} PreviewCamera */
 /** @typedef {{ key: string, testId: string, frameIndex: number, generation: number }} PreviewJob */
 /** @typedef {{ dataUrl: string, generation: number }} PreviewImage */
-/** @typedef {{ camera: PreviewCamera, generation: number, queue: PreviewJob[], previews: Record<string, PreviewImage> }} PreviewState */
+/** @typedef {{ camera: PreviewCamera, generation: number, queue: PreviewJob[], lastJob: PreviewJob | null, previews: Record<string, PreviewImage> }} PreviewState */
 /** @typedef {{ type: 'camera', key: string } | { type: 'reset' } | ({ type: 'request' } & PreviewJob) | { type: 'complete', key: string, generation: number, dataUrl: string } PreviewAction */
 
 export const DEFAULT_PREVIEW_CAMERA = Object.freeze({ yaw: 0, tilt: 0.22 });
@@ -21,7 +21,7 @@ export function stepPreviewCamera(camera, key) {
 
 /** @returns {PreviewState} */
 export function createSuitePreviewState() {
-  return { camera: DEFAULT_PREVIEW_CAMERA, generation: 0, queue: [], previews: {} };
+  return { camera: DEFAULT_PREVIEW_CAMERA, generation: 0, queue: [], lastJob: null, previews: {} };
 }
 
 /**
@@ -46,6 +46,7 @@ export function suitePreviewReducer(state, action) {
   if (!state.queue.some(job => job.key === action.key)) return state;
   return {
     ...state,
+    lastJob: state.queue.find(job => job.key === action.key) ?? state.lastJob,
     previews: { ...state.previews, [action.key]: { dataUrl: action.dataUrl, generation: action.generation } },
     queue: state.queue.filter(job => job.key !== action.key),
   };

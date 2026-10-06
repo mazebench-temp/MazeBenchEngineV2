@@ -21,10 +21,10 @@ test("server-renders the VoxelBench editor", async () => {
 
   const html = await response.text();
   assert.match(html, /<title>VoxelBench/);
-  assert.match(html, /PHYSICS WORKBENCH/i);
-  assert.match(html, /Voxel Test Lab/);
-  assert.match(html, /Block Definition/);
-  assert.match(html, /Physics Roles/);
+  assert.match(html, /Test editor/i);
+  assert.match(html, /aria-label="Frame controls"/);
+  assert.match(html, /Selected tool/);
+  assert.match(html, /Physics roles/);
   assert.match(html, /Stable engine key preserved/);
   assert.match(html, /C\+\+ engine/);
   assert.match(html, /Generic numbered family/);
@@ -50,10 +50,10 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Undo paint/);
   assert.match(html, /Redo paint/);
   assert.match(html, /Reset room/);
-  assert.match(html, /canonical up/i);
+  assert.match(html, /Movement input/i);
   assert.match(html, /Description/);
   assert.match(html, /Moving Up pushes the single crate one cell onto the goal/);
-  assert.match(html, /automatically checked as/);
+  assert.match(html, /Checked in all four directions/);
   assert.match(html, /Camera controls/);
   assert.match(html, /Point camera north/);
   assert.match(html, /01<\/span> Start/);
@@ -64,12 +64,12 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Movement &amp; walls/);
   assert.match(html, /Push boxes/);
   assert.match(html, />Test Suite<\/button>/);
-  assert.match(html, /Open Test Suite/);
-  assert.match(html, /Browse, search, reorder, and organize the complete test library on its own page/);
+  assert.match(html, /Browse test library/);
+  assert.match(html, /aria-label="Inspector"/);
   assert.doesNotMatch(html, /aria-label="Collapse Movement &amp; walls"/);
-  assert.match(html, /Run suite/);
+  assert.match(html, /Run test/);
   assert.match(html, /Z is unbounded/);
-  assert.match(html, /Test World/);
+  assert.match(html, /Room size/);
   assert.match(html, /aria-label="Test room width draft"/);
   assert.match(html, /aria-label="Test room depth draft"/);
   assert.match(html, /aria-label="Test room width draft"[^>]*value="16"/);

@@ -1682,11 +1682,12 @@ function TestSuiteWorkspace({
     const test = tests.find((item) => item.id === job.testId);
     return test && suitePreviewFrames(test)[job.frameIndex];
   });
-  const previewTest = previewJob
-    ? tests.find((test) => test.id === previewJob.testId)
+  const renderJob = previewJob ?? previewState.lastJob;
+  const previewTest = renderJob
+    ? tests.find((test) => test.id === renderJob.testId)
     : undefined;
-  const previewFrame = previewTest && previewJob
-    ? suitePreviewFrames(previewTest)[previewJob.frameIndex]
+  const previewFrame = previewTest && renderJob
+    ? suitePreviewFrames(previewTest)[renderJob.frameIndex]
     : undefined;
   const requestPreview = useCallback((testId: string, frameIndex: number) => {
     dispatchPreview({ type: "request", key: suitePreviewKey(testId, frameIndex), testId, frameIndex, generation: cameraGeneration });
@@ -1856,7 +1857,7 @@ function TestSuiteWorkspace({
             ))}
           </section>}
         </div>
-        {previewTest && previewFrame && previewJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas key={`${previewJob.generation}:${previewJob.key}`} initialCamera={previewCamera} cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={acceptPreview} snapshotRequestId={previewJob.key} /></div>}
+        {previewTest && previewFrame && renderJob && <div className="suite-preview-capture" aria-hidden="true"><MazeBenchCanvas snapshotCamera={previewCamera} cameraLayerRange={cameraLayerRangeForFrames(suitePreviewFrames(previewTest))} cameraSceneKey={previewTest.id} frame={previewFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={previewTest.world} layer={1} compact onSnapshot={previewJob ? acceptPreview : undefined} snapshotRequestId={`${renderJob.generation}:${renderJob.key}`} /></div>}
       </section>
     </section>
   );
@@ -1898,6 +1899,12 @@ export default function VoxelBench() {
   useEffect(() => { ++suiteRevisionRef.current; }, [tests, blocks, roles]);
   const [showResult, setShowResult] = useState(false);
   const [toast, setToast] = useState("");
+  const [inspectorTab, setInspectorTab] = useState<"test" | "tool">("test");
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
   const [addingBlock, setAddingBlock] = useState(false);
   const [newBlock, setNewBlock] = useState<{
     color: string;
@@ -3723,15 +3730,16 @@ export default function VoxelBench() {
             <button className={`nav-link ${activeWorkspace === "search" ? "is-active" : ""}`} aria-pressed={activeWorkspace === "search"} onClick={() => setActiveWorkspace("search")}>Search</button>
           </nav>
           <div className="author-title">
-            <span>{activeWorkspace === "tests" ? "PHYSICS WORKBENCH" : activeWorkspace === "suite" ? "TEST LIBRARY" : "EVOLUTIONARY LAB"}</span>
-            <h1>{activeWorkspace === "tests" ? "Voxel Test Lab" : activeWorkspace === "suite" ? "Test Suite" : "3D Puzzle Search"}</h1>
+            <span>{activeWorkspace === "tests" ? "Test editor" : activeWorkspace === "suite" ? "TEST LIBRARY" : "EVOLUTIONARY LAB"}</span>
+            <h1>{activeWorkspace === "tests" ? activeTest.name : activeWorkspace === "suite" ? "Test Suite" : "3D Puzzle Search"}</h1>
           </div>
           <div className="author-actions">
             <details className="project-actions"><summary>Project <span aria-hidden="true">⌄</span></summary><div>
               <button type="button" onClick={() => importRef.current?.click()}>Import JSON…</button>
               <button type="button" onClick={exportProject}>Export JSON</button>
             </div></details>
-            {activeWorkspace !== "search" && <button className="tool-button tool-button--primary" onClick={runSuite} disabled={suiteProgress !== null}>{suiteProgress === null ? "Run suite" : `Running ${suiteProgress} / ${runnableTestCases(tests).length}`}</button>}
+            {activeWorkspace === "tests" && <button className="tool-button tool-button--primary" disabled={activeTest.hidden} title={activeTest.hidden ? "Unhide this case before running it" : "Run this test in all four directions"} onClick={() => runTest(activeTest)}>Run test</button>}
+            {activeWorkspace === "suite" && <button className="tool-button tool-button--primary" onClick={runSuite} disabled={suiteProgress !== null}>{suiteProgress === null ? "Run suite" : `Running ${suiteProgress} / ${runnableTestCases(tests).length}`}</button>}
           </div>
           <input ref={importRef} type="file" accept="application/json" hidden onChange={importProject} />
           {toast && <p className="author-status" role="status"><span />{toast}</p>}
@@ -3781,8 +3789,7 @@ export default function VoxelBench() {
 
       {activeWorkspace === "tests" && <section className="author-layout">
         <section className="author-workspace">
-          <section className="author-stage" aria-label="Voxel frame editor">
-            <div className="stage-chrome stage-chrome--left">
+          <div className="editor-toolbar" aria-label="Frame controls">
               <div className="frame-switch" role="group" aria-label="Frame to edit">
                 <button className={`${frameKind === "start" && intermediateIndex === null ? "active" : ""} ${tickIsInCycle(activeTest.cycle, 0) ? "cycle-span" : ""} ${activeTest.cycle?.startTick === 0 ? "cycle-start" : ""}`} title={activeTest.cycle?.startTick === 0 ? "Cycle begins here" : undefined} onClick={() => { setFrameKind("start"); setIntermediateIndex(null); setGroupSelection(null); }}><span>01</span> Start</button>
                 {activeTest.intermediate.map((_, index) => (
@@ -3794,20 +3801,20 @@ export default function VoxelBench() {
                 <button type="button" aria-label="Undo paint" title="Undo paint · ⌘Z" disabled={activeTestLocked || !historyState.canUndo} onClick={undoPaint}>↶</button>
                 <button type="button" aria-label="Redo paint" title="Redo paint · ⇧⌘Z" disabled={activeTestLocked || !historyState.canRedo} onClick={redoPaint}>↷</button>
               </div>
-              {frameKind === "expected" && intermediateIndex === null && <button type="button" className="copy-start-button" title="Replace expected room with a copy of the start room" disabled={activeTestLocked} onClick={duplicateFrame}>Copy from start room</button>}
-              <button type="button" className="add-tick-button" title="Insert an expected tick after the selected frame" disabled={activeTestLocked} onClick={addIntermediateFrame}>Add tick</button>
-              {frameKind === "expected" && <button type="button" className="copy-previous-button" title="Replace this frame with a copy of the frame immediately before it" disabled={activeTestLocked} onClick={copyPreviousFrame}>Copy previous</button>}
-              {intermediateIndex !== null && <button type="button" className="delete-tick-button" title={`Remove expected tick ${intermediateIndex + 1}`} disabled={activeTestLocked} onClick={deleteIntermediateFrame}>Delete tick</button>}
-              {selectedTimelineTick !== null && <button type="button" className="cycle-mark-button cycle-mark-button--start" disabled={activeTestLocked || selectedTimelineTick >= activeTest.intermediate.length} onClick={setCycleStartAtSelection}>Loop starts</button>}
-              {selectedTimelineTick !== null && selectedTimelineTick > 0 && <button type="button" className="cycle-mark-button cycle-mark-button--repeat" disabled={activeTestLocked} onClick={setCycleRepeatAtSelection}>Repeats here</button>}
-              {activeTest.cycle && <button type="button" className="cycle-clear-button" disabled={activeTestLocked} title={`Cycle ${activeTest.cycle.startTick}→${activeTest.cycle.repeatTick} · period ${activeTest.cycle.repeatTick - activeTest.cycle.startTick}`} onClick={clearCycle}>Clear loop</button>}
-              <button type="button" className="generate-timeline-button" disabled={activeTestLocked} onClick={generateTimeline}>Auto-generate frames</button>
-              <button type="button" className="reset-room-button" disabled={activeTestLocked} onClick={resetRoom}>Reset room</button>
-            </div>
-            <div className="stage-chrome stage-chrome--right">
-              {activeTestLocked && <span className="lock-pill"><LockIcon /> Read only</span>}
-              <span className="coordinate-pill">{activeWorld.width} × {activeWorld.height} × ∞</span>
-            </div>
+              <details className="editor-frame-menu"><summary>Frame <span aria-hidden="true">⌄</span></summary><div>
+              {frameKind === "expected" && intermediateIndex === null && <button type="button" className="copy-start-button" title="Replace expected room with a copy of the start room" disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); duplicateFrame(); }}>Copy from start room</button>}
+              <button type="button" className="add-tick-button" title="Insert an expected tick after the selected frame" disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); addIntermediateFrame(); }}>Add tick</button>
+              {frameKind === "expected" && <button type="button" className="copy-previous-button" title="Replace this frame with a copy of the frame immediately before it" disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); copyPreviousFrame(); }}>Copy previous</button>}
+              {intermediateIndex !== null && <button type="button" className="delete-tick-button" title={`Remove expected tick ${intermediateIndex + 1}`} disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); deleteIntermediateFrame(); }}>Delete tick</button>}
+              {selectedTimelineTick !== null && <button type="button" className="cycle-mark-button cycle-mark-button--start" disabled={activeTestLocked || selectedTimelineTick >= activeTest.intermediate.length} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); setCycleStartAtSelection(); }}>Loop starts</button>}
+              {selectedTimelineTick !== null && selectedTimelineTick > 0 && <button type="button" className="cycle-mark-button cycle-mark-button--repeat" disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); setCycleRepeatAtSelection(); }}>Repeats here</button>}
+              {activeTest.cycle && <button type="button" className="cycle-clear-button" disabled={activeTestLocked} title={`Cycle ${activeTest.cycle.startTick}→${activeTest.cycle.repeatTick} · period ${activeTest.cycle.repeatTick - activeTest.cycle.startTick}`} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); clearCycle(); }}>Clear loop</button>}
+              <button type="button" className="reset-room-button" disabled={activeTestLocked} onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); resetRoom(); }}>Reset room</button>
+              </div></details>
+              <button type="button" className="tool-button editor-generate" disabled={activeTestLocked} onClick={generateTimeline}>Generate frames</button>
+          </div>
+          <section className="author-stage" aria-label="Voxel frame editor">
+            <div className="editor-scene-caption"><span>{frameKind === "start" ? "Start" : intermediateIndex === null ? "Expected" : `Tick ${intermediateIndex + 1}`}</span><span>{activeWorld.width} × {activeWorld.height} · WASD to orbit</span></div>
             <MazeBenchCanvas cameraSceneKey={activeTest.id} frame={activeFrame} blocks={blocks} genericBlockIds={genericBlockIds} world={activeWorld} layer={layer} selectedVoxelKeys={selectedVoxelKeys} selectionMode={groupSelectionMode} selectedBlock={selectedBlock} selectedBlockCanShare={selectedBlockCanShare} eraseMode={selectedBlock === DELETE_TOOL_ID} interactive paintable={!activeTestLocked} onCameraQuarterTurnChange={setCameraQuarterTurns} onSelectVoxel={selectVoxelGroup} onSelectVoxels={selectVoxelGroups} onPaint={paint} onPaintGestureStart={beginPaintGesture} onPaintGestureEnd={endPaintGesture} />
             {generatedTimeline?.testId === activeTest.id && (
               <section className="timeline-review" aria-label="Generated C++ timeline review">
@@ -3888,7 +3895,7 @@ export default function VoxelBench() {
                   );
                 })}
                 <span className="author-hotbar__divider" />
-                <button className="author-hotbar__slot author-hotbar__add" aria-label="Define a new block" onClick={() => setAddingBlock(true)}>＋</button>
+                <button className="author-hotbar__slot author-hotbar__add" aria-label="Define a new block" onClick={() => { setInspectorTab("tool"); setAddingBlock(true); }}>＋</button>
               </div>
             </div>
             {genericPrompt && (
@@ -3915,30 +3922,27 @@ export default function VoxelBench() {
           </section>
         </section>
 
-        <aside className="author-sidebar">
-          <details className="author-panel" open>
-            <summary><span className="chevron">▸</span><span>Test Case</span><em>canonical up <DirectionIcon direction="up" /></em></summary>
+        <aside className="author-sidebar" data-inspector={inspectorTab}>
+          <div className="editor-inspector-tabs" role="group" aria-label="Inspector">
+            <button aria-pressed={inspectorTab === "test"} onClick={() => setInspectorTab("test")}>Test</button>
+            <button aria-pressed={inspectorTab === "tool"} onClick={() => setInspectorTab("tool")}>Tool</button>
+          </div>
+          <div className="editor-lock-row"><span>{activeTestLocked ? <><LockIcon /> Read only</> : "Editing enabled"}</span><button onClick={() => toggleTestLocked(activeTest.id)}>{activeTestLocked ? "Unlock" : "Lock"}</button></div>
+          <details className="author-panel inspector-test" open>
+            <summary><span className="chevron">▸</span><span>Test details</span></summary>
             <div className="author-panel__body">
               <label className="field"><span>Name</span><input value={activeTest.name} onChange={(event) => updateTestMetadata(activeTest.id, { name: event.target.value })} /></label>
-              <label className="field"><span>Description</span><textarea rows={3} value={activeTest.description} placeholder="Describe the intended transition and invariants for debugging agents." onChange={(event) => updateTestMetadata(activeTest.id, { description: event.target.value })} /></label>
+              <label className="field"><span>Description</span><textarea rows={3} value={activeTest.description} placeholder="What should happen in this test?" onChange={(event) => updateTestMetadata(activeTest.id, { description: event.target.value })} /></label>
               <div className="field"><span>Tags</span><TestTagPicker folders={folders} folderPaths={folderPaths} test={activeTest} onChangeGroup={(groupTagId) => changeTestTagGroup(activeTest.id, groupTagId)} onToggle={(tagId) => toggleTestTag(activeTest.id, tagId)} /></div>
-              <div className="field"><span>Movement input</span><div className="canonical-input"><strong><DirectionIcon direction="up" /> Up</strong><small>Authored once; automatically checked as ↑ → ↓ ← by rotating the entire level.</small></div></div>
-              <label className="generic-toggle test-hidden-toggle"><input aria-label={`Hide ${activeTest.name} from physics runs`} type="checkbox" checked={activeTest.hidden} onChange={() => toggleTestHidden(activeTest.id)} /><span><b>Hide from physics suite</b><small>Keep this case and its frames, but ignore it in browser and repository physics runs.</small></span></label>
-              <button className="tool-button tool-button--primary full" disabled={activeTest.hidden} title={activeTest.hidden ? "Unhide this case before running it" : "Run this test"} onClick={() => runTest(activeTest)}>{activeTest.hidden ? "Hidden from suite" : "Run test"}</button>
+              <div className="field"><span>Movement input</span><div className="canonical-input"><strong><DirectionIcon direction="up" /> Up</strong><small>Checked in all four directions.</small></div></div>
+              <label className="generic-toggle test-hidden-toggle"><input aria-label={`Hide ${activeTest.name} from physics runs`} type="checkbox" checked={activeTest.hidden} onChange={() => toggleTestHidden(activeTest.id)} /><span><b>Skip in test runs</b></span></label>
             </div>
           </details>
 
-          <section className="author-panel suite-shortcut" aria-label="Test Suite shortcut">
-            <div className="suite-shortcut__heading"><div><span>Test Suite</span><strong>{Object.keys(results).length ? `${counts.passed}/${counts.runnable} passing` : `${counts.runnable} active${counts.hidden ? ` · ${counts.hidden} hidden` : ""}`}</strong></div><span className="suite-shortcut__folder">{activeTest.tagIds.map((tagId) => folderPaths.get(tagId) ?? "Unknown tag").join(" + ")}</span></div>
-            <div className="author-panel__body">
-              <div className="summary-track"><i style={{ width: Object.keys(results).length && counts.runnable ? `${(counts.passed / counts.runnable) * 100}%` : "0%" }} /></div>
-              <p>Browse, search, reorder, and organize the complete test library on its own page.</p>
-              <button className="tool-button tool-button--primary full" type="button" onClick={() => setActiveWorkspace("suite")}>Open Test Suite</button>
-            </div>
-          </section>
+          <button className="editor-library-link inspector-test" onClick={() => setActiveWorkspace("suite")}><span>Browse test library</span><span>{counts.runnable} tests ›</span></button>
 
-          <details className="author-panel" open>
-            <summary><span className="chevron">▸</span><span>Block Definition</span><button type="button" className="panel-add" aria-label="Add block" onClick={(event) => { event.preventDefault(); setAddingBlock((value) => !value); }}>＋</button></summary>
+          <details className="author-panel inspector-tool" open>
+            <summary><span className="chevron">▸</span><span>Selected tool</span><button type="button" className="panel-add" aria-label="Add block" onClick={(event) => { event.preventDefault(); setAddingBlock((value) => !value); }}>＋</button></summary>
             <div className="author-panel__body">
               {addingBlock ? (
                 <div className="definition-form new-definition">
@@ -3984,8 +3988,8 @@ export default function VoxelBench() {
             </div>
           </details>
 
-          <details className="author-panel" open>
-            <summary><span className="chevron">▸</span><span>Physics Roles</span><button type="button" className="panel-add" aria-label="Add physics role" onClick={(event) => { event.preventDefault(); setAddingRole((value) => !value); }}>＋</button></summary>
+          <details className="author-panel inspector-tool" open={addingRole || undefined}>
+            <summary><span className="chevron">▸</span><span>Physics roles</span><button type="button" className="panel-add" aria-label="Add physics role" onClick={(event) => { event.preventDefault(); setAddingRole((value) => !value); }}>＋</button></summary>
             <div className="author-panel__body">
               {addingRole ? (
                 <div className="definition-form new-definition">
@@ -4006,8 +4010,8 @@ export default function VoxelBench() {
             </div>
           </details>
 
-          <details className="author-panel" open>
-            <summary><span className="chevron">▸</span><span>Test World</span><em>{activeWorld.width} × {activeWorld.height} × ∞</em></summary>
+          <details className="author-panel inspector-test">
+            <summary><span className="chevron">▸</span><span>Room size</span><em>{activeWorld.width} × {activeWorld.height} × ∞</em></summary>
             <div className="author-panel__body">
               <TestWorldEditor key={`${activeTest.id}:${activeWorld.width}:${activeWorld.height}`} locked={activeTestLocked} test={activeTest} onSave={saveWorldDimensions} />
               <p className="axis-note"><b>This size belongs only to {activeTest.name}.</b> Draft values do nothing until Save dimensions is pressed; Cancel restores the saved values. Start and Expected then resize together while other tests keep their own dimensions. Shrinking crops this test&apos;s out-of-bounds voxels. <b>Z is unbounded</b> around floor layer 0.</p>

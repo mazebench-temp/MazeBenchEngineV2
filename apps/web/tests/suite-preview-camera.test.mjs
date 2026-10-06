@@ -85,3 +85,15 @@ test('reset restores the initial view and cancels an in-flight rotated request',
   assert.deepEqual(reset.queue, []);
   assert.equal(complete(reset, 'late', moved.generation), reset);
 });
+
+test('an idle preview queue retains its last frame so the renderer can be reused', () => {
+  const pending = request(createSuitePreviewState());
+  const completed = complete(pending, 'image');
+  assert.equal(completed.lastJob, pending.queue[0]);
+  assert.deepEqual(completed.queue, []);
+  const rotated = turn(completed, 'd');
+  assert.equal(rotated.lastJob, completed.lastJob);
+  const next = request(rotated);
+  assert.equal(next.lastJob, completed.lastJob);
+  assert.equal(complete(next, 'new image').lastJob.generation, rotated.generation);
+});

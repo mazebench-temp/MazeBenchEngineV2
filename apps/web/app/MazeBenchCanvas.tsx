@@ -4,6 +4,7 @@ import {
   PointerEvent as ReactPointerEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -12,6 +13,7 @@ import {
   marqueeRectangle,
   marqueeSamplePoints,
 } from "./marqueeSelection.mjs";
+import { voxelColumns } from "./voxelColumns.mjs";
 import { cellObjectSelectionKey } from "./cellObjects.mjs";
 import { resolveEditorPaintTarget } from "./editorPaintTarget.mjs";
 import { gateIsRaised, liftIsRaised, normalizeButtonOrientation, normalizeLiftOrientation, normalizeSlopeDirection, puncherIsSprung } from "./visualVariants.mjs";
@@ -198,7 +200,7 @@ type MazeBenchPlayData = {
   editorRender: true;
   gameId: string;
   height: number;
-  hostFullBleedView: false;
+  hostFullBleedView: true;
   hostRenderPixelScale: number;
   levelId: string;
   levelLabel: string;
@@ -211,6 +213,7 @@ type MazeBenchPlayData = {
 type RuntimeState = {
   app: MazeBenchApp;
   layerOffset: number;
+  data?: ReturnType<typeof frameToPlayData>;
 };
 
 type CameraMotion = {
@@ -243,8 +246,8 @@ type CanvasProps = {
   compact?: boolean;
   cameraLayerRange?: { minimum: number; maximum: number };
   cameraSceneKey?: string;
-  // Snapshot jobs remount with a new key when their shared camera changes.
-  initialCamera?: { yaw: number; tilt: number };
+  // Controlled camera for a shared, persistent snapshot renderer.
+  snapshotCamera?: { yaw: number; tilt: number };
   onSnapshot?: (dataUrl: string) => void;
   snapshotRequestId?: number | string;
   onPaint?: (
@@ -392,9 +395,7 @@ function frameToPlayData(
   selectedVoxelKeys: ReadonlySet<string>,
   cameraLayerRange?: { minimum: number; maximum: number },
 ) {
-  const frameMinLayer = frame.voxels.length
-    ? Math.min(0, ...frame.voxels.map((voxel) => voxel.z))
-    : 0;
+  const frameMinLayer = frame.voxels.reduce((minimum, voxel) => Math.min(minimum, voxel.z), 0);
   const minLayer = Math.min(
     frameMinLayer,
     Number.isFinite(cameraLayerRange?.minimum) ? Number(cameraLayerRange?.minimum) : 0,
@@ -478,11 +479,10 @@ function frameToPlayData(
       y: voxel.y,
     }];
   });
+  const columns = voxelColumns(frame.voxels, world.width, world.height);
   const terrain = Array.from({ length: world.height }, (_, y) =>
     Array.from({ length: world.width }, (_, x): TerrainCell => {
-      const layers = frame.voxels
-        .filter((voxel) => voxel.x === x && voxel.y === y)
-        .sort((left, right) => left.z - right.z)
+      const layers = columns[y * world.width + x]
         .map((voxel): TerrainLayer | null => {
           const definition = definitions.get(voxel.blockId);
           if (!definition || !["cube", "gate", "lift", "orange-wall", "slope"].includes(definition.visual.kind)) return null;
@@ -558,7 +558,7 @@ function frameToPlayData(
     editorRender: true,
     gameId: "voxel-tests",
     height: world.height,
-    hostFullBleedView: false,
+    hostFullBleedView: true,
     hostRenderPixelScale: compact
       ? 1
       : Math.min(2, typeof window === "undefined" ? 1 : window.devicePixelRatio || 1),
@@ -572,6 +572,8 @@ function frameToPlayData(
 
   return { layerOffset, playData };
 }
+
+let rendererSessionSequence = 0;
 
 function publishRendererState(app: MazeBenchApp, canvas: HTMLCanvasElement) {
   window.requestAnimationFrame(() => {
@@ -595,7 +597,7 @@ export default function MazeBenchCanvas({
   compact = false,
   cameraLayerRange,
   cameraSceneKey,
-  initialCamera,
+  snapshotCamera,
   onSnapshot,
   snapshotRequestId,
   onPaint,
@@ -609,18 +611,16 @@ export default function MazeBenchCanvas({
   const wrapperRef = useRef<HTMLDivElement>(null);
   const runtimeRef = useRef<RuntimeState | null>(null);
   const onSnapshotRef = useRef(onSnapshot);
-  const snapshotCapturedRef = useRef(false);
-  const currentDataRef = useRef(frameToPlayData(
-    frame,
-    blocks,
-    genericBlockIds,
-    world,
-    compact,
-    selectedVoxelKeys,
-    cameraLayerRange,
-  ));
+  const minimumLayer = cameraLayerRange?.minimum;
+  const maximumLayer = cameraLayerRange?.maximum;
+  const sceneData = useMemo(() => frameToPlayData(
+    frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys,
+    minimumLayer === undefined ? undefined : { minimum: minimumLayer, maximum: maximumLayer ?? 0 },
+  ), [frame, blocks, genericBlockIds, world, compact, selectedVoxelKeys, minimumLayer, maximumLayer]);
+  const currentDataRef = useRef(sceneData);
+  useEffect(() => { currentDataRef.current = sceneData; }, [sceneData]);
   const orbitRef = useRef<{ x: number; y: number; yaw: number; tilt: number } | null>(null);
-  const cameraRef = useRef({ yaw: initialCamera?.yaw ?? 0, tilt: initialCamera?.tilt ?? 0.22, zoom: compact ? 0.9 : 1 });
+  const cameraRef = useRef({ yaw: 0, tilt: compact ? 0.22 : 0.58, zoom: compact ? 0.9 : 0.85 });
   const cameraMotionRef = useRef<CameraMotion>({
     frameId: 0,
     heldTiltKeys: new Set(),
@@ -635,6 +635,9 @@ export default function MazeBenchCanvas({
   const paintStrokeRef = useRef<PaintStroke | null>(null);
   const pendingPaintSampleRef = useRef<PaintPointerInput | null>(null);
   const paintFrameIdRef = useRef(0);
+  const hoverFrameIdRef = useRef(0);
+  const hoverPointRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => () => window.cancelAnimationFrame(hoverFrameIdRef.current), []);
   const publishedCameraQuarterTurnRef = useRef<number | null>(null);
   const marqueeDragRef = useRef<MarqueeDrag | null>(null);
   const [marqueeRect, setMarqueeRect] = useState<ReturnType<typeof marqueeRectangle> | null>(null);
@@ -643,32 +646,6 @@ export default function MazeBenchCanvas({
   useEffect(() => {
     onSnapshotRef.current = onSnapshot;
   }, [onSnapshot]);
-
-  const captureSnapshot = useCallback((app: MazeBenchApp, canvas: HTMLCanvasElement) => {
-    if (!onSnapshotRef.current || snapshotCapturedRef.current) return;
-    window.requestAnimationFrame(() => {
-      if (runtimeRef.current?.app !== app || snapshotCapturedRef.current) return;
-      try {
-        // Capture while the WebGL drawing buffer is current, then immediately
-        // let the parent unmount this renderer before it creates the next one.
-        // A small 2D copy keeps timeline memory bounded and avoids retaining a
-        // WebGL context for every generated tick.
-        app.render();
-        const thumbnail = document.createElement("canvas");
-        thumbnail.width = 256;
-        thumbnail.height = 256;
-        const context = thumbnail.getContext("2d");
-        if (!context) throw new Error("Timeline snapshot canvas is unavailable");
-        context.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
-        snapshotCapturedRef.current = true;
-        onSnapshotRef.current?.(thumbnail.toDataURL("image/png"));
-      } catch (error) {
-        console.error(error);
-        snapshotCapturedRef.current = true;
-        onSnapshotRef.current?.("");
-      }
-    });
-  }, []);
 
   const publishCameraQuarterTurn = useCallback((yaw: number) => {
     const quarterTurns = cameraYawQuarterTurns(yaw);
@@ -848,13 +825,14 @@ export default function MazeBenchCanvas({
     loadMazeBenchRuntime()
       .then((modules) => {
         if (cancelled) return;
+        canvas.dataset.rendererSession = String(++rendererSessionSequence);
         const { layerOffset, playData } = currentDataRef.current;
         const app = modules.createPlayCore({
           playData,
           canvas,
           playShell: null,
           playHeader: null,
-          playStage: wrapper,
+          playStage: null,
           mazeFrame: wrapper,
           fuzzyToggle: null,
           edgeToggle: null,
@@ -865,8 +843,6 @@ export default function MazeBenchCanvas({
         modules.registerRenderFunctions(app);
         app.isEditorRenderApp = true;
         app.editorCameraElevationOffset = layerOffset;
-        app.editorCameraMaximumLogicalLayer = cameraLayerRange?.maximum;
-        app.editorCameraSceneKey = cameraSceneKey;
         app.playSurroundingRadius = 0;
         app.state.effects.fuzzyEnabled = false;
         app.state.effects.noisePhase = 0;
@@ -879,16 +855,8 @@ export default function MazeBenchCanvas({
         });
         app.render();
 
-        return Promise.resolve(app.threeRendererReady).then(async () => {
-          if (cancelled || runtimeRef.current?.app !== app) return;
-          await app.threeRenderer?.whenLevelStateModelsReady(playData);
-          if (cancelled || runtimeRef.current?.app !== app) return;
-          setCamera(undefined, false);
-          app.threeRenderer?.invalidateSceneCache();
-          app.render();
-          publishRendererState(app, canvas);
-          setStatus("ready");
-          captureSnapshot(app, canvas);
+        return Promise.resolve(app.threeRendererReady).then(() => {
+          if (!cancelled && runtimeRef.current?.app === app) setStatus("ready");
         });
       })
       .catch((error: unknown) => {
@@ -902,57 +870,74 @@ export default function MazeBenchCanvas({
       runtimeRef.current = null;
       runtime?.app.threeRenderer?.dispose();
     };
-  }, [cameraLayerRange?.maximum, cameraSceneKey, captureSnapshot, setCamera]);
+  }, []);
 
   useEffect(() => {
-    const next = frameToPlayData(
-      frame,
-      blocks,
-      genericBlockIds,
-      world,
-      compact,
-      selectedVoxelKeys,
-      cameraLayerRange,
-    );
-    currentDataRef.current = next;
-    if (onSnapshotRef.current) snapshotCapturedRef.current = false;
     const runtime = runtimeRef.current;
-    if (!runtime) return;
-    runtime.layerOffset = next.layerOffset;
-    runtime.app.editorCameraElevationOffset = next.layerOffset;
-    runtime.app.editorCameraMaximumLogicalLayer = cameraLayerRange?.maximum;
-    runtime.app.editorCameraSceneKey = cameraSceneKey;
-    runtime.app.applyLevelState(next.playData, {
-      deferRender: true,
-      immediateCamera: true,
-      resetHistory: true,
-      resetLevelEntry: true,
-    });
+    const canvas = canvasRef.current;
+    if (status !== "ready" || !runtime || !canvas) return;
+    let cancelled = false;
+    let renderFrame = 0;
     const app = runtime.app;
-    void Promise.resolve(app.threeRenderer?.whenLevelStateModelsReady(next.playData)).then(() => {
-      if (runtimeRef.current?.app !== app) return;
-      setCamera(undefined, false);
+    const onCapture = onSnapshotRef.current;
+    runtime.layerOffset = sceneData.layerOffset;
+    app.editorCameraElevationOffset = sceneData.layerOffset;
+    app.editorCameraMaximumLogicalLayer = maximumLayer;
+    app.editorCameraSceneKey = cameraSceneKey;
+    // A camera change does not alter geometry or invalidate GPU scene caches.
+    if (runtime.data !== sceneData) {
+      runtime.data = sceneData;
+      app.applyLevelState(sceneData.playData, {
+        deferRender: true, immediateCamera: true, resetHistory: true, resetLevelEntry: true,
+      });
       app.threeRenderer?.invalidateSceneCache();
-      app.render();
-      if (canvasRef.current) publishRendererState(app, canvasRef.current);
-      if (canvasRef.current) captureSnapshot(app, canvasRef.current);
+    }
+    void Promise.resolve(app.threeRenderer?.whenLevelStateModelsReady(sceneData.playData)).then(() => {
+      if (cancelled || runtimeRef.current !== runtime) return;
+      renderFrame = window.requestAnimationFrame(() => {
+        if (cancelled || runtimeRef.current !== runtime) return;
+        setCamera(snapshotCamera, false);
+        const renderStarted = performance.now();
+        app.render();
+        canvas.dataset.renderDurationMs = (performance.now() - renderStarted).toFixed(2);
+        publishRendererState(app, canvas);
+        if (!onCapture) return;
+        // Copy the freshly rendered buffer immediately. No second render or
+        // new WebGL context is needed, and each callback belongs to this job.
+        try {
+          const thumbnail = document.createElement("canvas");
+          thumbnail.width = 256;
+          thumbnail.height = Math.max(1, Math.round(256 * canvas.height / canvas.width));
+          const context = thumbnail.getContext("2d");
+          if (!context) throw new Error("Snapshot canvas is unavailable");
+          context.drawImage(canvas, 0, 0, thumbnail.width, thumbnail.height);
+          onCapture(thumbnail.toDataURL("image/png"));
+        } catch (error) {
+          console.error(error);
+          onCapture("");
+        }
+      });
     });
-  }, [blocks, cameraLayerRange, cameraSceneKey, captureSnapshot, compact, frame, genericBlockIds, selectedVoxelKeys, setCamera, snapshotRequestId, world]);
+    return () => { cancelled = true; window.cancelAnimationFrame(renderFrame); };
+  }, [status, sceneData, maximumLayer, cameraSceneKey, setCamera, snapshotCamera, snapshotRequestId]);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
+    let resizeFrame = 0;
     const observer = new ResizeObserver(() => {
-      const app = runtimeRef.current?.app;
-      if (!app) return;
-      app.setupCanvas();
-      app.threeRenderer?.invalidateSceneCache();
-      setCamera(undefined, false);
-      app.render();
-      if (canvasRef.current) publishRendererState(app, canvasRef.current);
+      window.cancelAnimationFrame(resizeFrame);
+      resizeFrame = window.requestAnimationFrame(() => {
+        const app = runtimeRef.current?.app;
+        if (!app) return;
+        app.setupCanvas();
+        setCamera(undefined, false);
+        app.render();
+        if (canvasRef.current) publishRendererState(app, canvasRef.current);
+      });
     });
     observer.observe(wrapper);
-    return () => observer.disconnect();
+    return () => { observer.disconnect(); window.cancelAnimationFrame(resizeFrame); };
   }, [setCamera]);
 
   useEffect(() => {
@@ -1030,6 +1015,23 @@ export default function MazeBenchCanvas({
     const runtime = runtimeRef.current;
     if (!canvas || !runtime?.app.threeRenderer?.isReady()) return null;
     return runtime.app.threeRenderer.pickEditorFace(clientX, clientY, canvas);
+  };
+
+  const clearHover = () => {
+    window.cancelAnimationFrame(hoverFrameIdRef.current);
+    hoverFrameIdRef.current = 0;
+    hoverPointRef.current = null;
+    runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(null);
+  };
+
+  const scheduleHover = (clientX: number, clientY: number) => {
+    hoverPointRef.current = { x: clientX, y: clientY };
+    if (hoverFrameIdRef.current) return;
+    hoverFrameIdRef.current = window.requestAnimationFrame(() => {
+      hoverFrameIdRef.current = 0;
+      const point = hoverPointRef.current;
+      if (point) runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(pick(point.x, point.y));
+    });
   };
 
   const paintFromPointer = (event: PaintPointerInput, initialSample = false) => {
@@ -1234,6 +1236,7 @@ export default function MazeBenchCanvas({
           paintFromPointer(pointerSample(event), true);
         }}
         onPointerMove={(event) => {
+          if (!interactive) return;
           const marquee = marqueeDragRef.current;
           if (marquee && marquee.pointerId === event.pointerId) {
             updateMarquee({ ...marquee, currentX: event.clientX, currentY: event.clientY });
@@ -1244,14 +1247,14 @@ export default function MazeBenchCanvas({
             setCamera({
               yaw: orbit.yaw - (event.clientX - orbit.x) * 0.009,
               tilt: Math.max(0, Math.min(Math.PI, orbit.tilt + (event.clientY - orbit.y) * 0.007)),
-            });
+            }, false);
+            scheduleCameraFrame();
             return;
           }
-          const target = pick(event.clientX, event.clientY);
-          runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(target);
+          scheduleHover(event.clientX, event.clientY);
           if (!selectionMode && (event.buttons & 1) === 1) schedulePaintSample(event);
         }}
-        onPointerLeave={() => runtimeRef.current?.app.threeRenderer?.setEditorHoverTarget(null)}
+        onPointerLeave={clearHover}
         onPointerUp={(event) => {
           finishMarquee(event);
           flushPendingPaint();
@@ -1288,13 +1291,16 @@ export default function MazeBenchCanvas({
         </div>
       )}
       {interactive && (
-        <div className="control-pad camera-pad" aria-label="Camera controls" title="− zooms out · + zooms in · E selects the eraser">
+        <div className="editor-camera-controls"><div className="control-pad camera-pad" aria-label="Camera controls" title="− zooms out · + zooms in · E selects the eraser">
           <button className="control-button dpad-button" type="button" data-camera="up" aria-label="Camera up" onPointerDown={() => { cameraMotionRef.current.pointerTiltDirection = -1; recomputeTiltDirection(); }} onPointerUp={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} onPointerLeave={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} />
           <button className="control-button dpad-button" type="button" data-camera="left" aria-label="Rotate camera left" onClick={() => rotateCamera(-1)} />
           <button className="dpad-center compass-reset" type="button" aria-label="Point camera north" title="Point north · N" onClick={pointCameraNorth}>N</button>
           <button className="control-button dpad-button" type="button" data-camera="right" aria-label="Rotate camera right" onClick={() => rotateCamera(1)} />
           <button className="control-button dpad-button" type="button" data-camera="down" aria-label="Camera down" onPointerDown={() => { cameraMotionRef.current.pointerTiltDirection = 1; recomputeTiltDirection(); }} onPointerUp={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} onPointerLeave={() => { cameraMotionRef.current.pointerTiltDirection = 0; recomputeTiltDirection(); }} />
-        </div>
+        </div><div className="editor-zoom" role="group" aria-label="Camera zoom">
+          <button type="button" aria-label="Zoom out" title="Zoom out · −" onClick={() => zoomCamera(-1)}>−</button>
+          <button type="button" aria-label="Zoom in" title="Zoom in · +" onClick={() => zoomCamera(1)}>+</button>
+        </div></div>
       )}
     </div>
   );
