@@ -25141,6 +25141,15 @@
         "side-lift"
       ],
       "file": "test-657.json"
+    },
+    {
+      "id": "regression-jxa-isolated-push",
+      "name": "J×A: a distant push cannot move blocked ramp boxes",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "regression-jxa-isolated-push.json"
     }
   ]
 }
