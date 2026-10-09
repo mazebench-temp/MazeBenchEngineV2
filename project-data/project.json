@@ -25143,6 +25143,16 @@
       "file": "test-657.json"
     },
     {
+      "id": "test-657-copy",
+      "name": "Untitled test 656 copy",
+      "groupTagId": "lift",
+      "tagIds": [
+        "and-box-2",
+        "side-lift"
+      ],
+      "file": "test-657-copy.json"
+    },
+    {
       "id": "regression-jxa-isolated-push",
       "name": "J×A: a distant push cannot move blocked ramp boxes",
       "groupTagId": "engine-regressions",
@@ -25150,6 +25160,15 @@
         "engine-regressions-slopes"
       ],
       "file": "regression-jxa-isolated-push.json"
+    },
+    {
+      "id": "regression-mxa-mounted-lift-contact",
+      "name": "M×A: second Up pushes through mounted lifts",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "regression-mxa-mounted-lift-contact.json"
     }
   ]
 }
