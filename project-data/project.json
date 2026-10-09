@@ -25169,6 +25169,15 @@
         "engine-regressions-slopes"
       ],
       "file": "regression-mxa-mounted-lift-contact.json"
+    },
+    {
+      "id": "regression-mxa-lowered-fixture-overlap",
+      "name": "M×A: third Up pushes a box with collapsed lifts",
+      "groupTagId": "engine-regressions",
+      "tagIds": [
+        "engine-regressions-slopes"
+      ],
+      "file": "regression-mxa-lowered-fixture-overlap.json"
     }
   ]
 }
