@@ -553,6 +553,108 @@ void TestCloneStacksReceiveOneRampCommand() {
   }
 }
 
+void TestRampStackCeilingsReflectTogether() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  constexpr const char* slopes[] = {
+      "ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (const bool clones : {false, true}) {
+    for (const int32_t blocked_step : {2, 3}) {
+      for (int32_t rotation = 0; rotation < 4; ++rotation) {
+        std::vector<voxelbench::Voxel> initial;
+        for (int32_t layer = 0; layer < 3; ++layer) {
+          const bool player = layer == (clones ? 2 : 0);
+          initial.push_back({2, 4, layer + 1,
+              Role(player ? "player" : clones ? "clone" : "weightless-pushable"),
+              player ? -1 : layer == 1 ? 71 : 29});
+        }
+        for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+          initial.push_back({x, y, 0, Role("floor"), -1});
+        }
+        for (int32_t step = 1; step <= blocked_step; ++step) {
+          for (int32_t z = 1; z <= step; ++z) initial.push_back({2, 4 - step, z,
+              Role(z == step ? slopes[rotation] : "solid"), -1});
+        }
+        // Step 2 hits the destination ceiling; step 3 hits the ceiling above
+        // the source even though its diagonal destination is otherwise clear.
+        initial.push_back({2, 2, blocked_step + 3, Role("solid"), -1});
+        for (auto& voxel : initial) for (int32_t turn = 0; turn < rotation; ++turn) {
+          const int32_t x = voxel.x;
+          voxel.x = 5 - voxel.y;
+          voxel.y = x;
+        }
+        for (const bool reversed : {false, true}) {
+          for (const bool prepared : {false, true}) {
+            auto voxels = initial;
+            if (reversed) std::reverse(voxels.begin(), voxels.begin() + 3);
+            const auto start = voxels;
+            const int32_t count = static_cast<int32_t>(voxels.size());
+            voxelbench::reset_workspace(&workspace);
+            voxelbench::reset_motion_state(&state);
+            if (prepared) Check(voxelbench::prepare_scene(
+                &workspace, voxels.data(), count, 6, 6, 3), "ramp ceiling should prepare");
+            for (int32_t tick = 1; tick <= 2 * (blocked_step - 1); ++tick) {
+              const auto result = voxelbench::step_tick(
+                  &workspace, &state, voxels.data(), count, 6, 6, rotation);
+              Check(result != voxelbench::TickResult::kInvalid && state.tick == tick,
+                  "ramp ceiling should reflect without adding idle ticks");
+              const int32_t distance = tick < blocked_step ? tick : 2 * (blocked_step - 1) - tick;
+              for (size_t index = 0; index < voxels.size(); ++index) {
+                auto expected = start[index];
+                if (index < 3) {
+                  constexpr int32_t dx[] = {0, 1, 0, -1};
+                  constexpr int32_t dy[] = {-1, 0, 1, 0};
+                  expected.x += dx[rotation] * distance;
+                  expected.y += dy[rotation] * distance;
+                  expected.z += distance;
+                }
+                Check(std::memcmp(&voxels[index], &expected, sizeof(expected)) == 0,
+                    "the complete stack must reflect before penetrating source or destination ceilings");
+              }
+            }
+            const auto final = voxels;
+            voxels = start;
+            voxelbench::reset_workspace(&workspace);
+            if (prepared) Check(voxelbench::prepare_scene(
+                &workspace, voxels.data(), count, 6, 6, 3), "ramp ceiling should reprepare");
+            Check(voxelbench::simulate_quiescent_turn(
+                &workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                std::memcmp(voxels.data(), final.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                "animated and prepared ceiling reflections must agree");
+          }
+        }
+      }
+    }
+  }
+}
+
+void TestBlockedClonePassengerFallsAfterSupportLeaves() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  std::vector<voxelbench::Voxel> start = {
+      {2, 4, 1, Role("clone"), 71}, {2, 4, 2, Role("clone"), 29},
+      {2, 4, 3, Role("player"), -1}, {2, 3, 3, Role("solid"), -1}};
+  for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+    start.push_back({x, y, 0, Role("floor"), -1});
+  }
+  for (const bool prepared : {false, true}) {
+    auto voxels = start;
+    const int32_t count = static_cast<int32_t>(voxels.size());
+    voxelbench::reset_workspace(&workspace);
+    voxelbench::reset_motion_state(&state);
+    if (prepared) Check(voxelbench::prepare_scene(
+        &workspace, voxels.data(), count, 6, 6, 3), "blocked passenger should prepare");
+    for (int32_t tick = 1; tick <= 3; ++tick) {
+      const auto result = voxelbench::step_tick(
+          &workspace, &state, voxels.data(), count, 6, 6, 0);
+      Check(result != voxelbench::TickResult::kInvalid && state.tick == tick &&
+                voxels[0].y == 3 && voxels[1].y == 3 &&
+                voxels[2].y == 4 && voxels[2].z == 4 - tick,
+            "a denied player carry falls one cell per following tick without moving again");
+    }
+  }
+}
+
 void TestRampPassengersStopWithGroundedCarrier() {
   static voxelbench::PhysicsWorkspace workspace;
   static voxelbench::MotionState state;
@@ -4292,6 +4394,8 @@ int main() {
   Run(TestSparseStackCarryIgnoresUnrelatedSlopes, "TestSparseStackCarryIgnoresUnrelatedSlopes");
   Run(TestTallStacksFollowRampCarrierTicks, "TestTallStacksFollowRampCarrierTicks");
   Run(TestCloneStacksReceiveOneRampCommand, "TestCloneStacksReceiveOneRampCommand");
+  Run(TestRampStackCeilingsReflectTogether, "TestRampStackCeilingsReflectTogether");
+  Run(TestBlockedClonePassengerFallsAfterSupportLeaves, "TestBlockedClonePassengerFallsAfterSupportLeaves");
   Run(TestRampPassengersStopWithGroundedCarrier, "TestRampPassengersStopWithGroundedCarrier");
   Run(TestBlockedCloneRampMomentumCompletes, "TestBlockedCloneRampMomentumCompletes");
   Run(TestInterlockedPushDoesNotInventMomentum, "TestInterlockedPushDoesNotInventMomentum");

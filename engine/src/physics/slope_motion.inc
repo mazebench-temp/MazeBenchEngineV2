@@ -172,12 +172,15 @@ bool TranslateSlopeMomentumObjects(
     // Serialized Ice momentum also belongs to ordinary carried boxes. Without
     // rebuilding that relationship they propose a level move while their
     // ramp-supported carrier climbs, and the stack collides with itself.
+    // An uphill reflection reverses the stack together; a sideways ramp turn
+    // still lets independently arriving momentum continue on its own axis.
     const bool follows_carrier = !allow_push &&
         g_object_falling[object] == 0 &&
         !ObjectIsFullyOnIce(voxels, object, width, height) &&
         g_component_indegree[object] <= 3 &&
         g_component_indegree[object] == g_component_indegree[carrier] &&
-        g_object_direction[carrier] == g_component_indegree[carrier];
+        (g_object_direction[carrier] == g_component_indegree[carrier] ||
+         g_object_direction[carrier] == OppositeDirection(g_component_indegree[carrier]));
     if (!rider_is_movable_ramp && !follows_carrier) continue;
     g_carried_objects[object] = follows_carrier ? 2 : 1;
   }

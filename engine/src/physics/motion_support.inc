@@ -199,7 +199,12 @@ int32_t MovingSupportBelowObject(
     bool carry_from_player,
     int32_t width,
     int32_t height,
-    bool player_is_vacating = false) {
+    bool player_is_vacating = false,
+    const uint64_t* moving_objects = nullptr) {
+  const auto support_moves = [&](int32_t support) {
+    return moving_objects == nullptr ? g_moving_objects[support] != 0
+        : (moving_objects[support / 64] & (uint64_t{1} << (support % 64))) != 0;
+  };
   // A mounted fixture participates in the carrier footprint of its complete
   // rigid assembly. If that fixture is resting on a moving body, the mount
   // transmits the carry even when another part of the assembly also has a
@@ -228,7 +233,7 @@ int32_t MovingSupportBelowObject(
           : -1;
       if (support_object >= 0 && support_object != object &&
           support_object != lift_object &&
-          g_moving_objects[support_object] != 0) {
+          support_moves(support_object)) {
         return support_object;
       }
     }
@@ -241,7 +246,7 @@ int32_t MovingSupportBelowObject(
   if (attachment >= 0) {
     const int32_t support_object = g_voxel_object[attachment];
     if (support_object >= 0 && support_object != object &&
-        g_moving_objects[support_object] != 0) {
+        support_moves(support_object)) {
       return support_object;
     }
     return -1;
@@ -268,7 +273,7 @@ int32_t MovingSupportBelowObject(
     }
     const int32_t support_object = g_voxel_object[support];
     if (support_object >= 0 && support_object != object &&
-        g_moving_objects[support_object] != 0) {
+        support_moves(support_object)) {
       if (moving_support == -1) moving_support = support_object;
       continue;
     }

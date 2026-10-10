@@ -299,6 +299,14 @@ bool AdvanceCloneCommandObjects(
               voxels, player_index, player_rider, width, height)) {
         state->player_gravity_armed = 1;
         BuildSpatialIndex(voxels, count, width, height);
+      } else if (voxels[player_index].z != INT32_MIN &&
+                 FindVoxelAt(voxels, voxels[player_index].x,
+                     voxels[player_index].y, voxels[player_index].z - 1,
+                     width, height) < 0) {
+        // A blocked passenger stays behind while its support leaves. Start
+        // gravity on the following tick even if its own command is blocked.
+        state->player_gravity_armed = 1;
+        state->player_falling = 1;
       }
     }
     advanced = true;
@@ -552,7 +560,8 @@ TickResult step_tick(
     } else if (pending_punch.object) {
       phase = kMotionObjectIce;
     }
-    if (phase == kMotionComplete && IsPlayerPunchPhase(state->phase) &&
+    if (phase == kMotionComplete &&
+        (IsPlayerPunchPhase(state->phase) || state->player_falling != 0) &&
         !player_is_rigid_object) {
       const Voxel& punched_player = voxels[state->player_index];
       if (IsInsideRoom(

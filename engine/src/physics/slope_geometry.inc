@@ -26,6 +26,82 @@ bool CanPushSlopeContactChain(
     Voxel* voxels, int32_t object, int32_t direction,
     int32_t width, int32_t height);
 
+// An ascending ramp lifts the whole supported assembly. Check both the
+// destination and the vertical sweep above its source before choosing an
+// uphill heading; dropping a blocked passenger would let its carrier lift
+// through it. This read-only closure uses the ordinary carry support rules.
+bool UphillAssemblyIsBlocked(
+    Voxel* voxels, const Voxel& foot, int32_t direction,
+    int32_t width, int32_t height) {
+  constexpr int32_t kDx[] = {0, 1, 0, -1};
+  constexpr int32_t kDy[] = {-1, 0, 1, 0};
+  WorkspaceData& workspace = ActiveWorkspace();
+  uint64_t* assembly = workspace.slope_ascent_objects;
+  const auto includes = [&](int32_t object) {
+    return object >= 0 && (assembly[object / 64] & (uint64_t{1} << (object % 64))) != 0;
+  };
+  const int32_t root = g_voxel_object[static_cast<int32_t>(&foot - voxels)];
+  int32_t player_index = -1;
+  for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
+    if (voxels[index].role == kPlayerRole &&
+        IsInsideRoom(voxels[index].x, voxels[index].y, width, height)) {
+      player_index = index;
+      break;
+    }
+  }
+  const bool carry_from_player = foot.role == kPlayerRole;
+  for (int32_t word = 0; word < (g_object_count + 63) / 64; ++word) assembly[word] = 0;
+  if (root >= 0) assembly[root / 64] |= uint64_t{1} << (root % 64);
+  bool changed = true;
+  while (changed) {
+    changed = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      if (includes(object) || g_object_falling[object] != 0 ||
+          !ObjectIsActive(voxels, object, width, height)) continue;
+      if (MovingSupportBelowObject(voxels, object, player_index,
+              carry_from_player, width, height, false, assembly) != -1) {
+        assembly[object / 64] |= uint64_t{1} << (object % 64);
+        changed = true;
+      }
+    }
+  }
+  bool player_is_carried = carry_from_player;
+  if (!player_is_carried && player_index >= 0 &&
+      voxels[player_index].z != INT32_MIN) {
+    const Voxel& player = voxels[player_index];
+    const int32_t support = FindVoxelAt(
+        voxels, player.x, player.y, player.z - 1, width, height);
+    const int32_t carrier = support >= 0 ? g_voxel_object[support] : -1;
+    player_is_carried = includes(carrier);
+  }
+  const auto blocked = [&](const Voxel& member) {
+    if (member.z == INT32_MAX) return true;
+    for (int32_t destination = 0; destination < 2; ++destination) {
+      const int32_t x = member.x + (destination ? kDx[direction] : 0);
+      const int32_t y = member.y + (destination ? kDy[direction] : 0);
+      const int32_t occupant = FindVoxelAt(
+          voxels, x, y, member.z + 1, width, height);
+      if (occupant < 0 || MovingFixtureIgnoresOccupant(member, &voxels[occupant])) continue;
+      const int32_t other = g_voxel_object[occupant];
+      if (includes(other) ||
+          (occupant == player_index && player_is_carried)) continue;
+      if (destination && other >= 0 &&
+          ((g_mandatory_objects[other] != 0 && g_object_direction[other] == direction) ||
+           CanPushSlopeContactChain(voxels, other, direction, width, height))) continue;
+      return true;
+    }
+    return false;
+  };
+  for (int32_t object = 0; object < g_object_count; ++object) {
+    if (!includes(object)) continue;
+    for (int32_t member = g_object_head[object]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (blocked(voxels[member])) return true;
+    }
+  }
+  return player_is_carried && player_index >= 0 && blocked(voxels[player_index]);
+}
+
 int32_t RedirectSlopeDirection(
     Voxel* voxels,
     const Voxel& voxel,
@@ -53,7 +129,8 @@ int32_t RedirectSlopeDirection(
       voxels, next_x, next_y, voxel.z, width, height);
   if (ascending_slope >= 0 &&
       IceSlopeDirection(voxels[ascending_slope].role) == direction) {
-    return direction;
+    return UphillAssemblyIsBlocked(voxels, voxel, direction, width, height)
+        ? OppositeDirection(direction) : direction;
   }
   const int32_t same_height_occupant = FindVoxelAt(
       voxels, next_x, next_y, voxel.z, width, height);

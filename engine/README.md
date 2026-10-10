@@ -41,6 +41,12 @@ consumes that tick's directional input, so an upper clone cannot take another
 step after inheriting its carrier's full ramp movement. Group IDs and voxel
 storage order must not change the stack's animation or search successor.
 
+Uphill Ice momentum checks clearance for the complete carried stack, including
+the player's passenger cell and the vertical sweep above the source. A low
+ceiling reflects the stack downhill together. On a level move, a blocked player
+passenger stays behind and begins falling on the following tick when its
+support leaves.
+
 The `floor` role is intentionally distinct from ordinary solid support: a
 player may deliberately walk off a floor edge, but cannot deliberately walk
 off other support. Ice momentum may carry it beyond any support.
