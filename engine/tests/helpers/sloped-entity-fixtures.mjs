@@ -40,7 +40,7 @@ export function slopedEntityFixture(family, scenario, { orientation = 'right', i
     const distance = blocked ? 0 : index + 1;
     return [...terrain, shift(player, isClone ? -Math.min(index + 1, 1) : -Math.min(distance, 1)),
       ...body.map(v => shift(v, -distance)),
-      ...extras.filter(v => !(hasGem && isClone)).map(v => hasGem || blocked ? v : shift(v, -distance)),
+      ...extras.map(v => hasGem || blocked ? v : shift(v, -distance)),
       ...other.map(v => v.blockId === 'yellow-clone-slope' ? shift(v) : v)];
   });
   const descriptions = {
@@ -55,8 +55,8 @@ export function slopedEntityFixture(family, scenario, { orientation = 'right', i
     'push-crate': 'The mixed body pushes one Sokoban crate exactly once, with no split or extra momentum.',
     'two-crates': 'Two crates exceed the push budget and block the whole body, including its remote slope member.',
     'push-floor': 'A supported Floating Floor can be pushed one tile by the mixed body.',
-    gem: 'A yellow clone member collects the gem it enters. A blue box at the same cell does not collect it.',
-    'slope-gem': 'The slope member itself enters the gem cell. A yellow slope collects the gem; a blue slope leaves it in place.',
+    gem: 'A yellow clone member or blue box enters the gem cell without collecting it. Only the player can collect gems.',
+    'slope-gem': 'The slope member itself enters the gem cell. Both yellow and blue slopes leave the gem in place.',
     'remote-ramp': 'An isolated Ice slope must not add momentum to an ordinary mixed-body push.',
   };
   return { family, scenario, folder: definition.folder, section: ['ice','mixed-ice','rider'].includes(scenario) ? 'support' : ['push-crate','two-crates','push-floor','gem','slope-gem'].includes(scenario) ? 'interactions' : 'rigid',

@@ -505,7 +505,7 @@ void CollectGoalsAtPlayer(
   }
 }
 
-void CollectGoalsAtActors(
+void CollectGoalsAtPlayerBody(
     Voxel* voxels,
     int32_t count,
     int32_t player_index,
@@ -519,8 +519,8 @@ void CollectGoalsAtActors(
       return;
     }
     for (int32_t index = 0; index < count; ++index) {
-      if ((IsCloneObjectRole(voxels[index].role) ||
-           voxels[index].role == kPlayerRole) &&
+      // Every player-polycube member can collect; clones of any shape cannot.
+      if (voxels[index].role == kPlayerRole &&
           voxels[index].x == goal.x && voxels[index].y == goal.y &&
           voxels[index].z == goal.z) {
         goal.x = -1;

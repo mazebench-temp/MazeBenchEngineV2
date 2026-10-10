@@ -583,7 +583,7 @@ TickResult step_tick(
     state->phase = phase;
     if (advanced) ++state->tick;
     if (phase == kMotionComplete) {
-      CollectGoalsAtActors(
+      CollectGoalsAtPlayerBody(
           voxels, count, state->player_index, width, height);
     }
     StoreObjectMotion(state, count);

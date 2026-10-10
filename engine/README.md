@@ -51,6 +51,10 @@ The `floor` role is intentionally distinct from ordinary solid support: a
 player may deliberately walk off a floor edge, but cannot deliberately walk
 off other support. Ice momentum may carry it beyond any support.
 
+Only the player collects gems at the end of a command, including any member
+of a player polycube. Clones, including yellow clone slopes, may overlap gems
+without collecting them. Search uses this same collection rule.
+
 A host temporarily combining rooms may set `kCloneNoCommandIdFlag` on clone
 generic IDs outside the command's starting room. Those clones ignore the
 initial directional input while retaining their physical clone behavior.

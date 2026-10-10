@@ -1220,7 +1220,7 @@ void TestInterlockingCloneCommandComponent() {
         "destination-linked clone polycubes should translate atomically");
 }
 
-void TestExactSearchTracksCloneActors() {
+void TestExactSearchCannotCollectGoalsThroughClones() {
   static voxelbench::PhysicsWorkspace physics_workspace;
   static voxelbench::SearchWorkspace search_workspace;
   voxelbench::Voxel voxels[] = {
@@ -1235,10 +1235,9 @@ void TestExactSearchTracksCloneActors() {
   voxelbench::reset_workspace(&physics_workspace);
   const auto result = voxelbench::search_shortest(
       &search_workspace, &physics_workspace, voxels, 7, 3, 3, 1000);
-  Check(result.status == voxelbench::SearchStatus::kSolved &&
-            result.moves == 1 && result.solution_length == 1 &&
-            result.solution[0] == 0,
-        "exact search should encode clone motion and let a clone collect a gem");
+  Check(result.status == voxelbench::SearchStatus::kUnsolved &&
+            result.solution_length == 0,
+        "exact search must not solve a gem reachable only by a clone");
 }
 
 void TestPlayerPolycubeMovesAndFallsRigidly() {
@@ -1911,6 +1910,63 @@ void TestBoxMayOverlapGemWithoutCollectingIt() {
         "the box should overlap the non-rigid gem");
   Check(voxels[5].x == 1 && voxels[5].y == 0,
         "a box must not collect the gem");
+}
+
+void TestClonesCannotCollectGoals() {
+  static voxelbench::PhysicsWorkspace workspace;
+  const char* roles[] = {"clone", "yellow-clone-slope-up",
+      "yellow-clone-slope-right", "yellow-clone-slope-down",
+      "yellow-clone-slope-left"};
+  for (const char* role : roles) {
+    for (bool polycube : {false, true}) {
+      for (bool reversed : {false, true}) {
+        for (bool prepared : {false, true}) {
+          std::vector<voxelbench::Voxel> voxels = {
+              {0, 2, 1, Role("player"), -1},
+              {2, 2, 1, Role(role), 71},
+              {2, 1, 1, Role("goal"), -1},
+              {0, 1, 1, Role("goal"), -1},
+          };
+          if (polycube) {
+            voxels.push_back({1, 2, 1, Role("player"), -1});
+            voxels.push_back({1, 1, 1, Role("goal"), -1});
+          }
+          const int32_t dynamic_count = static_cast<int32_t>(voxels.size());
+          if (reversed) std::reverse(voxels.begin(), voxels.end());
+          for (int32_t y = 0; y < 3; ++y) {
+            for (int32_t x = 0; x < 3; ++x) {
+              voxels.push_back({x, y, 0, Role("floor"), -1});
+            }
+          }
+          const int32_t count = static_cast<int32_t>(voxels.size());
+          voxelbench::reset_workspace(&workspace);
+          if (prepared) {
+            Check(voxelbench::prepare_scene(
+                      &workspace, voxels.data(), count, 3, 3, dynamic_count),
+                  "player-only gem scene should prepare");
+          }
+          const int32_t result = prepared
+              ? voxelbench::simulate_quiescent_turn(
+                    &workspace, voxels.data(), count, 3, 3, 0)
+              : voxelbench::simulate_turn(
+                    &workspace, voxels.data(), count, 3, 3, 0);
+          Check(result == 0, "clone and player gem contacts should complete");
+          for (int32_t index = 0; index < dynamic_count; ++index) {
+            const auto& voxel = voxels[static_cast<size_t>(index)];
+            if (voxel.role == Role(role) || voxel.role == Role("player")) {
+              Check(voxel.y == 1 && voxel.z == 1,
+                    "gem contact must not block either actor");
+            } else if (voxel.role == Role("goal")) {
+              Check(index == (reversed ? dynamic_count - 3 : 2)
+                        ? voxel.x == 2 && voxel.y == 1 && voxel.z == 1
+                        : voxel.x < 0,
+                    "only player contacts, including polycube members, collect gems");
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 void TestSlidingAcrossGemDoesNotCollectIt() {
@@ -4410,7 +4466,7 @@ int main() {
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
-  Run(TestExactSearchTracksCloneActors, "TestExactSearchTracksCloneActors");
+  Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
   Run(TestPlayerPolycubeMovesAndFallsRigidly, "TestPlayerPolycubeMovesAndFallsRigidly");
   Run(TestExactSearchTracksPlayerPolycube, "TestExactSearchTracksPlayerPolycube");
   Run(TestEveryBoundary, "TestEveryBoundary");
@@ -4436,6 +4492,7 @@ int main() {
   Run(TestSearchPrunesPlayerGameOverBranches, "TestSearchPrunesPlayerGameOverBranches");
   Run(TestPlayerCollectsGemOnlyAtCommandEnd, "TestPlayerCollectsGemOnlyAtCommandEnd");
   Run(TestBoxMayOverlapGemWithoutCollectingIt, "TestBoxMayOverlapGemWithoutCollectingIt");
+  Run(TestClonesCannotCollectGoals, "TestClonesCannotCollectGoals");
   Run(TestSlidingAcrossGemDoesNotCollectIt, "TestSlidingAcrossGemDoesNotCollectIt");
   Run(TestPlayerSettlesBeforeHorizontalInput, "TestPlayerSettlesBeforeHorizontalInput");
   Run(TestPolycubeSettlesAsOneBodyBeforeHorizontalInput, "TestPolycubeSettlesAsOneBodyBeforeHorizontalInput");

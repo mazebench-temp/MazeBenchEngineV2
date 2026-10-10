@@ -20,8 +20,8 @@ The test matrix checks four whole-room rotations, IDs 0 and 1007, and three
 voxel input orders. Mixed-body cases additionally check all four relative slope
 orientations. This produces **3,120 command configurations**, each checked
 through both APIs. Moving slopes retain their existing distinct semantics:
-yellow slopes receive directional commands and collect gems, while blue slopes
-are pushed and leave gems intact.
+yellow slopes receive directional commands, while blue slopes are pushed.
+Both leave gems intact; only the player can collect gems.
 
 The existing fixed Ice-slope catalog remains part of the complete suite. These
 additions focus on moving slopes and their interactions; they do not claim an
