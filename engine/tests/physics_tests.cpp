@@ -1070,6 +1070,78 @@ void TestIndependentCloneCommands() {
         "an unblocked clone should still receive the shared command");
 }
 
+void TestPlayerAndCloneSlidesFinishIndependently() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  for (bool ramps : {false, true}) for (bool swapped : {false, true}) {
+    for (int32_t rotation = 0; rotation < 4; ++rotation) {
+      for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+        std::vector<voxelbench::Voxel> start = {
+            {0, 5, 1, Role(swapped ? "clone" : "player"), swapped ? 71 : -1},
+            {3, 5, 1, Role(swapped ? "player" : "clone"), swapped ? -1 : 71},
+        };
+        if (reversed) std::reverse(start.begin(), start.end());
+        for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+          const bool icy = !ramps &&
+              ((x == 0 && (y == 3 || y == 4)) || (x == 3 && y == 4));
+          start.push_back({x, y, 0, Role(icy ? "ice" : "floor"), -1});
+        }
+        start.push_back({3, 3, 1, Role("wall"), -1});
+        if (ramps) {
+          const char* directions[] = {"ice-slope-up", "ice-slope-right",
+              "ice-slope-down", "ice-slope-left"};
+          start.push_back({0, 4, 1, Role(directions[rotation]), -1});
+          start.push_back({0, 3, 1, Role(directions[(rotation + 2) % 4]), -1});
+          start.push_back({3, 4, 1, Role(directions[rotation]), -1});
+        }
+        for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+          const int32_t x = voxel.x;
+          voxel.x = 5 - voxel.y;
+          voxel.y = x;
+        }
+        const auto expected_tick = [&](int32_t tick) {
+          auto expected = start;
+          constexpr int32_t dx[] = {0, 1, 0, -1};
+          constexpr int32_t dy[] = {-1, 0, 1, 0};
+          for (size_t index = 0; index < 2; ++index) {
+            const bool free_lane = (index == 0) != reversed;
+            const int32_t distance = free_lane ? tick : std::min(tick, ramps ? 2 : 1);
+            expected[index].x += dx[rotation] * distance;
+            expected[index].y += dy[rotation] * distance;
+            expected[index].z = ramps && (!free_lane || tick < 3) ? 2 : 1;
+          }
+          return expected;
+        };
+        auto voxels = start;
+        const int32_t count = static_cast<int32_t>(voxels.size());
+        voxelbench::reset_workspace(&workspace);
+        voxelbench::reset_motion_state(&motion);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, 2), "independent slides should prepare");
+        for (int32_t tick = 1; tick <= 3; ++tick) {
+          Check(voxelbench::step_tick(&workspace, &motion, voxels.data(), count,
+                    6, 6, rotation) == (tick < 3
+                        ? voxelbench::TickResult::kMore : voxelbench::TickResult::kComplete),
+                "one stopped actor must not end the other actor's slide");
+          const auto expected = expected_tick(tick);
+          Check(motion.tick == tick &&
+                    std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                "player and clone must each advance only along their own clear path");
+        }
+        voxels = start;
+        voxelbench::reset_workspace(&workspace);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, 2), "independent slides should reprepare");
+        const auto expected = expected_tick(3);
+        Check(voxelbench::simulate_quiescent_turn(
+                  &workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                  std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+              "search and animated play must agree on independent slide endpoints");
+      }
+    }
+  }
+}
+
 void TestActorPolycubesPushThroughMountedLifts() {
   for (const bool player_body : {false, true}) {
     for (const bool remote_slope : {false, true}) {
@@ -4462,6 +4534,7 @@ int main() {
   Run(TestIceStopsAtObstacle, "TestIceStopsAtObstacle");
   Run(TestUnknownRoleBlocks, "TestUnknownRoleBlocks");
   Run(TestIndependentCloneCommands, "TestIndependentCloneCommands");
+  Run(TestPlayerAndCloneSlidesFinishIndependently, "TestPlayerAndCloneSlidesFinishIndependently");
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");

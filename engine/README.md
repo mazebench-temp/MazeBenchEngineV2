@@ -51,6 +51,10 @@ The `floor` role is intentionally distinct from ordinary solid support: a
 player may deliberately walk off a floor edge, but cannot deliberately walk
 off other support. Ice momentum may carry it beyond any support.
 
+Player and clone slides finish independently. A clone landing on ordinary
+support or hitting an obstruction does not cancel the player's clear Ice
+proposal; a stopped player likewise does not stop a separate sliding clone.
+
 Only the player collects gems at the end of a command, including any member
 of a player polycube. Clones, including yellow clone slopes, may overlap gems
 without collecting them. Search uses this same collection rule.

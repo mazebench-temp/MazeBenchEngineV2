@@ -1082,6 +1082,28 @@ TickResult step_tick(
         }
       }
     }
+    bool player_lift_pending = false;
+    const auto advance_independent_player_ice = [&]() {
+      if (!player_has_ice_momentum) return false;
+      Voxel& sliding_player = voxels[player_index];
+      const int32_t next_x = sliding_player.x + player_ice_dx;
+      const int32_t next_y = sliding_player.y + player_ice_dy;
+      const int32_t next_z = sliding_player.z + player_ice_dz;
+      if (!IsInsideRoom(next_x, next_y, width, height) ||
+          FindVoxelAt(voxels, next_x, next_y, next_z, width, height) >= 0) {
+        return false;
+      }
+      const int32_t slide_from_x = sliding_player.x;
+      const int32_t slide_from_y = sliding_player.y;
+      sliding_player.x = next_x;
+      sliding_player.y = next_y;
+      sliding_player.z = next_z;
+      player_lift_pending = PlayerLiftCanToggleOnEntry(
+          voxels, count, player_index, slide_from_x, slide_from_y,
+          width, height);
+      state->direction = player_ice_direction;
+      return true;
+    };
     g_ignored_support_voxel = player_index;
     bool player_was_pushed = false;
     const bool translated = directional_object_motion
@@ -1114,6 +1136,14 @@ TickResult step_tick(
                   player_vacates_vertically);
     g_ignored_support_voxel = -1;
     if (!translated) {
+      // A blocked clone/body spends its own proposal. The player's separate
+      // Ice proposal still belongs to this tick if its destination is clear.
+      const bool player_advanced = advance_independent_player_ice();
+      if (player_advanced) BuildSpatialIndex(voxels, count, width, height);
+      if (player_lift_pending) {
+        ClearHorizontalMomentum(state, count);
+        return store_and_finish(kMotionPlayerLift, true, true);
+      }
       MarkObjectsForDeferredGravity(voxels, width, height, false);
       defer_player_gravity(false, false, true);
       const bool gravity_continues =
@@ -1133,9 +1163,15 @@ TickResult step_tick(
             ? kResumeObjectIce
             : kResumeNothing;
       }
+      const bool player_ice_continues = player_advanced &&
+          IsSupportedByIce(voxels, voxels[player_index], width, height);
+      if (gravity_continues && !resume_object_ice && player_ice_continues) {
+        state->reserved[0] = kResumePlayerIce;
+      }
       return store_and_finish(
-          gravity_continues ? kMotionGravity : kMotionComplete,
-          ObjectsAdvancedThisTick(),
+          gravity_continues ? kMotionGravity
+              : player_ice_continues ? kMotionPlayerIce : kMotionComplete,
+          ObjectsAdvancedThisTick() || player_advanced,
           true);
     }
 
@@ -1184,7 +1220,6 @@ TickResult step_tick(
         resolve_player_gravity(false, false, true);
     bool player_moved_after_translation =
         player_rode_object || player_was_pushed || player_fell_with_objects;
-    bool player_lift_pending = false;
     if (!player_rode_object && !player_was_pushed &&
         player_has_ice_momentum) {
       // A deliberate push can put both the body and the player onto Ice. From
@@ -1192,34 +1227,7 @@ TickResult step_tick(
       // the body vacates its trailing cell and the player slides into it.
       // Keeping these proposals synchronized also prevents the player from
       // spuriously pushing the body an extra cell after its own delayed slide.
-      Voxel& sliding_player = voxels[player_index];
-      const int32_t next_x = sliding_player.x + player_ice_dx;
-      const int32_t next_y = sliding_player.y + player_ice_dy;
-      const int32_t next_z = sliding_player.z + player_ice_dz;
-      if (IsInsideRoom(next_x, next_y, width, height) &&
-          FindVoxelAt(
-              voxels,
-              next_x,
-              next_y,
-              next_z,
-              width,
-              height) < 0) {
-        const int32_t slide_from_x = sliding_player.x;
-        const int32_t slide_from_y = sliding_player.y;
-        sliding_player.x = next_x;
-        sliding_player.y = next_y;
-        sliding_player.z = next_z;
-        player_lift_pending = PlayerLiftCanToggleOnEntry(
-            voxels,
-            count,
-            player_index,
-            slide_from_x,
-            slide_from_y,
-            width,
-            height);
-        state->direction = player_ice_direction;
-        player_moved_after_translation = true;
-      }
+      player_moved_after_translation |= advance_independent_player_ice();
     }
     if (player_moved_after_translation) {
       BuildSpatialIndex(voxels, count, width, height);
@@ -1284,13 +1292,16 @@ TickResult step_tick(
       }
       state->reserved[0] = kResumeObjectIce;
     } else {
-      state->reserved[0] = state->reserved[1] == 0 && IsSupportedByIce(
-          voxels, voxels[player_index], width, height)
+      state->reserved[0] = player_moved_after_translation &&
+          state->reserved[1] == 0 && IsSupportedByIce(
+              voxels, voxels[player_index], width, height)
           ? kResumePlayerIce
           : kResumeNothing;
     }
     return store_and_finish(
-        gravity_continues ? kMotionGravity : kMotionComplete,
+        gravity_continues ? kMotionGravity
+            : state->reserved[0] == kResumePlayerIce
+                ? kMotionPlayerIce : kMotionComplete,
         true,
         true);
   }

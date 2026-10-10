@@ -25322,6 +25322,15 @@
         "clone-default"
       ],
       "file": "test-676.json"
+    },
+    {
+      "id": "test-677",
+      "name": "Untitled test 677",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-677.json"
     }
   ]
 }
