@@ -25205,6 +25205,15 @@
         "punchers-default"
       ],
       "file": "test-663.json"
+    },
+    {
+      "id": "regression-axp-walk-on-polycube",
+      "name": "AxP: walk across object 3 after pushing Right",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "regression-axp-walk-on-polycube.json"
     }
   ]
 }
