@@ -25214,6 +25214,24 @@
         "box-slopes-default"
       ],
       "file": "regression-axp-walk-on-polycube.json"
+    },
+    {
+      "id": "test-665",
+      "name": "Untitled test 665",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-665.json"
+    },
+    {
+      "id": "test-666",
+      "name": "Untitled test 666",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-666.json"
     }
   ]
 }
