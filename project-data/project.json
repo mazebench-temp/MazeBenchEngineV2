@@ -25178,6 +25178,24 @@
         "engine-regressions-slopes"
       ],
       "file": "regression-mxa-lowered-fixture-overlap.json"
+    },
+    {
+      "id": "test-661",
+      "name": "Blue box slope: Ice momentum enters the low edge",
+      "groupTagId": "box-slopes",
+      "tagIds": [
+        "box-slopes-default"
+      ],
+      "file": "test-661.json"
+    },
+    {
+      "id": "test-662",
+      "name": "Ice slope: Ice momentum enters the low edge",
+      "groupTagId": "lifts",
+      "tagIds": [
+        "lifts-default"
+      ],
+      "file": "test-662.json"
     }
   ]
 }
