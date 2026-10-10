@@ -1318,6 +1318,56 @@ void TestWideActorsCannotClimbWallsBesideRamps() {
   }
 }
 
+void TestCloneRefillsCarriedPlayerCell() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  const char* slopes[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (bool blocked : {false, true}) for (bool cargo : {false, true}) {
+    for (bool remote_slope : {false, true}) for (int32_t rotation = 0; rotation < 4; ++rotation) {
+      for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+        std::vector<voxelbench::Voxel> start = {
+            {2, 4, 1, Role("clone"), 29}, {2, 5, 1, Role("clone"), 29},
+            {2, 5, 2, Role("clone"), 29}, {2, 4, 2, Role("player"), -1}};
+        if (cargo) start.push_back({2, 4, 3, Role("weightless-pushable"), 71});
+        const int32_t dynamic_count = static_cast<int32_t>(start.size());
+        if (reversed) std::reverse(start.begin(), start.end());
+        for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+          start.push_back({x, y, 0, Role("floor"), -1});
+        }
+        if (blocked) start.push_back({2, 3, 2, Role("wall"), -1});
+        if (remote_slope) start.push_back({5, 0, 1, Role(slopes[rotation]), -1});
+        for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+          const int32_t x = voxel.x;
+          voxel.x = 5 - voxel.y;
+          voxel.y = x;
+        }
+        auto expected = start;
+        if (!blocked) for (int32_t i = 0; i < dynamic_count; ++i) {
+          expected[static_cast<size_t>(i)].x += rotation == 1 ? 1 : rotation == 3 ? -1 : 0;
+          expected[static_cast<size_t>(i)].y += rotation == 0 ? -1 : rotation == 2 ? 1 : 0;
+        }
+        auto voxels = start;
+        const int32_t count = static_cast<int32_t>(voxels.size());
+        voxelbench::reset_workspace(&workspace);
+        voxelbench::reset_motion_state(&motion);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "interlocking clone rider should prepare");
+        Check(voxelbench::step_tick(&workspace, &motion, voxels.data(), count, 6, 6, rotation) ==
+                  voxelbench::TickResult::kComplete && motion.tick == 1 &&
+                  std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+              "a clone may refill its rider's old cell only when the rider's carried destination is clear");
+        voxels = start;
+        voxelbench::reset_workspace(&workspace);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "interlocking clone rider should reprepare");
+        Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                  std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+              "prepared search must agree with animated interlocking clone carrying");
+      }
+    }
+  }
+}
+
 void TestActorPolycubesPushThroughMountedLifts() {
   for (const bool player_body : {false, true}) {
     for (const bool remote_slope : {false, true}) {
@@ -4714,6 +4764,7 @@ int main() {
   Run(TestCloneCannotWalkOntoDepartingPlayerCargo, "TestCloneCannotWalkOntoDepartingPlayerCargo");
   Run(TestCloneCarriesCargoThroughPlayerPassenger, "TestCloneCarriesCargoThroughPlayerPassenger");
   Run(TestWideActorsCannotClimbWallsBesideRamps, "TestWideActorsCannotClimbWallsBesideRamps");
+  Run(TestCloneRefillsCarriedPlayerCell, "TestCloneRefillsCarriedPlayerCell");
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");

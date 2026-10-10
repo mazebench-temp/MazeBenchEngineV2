@@ -269,16 +269,30 @@ bool AdvanceCloneCommandObjects(
     if (ledge_blocked) continue;
 
     ClearMovingObjects();
+    const bool slope_scene = SceneHasIceSlopes(voxels, count, width, height);
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
       g_mandatory_objects[object] = 1;
       g_moving_objects[object] = 1;
       g_object_direction[object] = static_cast<uint8_t>(direction);
+      if (slope_scene) {
+        PrepareSlopeObjectProposal(voxels, object, width, height, false, true);
+      } else {
+        g_object_dx[object] = static_cast<int8_t>(dx);
+        g_object_dy[object] = static_cast<int8_t>(dy);
+        g_object_dz[object] = 0;
+      }
     }
     const RiderSnapshot player_rider =
         CapturePlayerRider(voxels, player_index, width, height);
+    // A rider need not be able to walk off this body independently. Its
+    // carrier can refill its old cell while transporting it to a clear cell.
+    // Validate that carried destination before allowing the old cell to yield.
+    const bool player_rides_component = player_rider.object >= 0 &&
+        MovingPlayerCarrier(voxels, player_index, width, height) == player_rider.object;
+    const bool player_vacates = player_will_vacate || player_rides_component;
     bool player_was_pushed = false;
-    const bool moved = SceneHasIceSlopes(voxels, count, width, height)
+    const bool moved = slope_scene
         ? TranslateSlopeMomentumObjects(
               voxels,
               count,
@@ -288,7 +302,7 @@ bool AdvanceCloneCommandObjects(
               true,
               false,
               true,
-              player_will_vacate,
+              player_vacates,
               player_was_pushed)
         : TranslateMovingObjects(
               voxels,
@@ -301,7 +315,7 @@ bool AdvanceCloneCommandObjects(
               height,
               false,
               true,
-              player_will_vacate,
+              player_vacates,
               false);
     if (!moved) continue;
     if (!player_was_pushed && player_rider.object >= 0 &&

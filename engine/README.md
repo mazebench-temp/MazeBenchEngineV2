@@ -45,6 +45,10 @@ Cargo above a player riding a clone inherits the clone's complete movement,
 including ramp elevation. A clone cannot walk onto cargo that the player's
 same command carries away; cargo blocked by terrain remains a valid foothold.
 
+A moving clone may refill its player's old cell while carrying that player
+forward. This requires a clear carried destination, independently of whether
+the player could walk off the clone without being carried.
+
 Deliberate upward ramp entry checks the swept face of every player or clone
 body cell. A ramp beneath one foot cannot lift a different foot through a
 wall beside the ramp; internal body cells and simultaneously vacated cells
