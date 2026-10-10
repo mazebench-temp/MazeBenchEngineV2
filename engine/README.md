@@ -41,6 +41,10 @@ consumes that tick's directional input, so an upper clone cannot take another
 step after inheriting its carrier's full ramp movement. Group IDs and voxel
 storage order must not change the stack's animation or search successor.
 
+When a wrapping actor's combined proposal is blocked, other actors in that
+proposal still receive their own input. Only a successful movement consumes
+every moved actor's input; a blocked body cannot cancel a clear neighboring move.
+
 Cargo above a player riding a clone inherits the clone's complete movement,
 including ramp elevation. A clone cannot walk onto cargo that the player's
 same command carries away; cargo blocked by terrain remains a valid foothold.

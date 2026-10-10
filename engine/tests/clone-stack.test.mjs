@@ -3,7 +3,7 @@ import test from 'node:test';
 import {rotateVoxelsClockwise, rotateWorldClockwise} from '../../apps/web/app/worldBounds.mjs';
 import {project, simulateFrames, simulateFinal, frameDifference} from './helpers/project-engine.mjs';
 
-for (const id of ['test-665', 'test-666', 'test-678', 'test-679', 'test-680', 'test-681', 'test-682']) {
+for (const id of ['test-665', 'test-666', 'test-678', 'test-679', 'test-680', 'test-681', 'test-682', 'test-683', 'test-684', 'test-685', 'test-686']) {
   test(`${id}: clone support and carrying are independent of storage and group IDs`, () => {
     const fixture = project.tests.find(t=>t.id===id);
     assert(fixture, `Missing authored regression ${id}`);
@@ -49,3 +49,28 @@ test('a clone may use player cargo that stays behind against terrain', () => {
       {missing: [], unexpected: []}, `rotation=${rotation}, reversed=${reversed}, tick=${tick + 1}`));
   }
 });
+
+for (const id of ['test-685', 'test-686']) {
+  test(`${id}: Down then Up returns free clones beside a blocked wrapping body`, () => {
+    const fixture = project.tests.find(t => t.id === id);
+    for (let rotation = 0; rotation < 4; rotation++) for (const reversed of [false, true]) {
+      const world = rotateWorldClockwise(fixture.world, rotation);
+      const beforeDown = fixture.start.voxels.map(v =>
+        v.blockId === 'player' || v.blockId === 'clone' && v.genericId === 1 ? {...v, y: v.y - 1} : v);
+      let start = rotateVoxelsClockwise(beforeDown, fixture.world, rotation);
+      if (reversed) start.reverse();
+      const down = simulateFrames(start, (rotation + 2) % 4, world);
+      assert.equal(down.cycle, null);
+      assert.equal(down.length, 1);
+      assert.deepEqual(frameDifference(rotateVoxelsClockwise(fixture.start.voxels, fixture.world, rotation), down[0], world),
+        {missing: [], unexpected: []}, 'Down creates the touching state');
+      const up = simulateFrames(down.at(-1), rotation, world);
+      assert.equal(up.cycle, null);
+      assert.equal(up.length, 1);
+      assert.deepEqual(frameDifference(start, up[0], world), {missing: [], unexpected: []},
+        'Up must return the free actors without moving the blocked wrapper');
+      assert.deepEqual(frameDifference(start, simulateFinal(down.at(-1), rotation, world), world),
+        {missing: [], unexpected: []}, 'search successor must agree with tick playback');
+    }
+  });
+}

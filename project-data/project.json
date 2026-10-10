@@ -25376,6 +25376,42 @@
         "clone-default"
       ],
       "file": "test-682.json"
+    },
+    {
+      "id": "test-683",
+      "name": "Untitled test 683",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-683.json"
+    },
+    {
+      "id": "test-684",
+      "name": "Untitled test 684",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-684.json"
+    },
+    {
+      "id": "test-685",
+      "name": "PxP: ID 1 returns Up after Down beside a blocked wrapping clone",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-685.json"
+    },
+    {
+      "id": "test-686",
+      "name": "A blocked wrapping clone does not consume another clone’s input",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-686.json"
     }
   ]
 }

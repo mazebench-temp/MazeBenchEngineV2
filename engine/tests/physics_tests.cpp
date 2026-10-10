@@ -1496,6 +1496,74 @@ void TestYellowSlopeAndCloneShareTheirGenericBody() {
         "a yellow clone slope should push weightless bodies like a cube clone");
 }
 
+// PxP: a blocked wrapping body reaches around a free actor in the same
+// input direction. Failure of the wrapper must not consume the free input.
+void TestBlockedWrappingCloneDoesNotCancelFreeActors() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  const char* slopes[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (bool player_body : {false, true}) for (bool chain : {false, true}) {
+    for (bool relabel : {false, true}) for (bool remote_slope : {false, true}) {
+      for (int32_t rotation = 0; rotation < 4; ++rotation) {
+        for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+          std::vector<voxelbench::Voxel> start;
+          if (!player_body) start.push_back({0, 3, 1, Role("player"), -1});
+          const int32_t blocked_id = relabel ? 71 : 29;
+          const uint32_t blocked_role = Role(player_body ? "player" : "clone");
+          start.push_back({2, 1, 1, blocked_role, blocked_id});
+          start.push_back({2, 5, 1, blocked_role, blocked_id});
+          start.push_back({2, 3, 1, Role("clone"), relabel ? 29 : 71});
+          if (chain) start.push_back({2, 2, 1, Role("clone"), 81});
+          const int32_t dynamic_count = static_cast<int32_t>(start.size());
+          if (reversed) std::reverse(start.begin(), start.end());
+          for (int32_t y = 0; y < 8; ++y) for (int32_t x = 0; x < 8; ++x) {
+            start.push_back({x, y, 0, Role("floor"), -1});
+          }
+          start.push_back({2, 0, 1, Role("wall"), -1});
+          start.push_back({2, 6, 1, Role("wall"), -1});
+          if (remote_slope) start.push_back({7, 0, 1, Role(slopes[rotation]), -1});
+          for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+            const int32_t x = voxel.x;
+            voxel.x = 7 - voxel.y;
+            voxel.y = x;
+          }
+          const int32_t dx = rotation == 1 ? 1 : rotation == 3 ? -1 : 0;
+          const int32_t dy = rotation == 0 ? -1 : rotation == 2 ? 1 : 0;
+          auto expected_down = start;
+          for (int32_t i = 0; i < dynamic_count; ++i) {
+            auto& voxel = expected_down[static_cast<size_t>(i)];
+            if (voxel.role == blocked_role && voxel.generic_id == blocked_id) continue;
+            voxel.x -= dx;
+            voxel.y -= dy;
+          }
+          for (bool animated : {false, true}) {
+            auto voxels = start;
+            const int32_t count = static_cast<int32_t>(voxels.size());
+            voxelbench::reset_workspace(&workspace);
+            if (prepared) Check(voxelbench::prepare_scene(
+                &workspace, voxels.data(), count, 8, 8, dynamic_count), "wrapping clone scene should prepare");
+            for (int32_t command = 0; command < 2; ++command) {
+              const int32_t direction = (rotation + (command == 0 ? 2 : 0)) % 4;
+              if (animated) {
+                voxelbench::reset_motion_state(&motion);
+                Check(voxelbench::step_tick(&workspace, &motion, voxels.data(), count, 8, 8, direction) ==
+                          voxelbench::TickResult::kComplete && motion.tick == 1,
+                      "independent wrapping clone inputs should finish in one tick");
+              } else {
+                Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 8, 8, direction) == 0,
+                      "prepared search should resolve independent wrapping clone inputs");
+              }
+              const auto& expected = command == 0 ? expected_down : start;
+              Check(std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "a blocked wrapper must not cancel clear actors or their return command");
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void TestInterlockingCloneCommandComponent() {
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
@@ -4768,6 +4836,7 @@ int main() {
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");
+  Run(TestBlockedWrappingCloneDoesNotCancelFreeActors, "TestBlockedWrappingCloneDoesNotCancelFreeActors");
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
   Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
   Run(TestPlayerPolycubeMovesAndFallsRigidly, "TestPlayerPolycubeMovesAndFallsRigidly");

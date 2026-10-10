@@ -197,11 +197,11 @@ bool AdvanceCloneCommandObjects(
         g_object_queue[queue_end++] = other;
       }
     }
-    for (int32_t object = 0; object < g_object_count; ++object) {
-      if (g_component_objects[object] != 0) {
-        g_clone_command_processed[object] = 1;
-      }
-    }
+    // A wrapping body's frontmost cell can precede an actor that it touches
+    // from behind. If this component fails, that actor may still have a clear
+    // command of its own. Consume only the initiating body's attempt here;
+    // a successful translation consumes every actor it actually moves below.
+    g_clone_command_processed[next_object] = 1;
 
     // Like the player, a clone may deliberately walk off Floor or Ice but not
     // step away from the top of a wall or stationary body into unsupported
