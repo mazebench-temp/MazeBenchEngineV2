@@ -45,6 +45,11 @@ Cargo above a player riding a clone inherits the clone's complete movement,
 including ramp elevation. A clone cannot walk onto cargo that the player's
 same command carries away; cargo blocked by terrain remains a valid foothold.
 
+Deliberate upward ramp entry checks the swept face of every player or clone
+body cell. A ramp beneath one foot cannot lift a different foot through a
+wall beside the ramp; internal body cells and simultaneously vacated cells
+remain valid parts of the same transaction.
+
 Uphill Ice momentum checks clearance for the complete carried stack, including
 the player's passenger cell and the vertical sweep above the source. A low
 ceiling reflects the stack downhill together. On a level move, a blocked player

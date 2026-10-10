@@ -285,7 +285,10 @@ bool TranslateSlopeMomentumObjects(
     }
     if (punch_state == nullptr && !SlopeObjectDestinationIsClear(
             voxels, object, player_index, width, height,
-            player_moves_horizontally)) {
+            player_moves_horizontally,
+            allow_push && g_carried_objects[object] == 0 &&
+                (g_object_kind[object] == kCloneObject ||
+                 g_object_kind[object] == kPlayerObject))) {
       return false;
     }
   }

@@ -676,13 +676,30 @@ bool SlopeObjectDestinationIsClear(
     int32_t player_index,
     int32_t width,
     int32_t height,
-    bool player_is_vacating) {
+    bool player_is_vacating,
+    bool deliberate_actor_entry = false) {
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
     const int32_t next_x = voxels[member].x + g_object_dx[object];
     const int32_t next_y = voxels[member].y + g_object_dy[object];
     const int32_t next_z = voxels[member].z + g_object_dz[object];
     if (!VoxelDestinationIsInsideRoom(voxels[member], next_x, next_y, width, height)) return false;
+    if (deliberate_actor_entry && g_object_dz[object] > 0) {
+      // Match the singleton player's ascending entry check for every cell
+      // of an actor polycube. A ramp beneath one foot cannot lift another
+      // foot through an adjacent wall's vertical face. Internal cells and
+      // bodies vacating the swept cell in this transaction are harmless.
+      const int32_t swept = FindVoxelAt(
+          voxels, next_x, next_y, voxels[member].z, width, height);
+      if (swept >= 0 && g_voxel_object[swept] != object &&
+          !IsIceSlopeRole(voxels[swept].role) &&
+          !IsPassThroughVoxel(voxels[swept])) {
+        const int32_t other = g_voxel_object[swept];
+        if (other < 0 || g_mandatory_objects[other] == 0 ||
+            !ObjectProposalVacatesCell(
+                voxels, other, next_x, next_y, voxels[member].z)) return false;
+      }
+    }
     const int32_t occupant = FindVoxelAt(
         voxels, next_x, next_y, next_z, width, height);
     if (g_object_kind[object] == kMechanismObject &&

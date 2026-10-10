@@ -1253,6 +1253,71 @@ void TestCloneCarriesCargoThroughPlayerPassenger() {
   }
 }
 
+void TestWideActorsCannotClimbWallsBesideRamps() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  const char* slopes[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (bool clone : {false, true}) for (bool blocked : {false, true}) {
+    for (int32_t layers : {1, 2}) for (int32_t rotation = 0; rotation < 4; ++rotation) {
+      for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+        std::vector<voxelbench::Voxel> start;
+        if (clone) start.push_back({0, 5, 1, Role("player"), -1});
+        for (int32_t z = 1; z <= layers; ++z) for (int32_t x : {2, 3}) {
+          start.push_back({x, 3, z, Role(clone ? "clone" : "player"), clone ? 29 : -1});
+        }
+        const int32_t dynamic_count = static_cast<int32_t>(start.size());
+        if (reversed) std::reverse(start.begin(), start.end());
+        for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+          start.push_back({x, y, 0, Role("floor"), -1});
+        }
+        start.push_back({2, 2, 1, Role(blocked ? "wall" : slopes[rotation]), -1});
+        start.push_back({3, 2, 1, Role(slopes[rotation]), -1});
+        for (int32_t x : {2, 3}) start.push_back({x, 1, 1, Role("wall"), -1});
+        for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+          const int32_t x = voxel.x;
+          voxel.x = 5 - voxel.y;
+          voxel.y = x;
+        }
+        const auto expected_tick = [&](int32_t tick) {
+          auto expected = start;
+          for (int32_t i = 0; i < dynamic_count; ++i) {
+            auto& voxel = expected[static_cast<size_t>(i)];
+            const bool independent_player = clone && voxel.role == Role("player");
+            const int32_t distance = independent_player ? 1 : blocked ? 0 : tick;
+            voxel.x += (rotation == 1 ? 1 : rotation == 3 ? -1 : 0) * distance;
+            voxel.y += (rotation == 0 ? -1 : rotation == 2 ? 1 : 0) * distance;
+            if (!independent_player && !blocked) ++voxel.z;
+          }
+          return expected;
+        };
+        auto voxels = start;
+        const int32_t count = static_cast<int32_t>(voxels.size());
+        voxelbench::reset_workspace(&workspace);
+        voxelbench::reset_motion_state(&motion);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "wide actor ramp entry should prepare");
+        const int32_t ticks = blocked ? 1 : 2;
+        for (int32_t tick = 1; tick <= ticks; ++tick) {
+          const auto result = voxelbench::step_tick(
+              &workspace, &motion, voxels.data(), count, 6, 6, rotation);
+          const auto expected = expected_tick(tick);
+          Check(result == (tick < ticks ? voxelbench::TickResult::kMore : voxelbench::TickResult::kComplete) &&
+                    std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                "each actor cell must clear its own ramp entry without climbing adjacent walls");
+        }
+        voxels = start;
+        voxelbench::reset_workspace(&workspace);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "wide actor ramp entry should reprepare");
+        const auto expected = expected_tick(ticks);
+        Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                  std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+              "prepared search must obey the actor's complete swept ramp volume");
+      }
+    }
+  }
+}
+
 void TestActorPolycubesPushThroughMountedLifts() {
   for (const bool player_body : {false, true}) {
     for (const bool remote_slope : {false, true}) {
@@ -4648,6 +4713,7 @@ int main() {
   Run(TestPlayerAndCloneSlidesFinishIndependently, "TestPlayerAndCloneSlidesFinishIndependently");
   Run(TestCloneCannotWalkOntoDepartingPlayerCargo, "TestCloneCannotWalkOntoDepartingPlayerCargo");
   Run(TestCloneCarriesCargoThroughPlayerPassenger, "TestCloneCarriesCargoThroughPlayerPassenger");
+  Run(TestWideActorsCannotClimbWallsBesideRamps, "TestWideActorsCannotClimbWallsBesideRamps");
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");
