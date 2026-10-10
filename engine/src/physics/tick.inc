@@ -207,6 +207,26 @@ bool AdvanceCloneCommandObjects(
     // step away from the top of a wall or stationary body into unsupported
     // space. Blocking its own command still lets a later player push carry
     // the clone together with the body beneath it.
+    uint64_t* departing_support = ActiveWorkspace().slope_ascent_objects;
+    for (int32_t word = 0; word < (g_object_count + 63) / 64; ++word) {
+      departing_support[word] = 0;
+    }
+    if (player_will_vacate) {
+      ClearMovingObjects();
+      const int32_t player_dz = DeliberateSlopeVerticalDelta(
+          voxels, voxels[player_index], direction, width, height, false);
+      // Validate optional passengers too: cargo caught against terrain stays
+      // behind, and still provides a foothold after the player departs.
+      if (TranslateMovingObjects(voxels, count, player_index, dx, dy,
+              player_dz, width, height, true, false, true, false, false)) {
+        for (int32_t object = 0; object < g_object_count; ++object) {
+          if (g_moving_objects[object] != 0) {
+            departing_support[object / 64] |= uint64_t{1} << (object % 64);
+          }
+        }
+      }
+      ClearMovingObjects();
+    }
     bool ledge_blocked = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
@@ -237,6 +257,9 @@ bool AdvanceCloneCommandObjects(
         if (destination_support >= 0 && destination_support != player_index &&
             voxels[destination_support].role != kFloatingFloorRole &&
             support_object != object &&
+            (support_object < 0 ||
+             (departing_support[support_object / 64] &
+              (uint64_t{1} << (support_object % 64))) == 0) &&
             (support_object < 0 || g_component_objects[support_object] == 0)) {
           has_destination_support = true;
         }

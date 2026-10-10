@@ -167,7 +167,8 @@ bool TranslateSlopeMomentumObjects(
     }
     if (!rider_is_movable_ramp && allow_push) continue;
     const int32_t carrier = MovingSupportBelowObject(
-        voxels, object, player_index, false, width, height);
+        voxels, object, player_index, false, width, height, false, nullptr,
+        MovingPlayerCarrier(voxels, player_index, width, height));
     if (carrier < 0) continue;
     // Serialized Ice momentum also belongs to ordinary carried boxes. Without
     // rebuilding that relationship they propose a level move while their

@@ -55,11 +55,20 @@ bool UphillAssemblyIsBlocked(
   bool changed = true;
   while (changed) {
     changed = false;
+    int32_t player_carrier = -1;
+    if (player_index >= 0 && voxels[player_index].z != INT32_MIN) {
+      const Voxel& player = voxels[player_index];
+      const int32_t support = FindVoxelAt(
+          voxels, player.x, player.y, player.z - 1, width, height);
+      const int32_t carrier = support >= 0 ? g_voxel_object[support] : -1;
+      if (includes(carrier)) player_carrier = carrier;
+    }
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (includes(object) || g_object_falling[object] != 0 ||
           !ObjectIsActive(voxels, object, width, height)) continue;
       if (MovingSupportBelowObject(voxels, object, player_index,
-              carry_from_player, width, height, false, assembly) != -1) {
+              carry_from_player, width, height, false, assembly,
+              player_carrier) != -1) {
         assembly[object / 64] |= uint64_t{1} << (object % 64);
         changed = true;
       }

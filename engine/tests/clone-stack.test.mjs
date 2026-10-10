@@ -3,8 +3,8 @@ import test from 'node:test';
 import {rotateVoxelsClockwise, rotateWorldClockwise} from '../../apps/web/app/worldBounds.mjs';
 import {project, simulateFrames, simulateFinal, frameDifference} from './helpers/project-engine.mjs';
 
-for (const id of ['test-665', 'test-666']) {
-  test(`${id}: stacked clones follow the carrier once per tick regardless of storage or group IDs`, () => {
+for (const id of ['test-665', 'test-666', 'test-678', 'test-679', 'test-680']) {
+  test(`${id}: clone support and carrying are independent of storage and group IDs`, () => {
     const fixture = project.tests.find(t=>t.id===id);
     assert(fixture, `Missing authored regression ${id}`);
     for (const relabel of [false,true]) for (let rotation=0; rotation<4; ++rotation) {
@@ -28,3 +28,24 @@ for (const id of ['test-665', 'test-666']) {
     }
   });
 }
+
+test('a clone may use player cargo that stays behind against terrain', () => {
+  const fixture = project.tests.find(t => t.id === 'test-679');
+  const boxId = fixture.start.voxels.find(v => v.genericId === 0 && v.blockId !== 'clone').blockId;
+  const wall = fixture.start.voxels.find(v => v.blockId === 'wall');
+  const start = [...fixture.start.voxels, {...wall, x: 3, y: 2, z: 2, instanceId: 'cargo-blocker'}];
+  const expected = [1, 2].map(tick => start.map(v => v.blockId === 'player'
+    ? {...v, y: 2} : v.blockId === 'clone' ? {...v, y: 3, z: 4 - tick}
+      : v.blockId === boxId ? {...v, z: 3 - tick} : v));
+  for (let rotation = 0; rotation < 4; rotation++) for (const reversed of [false, true]) {
+    const world = rotateWorldClockwise(fixture.world, rotation);
+    let rotated = rotateVoxelsClockwise(start, fixture.world, rotation);
+    if (reversed) rotated.reverse();
+    const frames = simulateFrames(rotated, rotation, world);
+    assert.equal(frames.cycle, null);
+    assert.equal(frames.length, 2);
+    expected.forEach((frame, tick) => assert.deepEqual(
+      frameDifference(rotateVoxelsClockwise(frame, fixture.world, rotation), frames[tick], world),
+      {missing: [], unexpected: []}, `rotation=${rotation}, reversed=${reversed}, tick=${tick + 1}`));
+  }
+});

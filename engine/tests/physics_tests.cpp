@@ -1142,6 +1142,117 @@ void TestPlayerAndCloneSlidesFinishIndependently() {
   }
 }
 
+void TestCloneCannotWalkOntoDepartingPlayerCargo() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  for (int32_t height : {1, 2}) for (int32_t rotation = 0; rotation < 4; ++rotation) {
+    for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+      std::vector<voxelbench::Voxel> start = {
+          {3, 3, 1, Role("player"), -1},
+          {3, 3, 2, Role("weightless-pushable"), 71},
+          {3, 4, height + 1, Role("clone"), 29},
+      };
+      if (reversed) std::reverse(start.begin(), start.end());
+      for (int32_t z = 1; z <= height; ++z) start.push_back({3, 4, z, Role("wall"), -1});
+      for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+        start.push_back({x, y, 0, Role("floor"), -1});
+      }
+      for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+        const int32_t x = voxel.x;
+        voxel.x = 5 - voxel.y;
+        voxel.y = x;
+      }
+      auto expected = start;
+      for (auto& voxel : expected) if (voxel.role == Role("player") ||
+          voxel.role == Role("weightless-pushable")) {
+        voxel.x += rotation == 1 ? 1 : rotation == 3 ? -1 : 0;
+        voxel.y += rotation == 0 ? -1 : rotation == 2 ? 1 : 0;
+      }
+      auto voxels = start;
+      const int32_t count = static_cast<int32_t>(voxels.size());
+      voxelbench::reset_workspace(&workspace);
+      voxelbench::reset_motion_state(&motion);
+      if (prepared) Check(voxelbench::prepare_scene(
+          &workspace, voxels.data(), count, 6, 6, 3), "departing cargo should prepare");
+      Check(voxelbench::step_tick(&workspace, &motion, voxels.data(), count, 6, 6, rotation) ==
+                voxelbench::TickResult::kComplete && motion.tick == 1 &&
+                std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+            "a clone must stay on its wall when the destination foothold departs with the player");
+      voxels = start;
+      voxelbench::reset_workspace(&workspace);
+      if (prepared) Check(voxelbench::prepare_scene(
+          &workspace, voxels.data(), count, 6, 6, 3), "departing cargo should reprepare");
+      Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+            "search must preserve the clone's wall foothold too");
+    }
+  }
+}
+
+void TestCloneCarriesCargoThroughPlayerPassenger() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  const char* slopes[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (bool ramp : {false, true}) for (int32_t cargo : {1, 2}) {
+    for (int32_t rotation = 0; rotation < 4; ++rotation) {
+      for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+        std::vector<voxelbench::Voxel> start = {
+            {2, 3, 1, Role("clone"), 29}, {2, 3, 2, Role("player"), -1}};
+        for (int32_t i = 0; i < cargo; ++i) start.push_back(
+            {2, 3, 3 + i, Role("weightless-pushable"), 71 + i});
+        const int32_t dynamic_count = static_cast<int32_t>(start.size());
+        if (reversed) std::reverse(start.begin(), start.end());
+        for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+          start.push_back({x, y, 0, Role("floor"), -1});
+        }
+        if (ramp) {
+          start.push_back({2, 2, 1, Role(slopes[rotation]), -1});
+          start.push_back({2, 1, 1, Role("wall"), -1});
+        }
+        for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+          const int32_t x = voxel.x;
+          voxel.x = 5 - voxel.y;
+          voxel.y = x;
+        }
+        const auto expected_tick = [&](int32_t tick) {
+          auto expected = start;
+          for (int32_t i = 0; i < dynamic_count; ++i) {
+            auto& voxel = expected[static_cast<size_t>(i)];
+            voxel.x += (rotation == 1 ? 1 : rotation == 3 ? -1 : 0) * tick;
+            voxel.y += (rotation == 0 ? -1 : rotation == 2 ? 1 : 0) * tick;
+            voxel.z += ramp ? 1 : 0;
+          }
+          return expected;
+        };
+        auto voxels = start;
+        const int32_t count = static_cast<int32_t>(voxels.size());
+        voxelbench::reset_workspace(&workspace);
+        voxelbench::reset_motion_state(&motion);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "mixed actor stack should prepare");
+        const int32_t ticks = ramp ? 2 : 1;
+        for (int32_t tick = 1; tick <= ticks; ++tick) {
+          const auto result = voxelbench::step_tick(
+              &workspace, &motion, voxels.data(), count, 6, 6, rotation);
+          const auto expected = expected_tick(tick);
+          Check(result == (tick < ticks ? voxelbench::TickResult::kMore : voxelbench::TickResult::kComplete) &&
+                    motion.tick == tick &&
+                    std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                "cargo above a player must follow the clone's complete transform once per tick");
+        }
+        voxels = start;
+        voxelbench::reset_workspace(&workspace);
+        if (prepared) Check(voxelbench::prepare_scene(
+            &workspace, voxels.data(), count, 6, 6, dynamic_count), "mixed actor stack should reprepare");
+        const auto expected = expected_tick(ticks);
+        Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                  std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+              "search and animated play must carry the same mixed stack");
+      }
+    }
+  }
+}
+
 void TestActorPolycubesPushThroughMountedLifts() {
   for (const bool player_body : {false, true}) {
     for (const bool remote_slope : {false, true}) {
@@ -4535,6 +4646,8 @@ int main() {
   Run(TestUnknownRoleBlocks, "TestUnknownRoleBlocks");
   Run(TestIndependentCloneCommands, "TestIndependentCloneCommands");
   Run(TestPlayerAndCloneSlidesFinishIndependently, "TestPlayerAndCloneSlidesFinishIndependently");
+  Run(TestCloneCannotWalkOntoDepartingPlayerCargo, "TestCloneCannotWalkOntoDepartingPlayerCargo");
+  Run(TestCloneCarriesCargoThroughPlayerPassenger, "TestCloneCarriesCargoThroughPlayerPassenger");
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");

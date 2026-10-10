@@ -192,6 +192,36 @@ bool OrangeButtonSharesCellWith(
   return false;
 }
 
+// A singleton player has no rigid-object record. Bridge its top contact to
+// its moving support so cargo can inherit the same proposal through it.
+// A blocked player stays behind, and cannot transmit that carry.
+int32_t MovingPlayerCarrier(
+    Voxel* voxels, int32_t player_index, int32_t width, int32_t height) {
+  if (player_index < 0 || g_voxel_object[player_index] >= 0 ||
+      voxels[player_index].z == INT32_MIN) return -1;
+  const Voxel& player = voxels[player_index];
+  const int32_t support = FindVoxelAt(
+      voxels, player.x, player.y, player.z - 1, width, height);
+  const int32_t carrier = support >= 0 ? g_voxel_object[support] : -1;
+  if (carrier < 0 || g_moving_objects[carrier] == 0) return -1;
+  const int32_t x = player.x + g_object_dx[carrier];
+  const int32_t y = player.y + g_object_dy[carrier];
+  const int32_t z = player.z + g_object_dz[carrier];
+  if (!IsInsideRoom(x, y, width, height)) return -1;
+  const int32_t occupant = FindVoxelAt(voxels, x, y, z, width, height);
+  if (occupant >= 0 && occupant != player_index) {
+    const int32_t other = g_voxel_object[occupant];
+    if (other < 0 || g_moving_objects[other] == 0) return -1;
+    for (int32_t member = g_object_head[other]; member >= 0;
+         member = g_next_object_voxel[member]) {
+      if (voxels[member].x + g_object_dx[other] == x &&
+          voxels[member].y + g_object_dy[other] == y &&
+          voxels[member].z + g_object_dz[other] == z) return -1;
+    }
+  }
+  return carrier;
+}
+
 int32_t MovingSupportBelowObject(
     Voxel* voxels,
     int32_t object,
@@ -200,7 +230,8 @@ int32_t MovingSupportBelowObject(
     int32_t width,
     int32_t height,
     bool player_is_vacating = false,
-    const uint64_t* moving_objects = nullptr) {
+    const uint64_t* moving_objects = nullptr,
+    int32_t player_carrier = -1) {
   const auto support_moves = [&](int32_t support) {
     return moving_objects == nullptr ? g_moving_objects[support] != 0
         : (moving_objects[support / 64] & (uint64_t{1} << (support % 64))) != 0;
@@ -262,6 +293,11 @@ int32_t MovingSupportBelowObject(
     if (support < 0) continue;
     if (PlayerLiftContactIsActor(voxels, member, support)) continue;
     if (g_voxel_object[support] == object) continue;
+    if (!carry_from_player && support == player_index &&
+        player_carrier >= 0 && player_carrier != object) {
+      moving_support = player_carrier;
+      continue;
+    }
     if (support == player_index && player_is_vacating && !carry_from_player) {
       // The player's old cell is not a stationary foothold during a shared
       // motion tick. A moving box beneath another foot may carry this rider.
@@ -330,7 +366,8 @@ void BuildCarriedObjects(
     bool carry_from_player,
     int32_t width,
     int32_t height,
-    bool player_is_vacating = false) {
+    bool player_is_vacating = false,
+    bool bridge_player_rider = false) {
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_moving_objects[object] = g_mandatory_objects[object];
     g_carried_objects[object] = 0;
@@ -338,6 +375,8 @@ void BuildCarriedObjects(
   bool changed = true;
   while (changed) {
     changed = false;
+    const int32_t player_carrier = bridge_player_rider
+        ? MovingPlayerCarrier(voxels, player_index, width, height) : -1;
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_moving_objects[object] != 0 || g_rejected_carriers[object] != 0 ||
           (carry_from_player &&
@@ -350,7 +389,7 @@ void BuildCarriedObjects(
       }
       const int32_t carrier = MovingSupportBelowObject(
           voxels, object, player_index, carry_from_player, width, height,
-          player_is_vacating);
+          player_is_vacating, nullptr, player_carrier);
       if (carrier != -1) {
         g_moving_objects[object] = 1;
         g_carried_objects[object] = 1;

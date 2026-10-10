@@ -621,7 +621,7 @@ void AddSlopeCarriedObjects(
     bool preserve_matching_latent_motion,
     bool player_is_vacating) {
   BuildCarriedObjects(
-      voxels, player_index, false, width, height, player_is_vacating);
+      voxels, player_index, false, width, height, player_is_vacating, true);
   bool promoted = true;
   while (promoted) {
     promoted = false;

@@ -16,6 +16,9 @@ bool TranslateMovingObjects(
   g_moving_objects_fell = false;
   for (int32_t object = 0; object < g_object_count; ++object) {
     g_fell_objects[object] = 0;
+    g_object_dx[object] = static_cast<int8_t>(dx);
+    g_object_dy[object] = static_cast<int8_t>(dy);
+    g_object_dz[object] = static_cast<int8_t>(dz);
   }
 
   if (commit_translation && required_player_carrier < 0 && g_object_count == 1 &&
@@ -131,7 +134,8 @@ bool TranslateMovingObjects(
 
   for (;;) {
     BuildCarriedObjects(
-        voxels, player_index, carry_from_player, width, height);
+        voxels, player_index, carry_from_player, width, height,
+        player_moves_horizontally, !carry_from_player);
     bool added_mandatory = false;
     const bool changed = ResolveCarriedCollisions(
         voxels,

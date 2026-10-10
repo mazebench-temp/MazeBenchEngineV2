@@ -41,6 +41,10 @@ consumes that tick's directional input, so an upper clone cannot take another
 step after inheriting its carrier's full ramp movement. Group IDs and voxel
 storage order must not change the stack's animation or search successor.
 
+Cargo above a player riding a clone inherits the clone's complete movement,
+including ramp elevation. A clone cannot walk onto cargo that the player's
+same command carries away; cargo blocked by terrain remains a valid foothold.
+
 Uphill Ice momentum checks clearance for the complete carried stack, including
 the player's passenger cell and the vertical sweep above the source. A low
 ceiling reflects the stack downhill together. On a level move, a blocked player
