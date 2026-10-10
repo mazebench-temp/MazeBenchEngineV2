@@ -189,7 +189,7 @@ bool AdvanceCloneCommandObjects(
             : -1;
         if (other < 0 || other == object ||
             !ObjectReceivesActorCommand(voxels, other) ||
-            g_clone_command_processed[other] != 0 ||
+            g_clone_command_moved[other] != 0 ||
             g_component_objects[other] != 0) {
           continue;
         }
@@ -203,10 +203,10 @@ bool AdvanceCloneCommandObjects(
     // a successful translation consumes every actor it actually moves below.
     g_clone_command_processed[next_object] = 1;
 
-    // Like the player, a clone may deliberately walk off Floor or Ice but not
-    // step away from the top of a wall or stationary body into unsupported
-    // space. Blocking its own command still lets a later player push carry
-    // the clone together with the body beneath it.
+    // Like the player, the initiating actor cannot walk off a rigid ledge.
+    // Contacted actors are forced by this command, so they may be shoved off
+    // even after their own unsupported step was rejected. Actors that already
+    // moved remain excluded from the closure and cannot receive a second step.
     uint64_t* departing_support = ActiveWorkspace().slope_ascent_objects;
     for (int32_t word = 0; word < (g_object_count + 63) / 64; ++word) {
       departing_support[word] = 0;
@@ -229,7 +229,7 @@ bool AdvanceCloneCommandObjects(
     }
     bool ledge_blocked = false;
     for (int32_t object = 0; object < g_object_count; ++object) {
-      if (g_component_objects[object] == 0) continue;
+      if (object != next_object) continue;
       bool has_rigid_foothold = false;
       bool has_destination_support = false;
       for (int32_t member = g_object_head[object]; member >= 0;

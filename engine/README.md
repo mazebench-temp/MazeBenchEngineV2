@@ -45,6 +45,11 @@ When a wrapping actor's combined proposal is blocked, other actors in that
 proposal still receive their own input. Only a successful movement consumes
 every moved actor's input; a blocked body cannot cancel a clear neighboring move.
 
+A clone whose own step would leave a wall may still be shoved off by another
+commanded actor with a supported step. The complete push validates before moving,
+then the unsupported clone falls on following ticks. Being pushed consumes its
+input too, so it cannot step twice.
+
 Cargo above a player riding a clone inherits the clone's complete movement,
 including ramp elevation. A clone cannot walk onto cargo that the player's
 same command carries away; cargo blocked by terrain remains a valid foothold.

@@ -1496,6 +1496,85 @@ void TestYellowSlopeAndCloneShareTheirGenericBody() {
         "a yellow clone slope should push weightless bodies like a cube clone");
 }
 
+void TestCloneCanPushAnotherCloneOffWall() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  const char* slopes[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+  for (int32_t support_height : {1, 2}) for (int32_t variant = 0; variant < 4; ++variant) {
+    // 0: a clear shove; 1: no pusher; 2: solid destination; 3: no
+    // support for the pusher's own step. The last three must remain blocked.
+    for (bool relabel : {false, true}) for (bool remote_slope : {false, true}) {
+      for (int32_t rotation = 0; rotation < 4; ++rotation) {
+        for (bool reversed : {false, true}) for (bool prepared : {false, true}) {
+          std::vector<voxelbench::Voxel> start = {
+              {0, 5, 1, Role("player"), -1},
+              {3, 2, support_height + 1, Role("clone"), relabel ? 71 : 29}};
+          if (variant != 1) start.push_back(
+              {3, 3, support_height + 1, Role("clone"), relabel ? 29 : 71});
+          if (variant == 3) start.push_back(
+              {4, 2, support_height + 1, Role("clone"), relabel ? 71 : 29});
+          const int32_t dynamic_count = static_cast<int32_t>(start.size());
+          if (reversed) std::reverse(start.begin(), start.end());
+          for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+            start.push_back({x, y, 0, Role("floor"), -1});
+          }
+          for (int32_t y = 2; y <= 4; ++y) for (int32_t z = 1; z <= support_height; ++z) {
+            if (variant == 3 && y == 2) continue;
+            start.push_back({3, y, z, Role("wall"), -1});
+          }
+          // A sideways foot supports the front body's overhang in variant 3,
+          // without providing a destination foothold for the rear actor.
+          if (variant == 3) for (int32_t z = 1; z <= support_height; ++z) {
+            start.push_back({4, 2, z, Role("wall"), -1});
+          }
+          if (variant == 2) start.push_back({3, 1, support_height + 1, Role("wall"), -1});
+          if (remote_slope) start.push_back({5, 0, 1, Role(slopes[rotation]), -1});
+          for (auto& voxel : start) for (int32_t turn = 0; turn < rotation; ++turn) {
+            const int32_t x = voxel.x;
+            voxel.x = 5 - voxel.y;
+            voxel.y = x;
+          }
+          auto expected = start;
+          constexpr int32_t dx[] = {0, 1, 0, -1};
+          constexpr int32_t dy[] = {-1, 0, 1, 0};
+          for (int32_t i = 0; i < dynamic_count; ++i) {
+            auto& voxel = expected[static_cast<size_t>(i)];
+            if (voxel.role == Role("player") || variant == 0) {
+              voxel.x += dx[rotation];
+              voxel.y += dy[rotation];
+            }
+          }
+          auto voxels = start;
+          const int32_t count = static_cast<int32_t>(voxels.size());
+          voxelbench::reset_workspace(&workspace);
+          voxelbench::reset_motion_state(&motion);
+          if (prepared) Check(voxelbench::prepare_scene(
+              &workspace, voxels.data(), count, 6, 6, dynamic_count), "clone ledge push scene should prepare");
+          for (int32_t tick = 1; tick <= (variant == 0 ? support_height + 1 : 1); ++tick) {
+            if (variant == 0 && tick > 1) for (int32_t i = 0; i < dynamic_count; ++i) {
+              auto& voxel = expected[static_cast<size_t>(i)];
+              if (voxel.role == Role("clone") && voxel.generic_id == (relabel ? 71 : 29)) --voxel.z;
+            }
+            Check(voxelbench::step_tick(&workspace, &motion, voxels.data(), count, 6, 6, rotation) ==
+                      (variant == 0 && tick <= support_height ? voxelbench::TickResult::kMore : voxelbench::TickResult::kComplete),
+                  "a clone shoved off a wall should fall on subsequent ticks");
+            Check(motion.tick == tick &&
+                      std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                  "only a supported rear command may force a blocked clone off its ledge");
+          }
+          voxels = start;
+          voxelbench::reset_workspace(&workspace);
+          if (prepared) Check(voxelbench::prepare_scene(
+              &workspace, voxels.data(), count, 6, 6, dynamic_count), "clone ledge push scene should reprepare");
+          Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                    std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                "prepared search must agree with clone push and deferred gravity frames");
+        }
+      }
+    }
+  }
+}
+
 // PxP: a blocked wrapping body reaches around a free actor in the same
 // input direction. Failure of the wrapper must not consume the free input.
 void TestBlockedWrappingCloneDoesNotCancelFreeActors() {
@@ -4836,6 +4915,7 @@ int main() {
   Run(TestActorPolycubesPushThroughMountedLifts, "TestActorPolycubesPushThroughMountedLifts");
   Run(TestBlueSlopeAndBoxShareTheirGenericBody, "TestBlueSlopeAndBoxShareTheirGenericBody");
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");
+  Run(TestCloneCanPushAnotherCloneOffWall, "TestCloneCanPushAnotherCloneOffWall");
   Run(TestBlockedWrappingCloneDoesNotCancelFreeActors, "TestBlockedWrappingCloneDoesNotCancelFreeActors");
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
   Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
