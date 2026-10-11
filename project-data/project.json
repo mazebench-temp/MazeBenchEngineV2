@@ -25448,6 +25448,15 @@
         "clone-default"
       ],
       "file": "test-690.json"
+    },
+    {
+      "id": "regression-pxp-supported-clone-component",
+      "name": "PxP: touching rider stays supported by its moving clone",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "regression-pxp-supported-clone-component.json"
     }
   ]
 }

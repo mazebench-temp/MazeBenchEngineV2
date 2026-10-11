@@ -50,6 +50,12 @@ player's destination is shown to be clear or vacated by the current validated
 actor component. Merely receiving input does not make a leading clone vacate:
 a blocked clone remains solid, and unrelated clear actors still move.
 
+Destination-linked actors retain their existing carrier support. A rider may
+move with a supporting actor in the same command component even when no
+stationary foothold remains underneath its destination. This support must lead
+to an actor with a valid step; an unsupported cycle cannot enable walking off
+a ledge. A failed carrier move still leaves independent rider commands intact.
+
 A player pushing a box inside a wrapping clone shares that clone's proposed
 vacated cells. The level push is probed with exactly the participating clone
 component before allowing it into the player's source cell. An obstruction

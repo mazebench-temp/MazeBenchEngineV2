@@ -284,7 +284,7 @@ bool AdvanceCloneCommandObjects(
       }
       ClearMovingObjects();
     }
-    bool ledge_blocked = false;
+    ClearMovingObjects();
     for (int32_t object = 0; object < g_object_count; ++object) {
       if (g_component_objects[object] == 0) continue;
       bool has_rigid_foothold = false;
@@ -321,8 +321,31 @@ bool AdvanceCloneCommandObjects(
           has_destination_support = true;
         }
       }
-      ledge_blocked |= has_rigid_foothold && !has_destination_support;
+      if (!has_rigid_foothold || has_destination_support) {
+        g_moving_objects[object] = 1;
+      }
     }
+    // A destination-linked rider can have no stationary destination foothold
+    // because its support is another actor in this same proposal. Keep that
+    // established carry, rooted in an actor whose own step is supported. A
+    // cycle of unsupported riders cannot invent a valid ledge departure.
+    bool support_added = true;
+    while (support_added) {
+      support_added = false;
+      for (int32_t object = 0; object < g_object_count; ++object) {
+        if (g_component_objects[object] == 0 || g_moving_objects[object] != 0) continue;
+        if (MovingSupportBelowObject(voxels, object, player_index, false,
+                width, height, component_player_will_vacate) >= 0) {
+          g_moving_objects[object] = 1;
+          support_added = true;
+        }
+      }
+    }
+    bool ledge_blocked = false;
+    for (int32_t object = 0; object < g_object_count; ++object) {
+      ledge_blocked |= g_component_objects[object] != 0 && g_moving_objects[object] == 0;
+    }
+    ClearMovingObjects();
     if (ledge_blocked) continue;
 
     const bool folded_side_lifts = FoldActorSideLiftsForEntry(

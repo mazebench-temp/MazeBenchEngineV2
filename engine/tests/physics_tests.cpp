@@ -1725,6 +1725,81 @@ void TestClonePlayerChainsRequireActualVacancies() {
   }
 }
 
+void TestTouchingCloneRidersKeepTheirMovingSupport() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  for (const bool player_carrier : {false, true}) {
+    for (int32_t stack = 1; stack <= 2; ++stack) {
+      for (const bool blocked : {false, true}) {
+        if (player_carrier && blocked) continue;
+        for (int32_t rotation = 0; rotation < 4; ++rotation) {
+          for (const bool remote_ramp : {false, true}) {
+            for (const bool reversed : {false, true}) {
+              const uint32_t carrier_role = Role(player_carrier ? "player" : "clone");
+              const int32_t carrier_id = player_carrier ? -1 : 1;
+              std::vector<voxelbench::Voxel> start = {
+                  {2, 2, 1, carrier_role, carrier_id},
+                  {3, 2, 1, carrier_role, carrier_id},
+                  {4, 2, 1, carrier_role, carrier_id},
+                  {4, 2, 2, carrier_role, carrier_id},
+                  {4, 2, 3, carrier_role, carrier_id},
+              };
+              const int32_t carrier_count = static_cast<int32_t>(start.size());
+              for (int32_t rider = 0; rider < stack; ++rider) {
+                for (int32_t x : {2, 3}) start.push_back({x, 2, rider + 2, Role("clone"), rider + 2});
+              }
+              start.push_back({4, 5, 1, Role("clone"), 17});
+              if (!player_carrier) start.push_back({1, 4, 1, Role("player"), -1});
+              const int32_t dynamic_count = static_cast<int32_t>(start.size());
+              auto expected = start;
+              for (int32_t i = 0; i < dynamic_count; ++i) {
+                if (i >= carrier_count || !blocked) --expected[static_cast<size_t>(i)].x;
+              }
+              if (reversed) {
+                std::reverse(start.begin(), start.end());
+                std::reverse(expected.begin(), expected.end());
+              }
+              for (int32_t y = 0; y < 6; ++y) for (int32_t x = 0; x < 6; ++x) {
+                start.push_back({x, y, 0, Role("floor"), -1});
+              }
+              if (blocked) start.push_back({1, 2, 1, Role("wall"), -1});
+              const char* ramps[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+              if (remote_ramp) start.push_back({5, 0, 1, Role(ramps[rotation]), -1});
+              expected.insert(expected.end(), start.begin() + dynamic_count, start.end());
+              for (auto* scene : {&start, &expected}) for (auto& voxel : *scene) {
+                for (int32_t turn = 0; turn < rotation; ++turn) {
+                  const int32_t x = voxel.x;
+                  voxel.x = 5 - voxel.y;
+                  voxel.y = x;
+                }
+              }
+              const int32_t count = static_cast<int32_t>(start.size());
+              for (const bool prepared : {false, true}) for (const bool animated : {false, true}) {
+                auto voxels = start;
+                voxelbench::reset_workspace(&workspace);
+                if (prepared) Check(voxelbench::prepare_scene(&workspace, voxels.data(), count,
+                    6, 6, dynamic_count), "supported actor component must prepare for search");
+                voxelbench::reset_motion_state(&motion);
+                const int32_t direction = (3 + rotation) % 4;
+                if (animated) {
+                  Check(voxelbench::step_command_tick(&workspace, &motion, voxels.data(), count,
+                            6, 6, direction) == voxelbench::TickResult::kComplete && motion.tick == 1,
+                        "touching riders and their carrier must resolve in one command tick");
+                } else {
+                  Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, direction) == 0,
+                        "supported actor component search successor must resolve");
+                }
+                Check(std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                      "joint actor steps retain carrier support without cancelling independent blocked-carrier riders");
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void TestInterlockingCloneCommandComponent() {
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
@@ -5164,6 +5239,7 @@ int main() {
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
   Run(TestWrappingCloneSharesPlayerPushVacancy, "TestWrappingCloneSharesPlayerPushVacancy");
   Run(TestClonePlayerChainsRequireActualVacancies, "TestClonePlayerChainsRequireActualVacancies");
+  Run(TestTouchingCloneRidersKeepTheirMovingSupport, "TestTouchingCloneRidersKeepTheirMovingSupport");
   Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
   Run(TestPlayerPolycubeMovesAndFallsRigidly, "TestPlayerPolycubeMovesAndFallsRigidly");
   Run(TestExactSearchTracksPlayerPolycube, "TestExactSearchTracksPlayerPolycube");
