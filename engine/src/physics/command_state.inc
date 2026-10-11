@@ -9,6 +9,7 @@ constexpr int32_t kMotionPlayerPunch = 7;
 constexpr int32_t kMotionPlayerPunchUp = 8;
 constexpr int32_t kMotionPlayerPunchDown = 9;
 constexpr int32_t kMotionPlayerGates = 10;
+constexpr int32_t kMotionActorLift = 11;
 constexpr uint8_t kResumeNothing = 0;
 constexpr uint8_t kResumePlayerIce = 1;
 constexpr uint8_t kResumeObjectIce = 2;
@@ -39,7 +40,7 @@ uint8_t ReadObjectFlag(
     int32_t object) {
   for (int32_t member = g_object_head[object]; member >= 0;
        member = g_next_object_voxel[member]) {
-    if (flags[member] != 0) return 1;
+    if ((flags[member] & 1u) != 0) return 1;
   }
   return 0;
 }
@@ -62,17 +63,19 @@ void LoadObjectMotion(const MotionState* state) {
   }
 }
 
-void StoreObjectMotion(MotionState* state, int32_t count) {
+void StoreObjectMotion(MotionState* state, int32_t count,
+                       bool preserve_lift_entries = true) {
   const int32_t motion_count = MotionVoxelCount(count);
   for (int32_t index = 0; index < motion_count; ++index) {
     state->falling[index] = 0;
-    state->gravity_armed[index] = 0;
+    state->gravity_armed[index] = preserve_lift_entries
+        ? state->gravity_armed[index] & kActorLiftEntryPending : 0;
   }
   for (int32_t object = 0; object < g_object_count; ++object) {
     for (int32_t member = g_object_head[object]; member >= 0;
          member = g_next_object_voxel[member]) {
       state->falling[member] = g_object_falling[object];
-      state->gravity_armed[member] = g_object_gravity_armed[object];
+      state->gravity_armed[member] |= g_object_gravity_armed[object];
     }
   }
 }
@@ -440,7 +443,7 @@ void InitializeMotion(
     state->phase = kMotionGravity;
     state->reserved[0] = kResumeCommand;
   }
-  StoreObjectMotion(state, count);
+  StoreObjectMotion(state, count, false);
   ClearImmutableMotionSuffix(state, count);
 }
 
@@ -474,7 +477,7 @@ void InitializeQuiescentMotion(
         !ObjectHasDirectSupport(voxels, object, width, height) ? 0 : 1;
     g_object_falling[object] = 0;
   }
-  StoreObjectMotion(state, count);
+  StoreObjectMotion(state, count, false);
   // This state is private to simulate_quiescent_turn and is never serialized;
   // unlike the public step_tick path, its immutable suffix need not be stored.
 }

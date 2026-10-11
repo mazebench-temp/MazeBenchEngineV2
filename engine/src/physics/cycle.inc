@@ -191,7 +191,8 @@ bool BaselineCycleStateMatches(
     const Voxel& current = voxels[index];
     if (baseline.x != current.x || baseline.y != current.y ||
         baseline.z != current.z || baseline.role != current.role ||
-        baseline.generic_id != current.generic_id || state->falling[index] != 0) {
+        baseline.generic_id != current.generic_id || state->falling[index] != 0 ||
+        (state->gravity_armed[index] & kActorLiftEntryPending) != 0) {
       return false;
     }
   }

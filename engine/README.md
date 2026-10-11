@@ -127,6 +127,16 @@ Player and clone contacts never mount a lift onto the actor: walking out from
 under a lift stack leaves its anchors in place, allowing a destination lift
 to actuate independently on its following tick.
 
+Clones activate top lifts on horizontal entry just like the player: a lowered
+lift raises its rider, and entering the top of a raised lift lowers it. The
+activation has its own following animation tick. A clone's complete rigid
+body, passengers, and attached fixtures move in one collision-checked proposal;
+blocked or conflicting lift contacts leave the lift and rider unchanged.
+Side lifts eject clones outward, and a fixed raised side lift accepts inward
+clone entry by lowering. Carried actors do not retrigger lifts, and punch
+momentum passes through without actuating them. Animated play and prepared
+search use the same serialized pending-entry state, including workspace resume.
+
 Leaving an unobstructed authored lowered lift keeps it lowered, for both top
 and side mountings. A blocked lift retries empty on the tick after its rider
 leaves; that retry raises only the fixture and never pushes its former blockers.

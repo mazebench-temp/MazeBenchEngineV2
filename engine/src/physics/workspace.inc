@@ -46,6 +46,11 @@ constexpr uint8_t kWeightlessObject = 1;
 constexpr uint8_t kMechanismObject = 2;
 constexpr uint8_t kCloneObject = 3;
 constexpr uint8_t kPlayerObject = 4;
+// Internal continuation bits share the existing per-voxel gravity byte. Bit 0
+// remains the gravity flag; lift entry survives workspace rebuilds without
+// changing the public MotionState layout or the WebAssembly ABI.
+constexpr uint8_t kActorLiftEntryPending = 0x80;
+constexpr uint8_t kActorLiftSelected = 0x40;
 
 bool IsTerrainIceSlopeRole(uint32_t role) {
   return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||

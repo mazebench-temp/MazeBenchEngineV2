@@ -13,6 +13,8 @@ bool ObjectReceivesActorCommand(Voxel* voxels, int32_t object) {
        (voxels[g_object_head[object]].generic_id & kCloneNoCommandIdFlag) == 0);
 }
 
+#include "actor_lifts.inc"
+
 // Clone components resolve from front to back, so one may reach the player's
 // current cell before the player's own command is evaluated. Validate the
 // player's local entry and push proposal without committing it; a clone may
@@ -268,6 +270,8 @@ bool AdvanceCloneCommandObjects(
     }
     if (ledge_blocked) continue;
 
+    const bool folded_side_lifts = FoldActorSideLiftsForEntry(
+        state, voxels, count, direction, width, height);
     ClearMovingObjects();
     const bool slope_scene = SceneHasIceSlopes(voxels, count, width, height);
     for (int32_t object = 0; object < g_object_count; ++object) {
@@ -317,7 +321,14 @@ bool AdvanceCloneCommandObjects(
               true,
               player_vacates,
               false);
-    if (!moved) continue;
+    if (!moved) {
+      if (folded_side_lifts) FinishActorSideLiftEntry(
+          state, voxels, count, width, height, false);
+      continue;
+    }
+    QueueMovingActorLiftEntries(state, voxels, count, width, height);
+    if (folded_side_lifts) FinishActorSideLiftEntry(
+        state, voxels, count, width, height, true);
     if (!player_was_pushed && player_rider.object >= 0 &&
         g_moving_objects[player_rider.object] != 0) {
       // A clone can climb a ramp during the initial input tick. Its player
@@ -497,6 +508,8 @@ TickResult step_tick(
     BuildSpatialIndex(voxels, count, width, height);
     LoadObjectMotion(state);
   }
+  const bool actor_lifts_pending_this_tick = !initialized_this_call &&
+      HasPendingActorLifts(state);
   // A blocked punch can complete on its sprung frame. Rearm it on the next
   // tick, including the first tick of the next command; that visual state
   // must not permanently disable the fixture across command boundaries.
@@ -546,11 +559,12 @@ TickResult step_tick(
 
   bool orange_advanced_this_tick = false;
   bool gate_advanced_this_tick = false;
+  bool actor_lift_advanced_this_tick = false;
   auto store_and_finish = [&](int32_t phase,
                               bool advanced,
                               bool gravity_already_checked = false) {
     advanced |= orange_advanced_this_tick || clone_command_advanced ||
-        puncher_visual_advanced || gate_advanced_this_tick;
+        puncher_visual_advanced || gate_advanced_this_tick || actor_lift_advanced_this_tick;
     if (clone_command_tick) {
       (void)AppendCloneCommandMomentum(
           state, voxels, state->direction, width, height);
@@ -574,6 +588,8 @@ TickResult step_tick(
       phase = kMotionGravity;
       state->reserved[0] = kResumeNothing;
     }
+    if (phase == kMotionComplete &&
+        HasPendingActorLifts(state)) phase = kMotionActorLift;
     if (phase == kMotionComplete &&
         PlayerGatesNeedTick(voxels, count, width, height)) {
       phase = kMotionPlayerGates;
@@ -775,6 +791,20 @@ TickResult step_tick(
       }
       return store_and_finish(kMotionComplete, false);
     }
+  }
+
+  if (actor_lifts_pending_this_tick) {
+    actor_lift_advanced_this_tick = AdvancePendingActorLifts(
+        state, voxels, count, player_index, width, height);
+    MarkObjectsForDeferredGravity(voxels, width, height, false);
+    if (state->phase != kMotionPlayerLift && actor_lift_advanced_this_tick) {
+      return store_and_finish(
+          state->phase == kMotionActorLift ? kMotionComplete : state->phase,
+          true);
+    }
+  }
+  if (state->phase == kMotionActorLift) {
+    return store_and_finish(kMotionComplete, false);
   }
 
   if (state->phase == kMotionPlayerLift) {
@@ -1212,6 +1242,7 @@ TickResult step_tick(
           true);
     }
 
+    QueueMovingActorLiftEntries(state, voxels, count, width, height);
     if (punch_object_momentum) {
       // A punch is an inertial horizontal impulse, not an Ice-only slide.
       // Unsupported punched bodies keep advancing horizontally at one cell

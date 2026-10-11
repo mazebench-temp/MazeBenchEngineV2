@@ -42,7 +42,10 @@ bool TranslatePlayerLiftPayload(
     int32_t dz,
     int32_t width,
     int32_t height,
-    bool commit_translation = true) {
+    bool commit_translation = true,
+    int32_t actor_index = -1,
+    const uint8_t* selected_lifts = nullptr) {
+  if (actor_index < 0) actor_index = player_index;
   ClearMovingObjects();
   int32_t seeded = 0;
 
@@ -58,6 +61,14 @@ bool TranslatePlayerLiftPayload(
       g_component_objects[object] = 0;
     }
     g_component_objects[lift_object] = 1;
+    if (selected_lifts != nullptr) {
+      for (int32_t index = 0; index < count; ++index) {
+        if ((selected_lifts[index] & kActorLiftSelected) != 0 &&
+            voxels[index].role == kPlayerLiftRole && g_voxel_object[index] >= 0) {
+          g_component_objects[g_voxel_object[index]] = 1;
+        }
+      }
+    }
     bool added_fixture = true;
     while (added_fixture) {
       added_fixture = false;
@@ -70,6 +81,12 @@ bool TranslatePlayerLiftPayload(
         if (fixture < 0) continue;
         bool attached = OrangeButtonTracksPlayerLift(
             voxels[fixture], voxels[lift_index]);
+        if (!attached && selected_lifts != nullptr) {
+          for (int32_t index = 0; index < count && !attached; ++index) {
+            attached = (selected_lifts[index] & kActorLiftSelected) != 0 &&
+                OrangeButtonTracksPlayerLift(voxels[fixture], voxels[index]);
+          }
+        }
         if (!attached) {
           const int32_t support = MechanismAttachmentVoxel(
               voxels, object, width, height);
@@ -109,6 +126,9 @@ bool TranslatePlayerLiftPayload(
       seed_at(source_x, source_y, source_z + 1);
     }
   } else {
+    if (g_voxel_object[actor_index] >= 0) {
+      seed_at(source_x, source_y, source_z);
+    }
     seed_at(source_x + dx, source_y + dy, source_z);
   }
 
@@ -121,7 +141,34 @@ bool TranslatePlayerLiftPayload(
     return occupant < 0 || occupant == player_index || occupant == lift_index;
   }
 
-  return TranslateMovingObjects(
+  // Clone/polycube riders are already in the seeded rigid payload. The main
+  // single-cell player is displaced separately only when it rides that payload.
+  // A lowering lift's cube vacates the destination in this same transaction.
+  // Build fixture attachments before folding it, then restore its state here;
+  // the caller commits the visible toggle only after collision validation.
+  const bool folds_for_payload = dz < 0 && g_voxel_object[actor_index] >= 0;
+  const auto fold_lifts = [&](int32_t delta) {
+    if (!folds_for_payload) return;
+    voxels[lift_index].generic_id += delta;
+    if (selected_lifts != nullptr) {
+      for (int32_t index = 0; index < count; ++index) {
+        if (index != lift_index && (selected_lifts[index] & kActorLiftSelected) != 0) {
+          voxels[index].generic_id += delta;
+        }
+      }
+    }
+    BuildSpatialIndex(voxels, count, width, height);
+  };
+  fold_lifts(-1);
+  bool player_follows_payload = actor_index == player_index;
+  bool payload_valid = true;
+  if (!player_follows_payload && g_voxel_object[player_index] < 0) {
+    payload_valid = TranslateMovingObjects(voxels, count, player_index, dx, dy, dz,
+        width, height, false, true, true, false, false);
+    player_follows_payload = MovingPlayerCarrier(
+        voxels, player_index, width, height) >= 0;
+  }
+  const bool moved = payload_valid && TranslateMovingObjects(
       voxels,
       count,
       player_index,
@@ -132,9 +179,18 @@ bool TranslatePlayerLiftPayload(
       height,
       false,
       true,
-      true,
-      true,
+      player_follows_payload,
+      actor_index == player_index,
       commit_translation);
+  fold_lifts(1);
+  if (moved && commit_translation && player_follows_payload &&
+      actor_index != player_index && g_voxel_object[player_index] < 0) {
+    voxels[player_index].x += dx;
+    voxels[player_index].y += dy;
+    voxels[player_index].z += dz;
+    BuildSpatialIndex(voxels, count, width, height);
+  }
+  return moved;
 }
 
 // Only a player that horizontally enters a lowered platform toggles it; a
@@ -266,7 +322,9 @@ bool RecoilOverlappingPlayerLifts(
     int32_t count,
     int32_t player_index,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    int32_t primary_player_index = -1) {
+  if (primary_player_index < 0) primary_player_index = player_index;
   if (!OverlappingPlayerLiftsCanRecoil(
           voxels, count, player_index, width, height)) {
     return false;
@@ -335,7 +393,7 @@ bool RecoilOverlappingPlayerLifts(
   const bool moved = TranslateSlopeMomentumObjects(
       voxels,
       count,
-      player_index,
+      primary_player_index,
       width,
       height,
       true,
@@ -491,12 +549,15 @@ bool TogglePlayerLiftAtPlayer(
     int32_t count,
     int32_t player_index,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    int32_t primary_player_index = -1,
+    const uint8_t* selected_lifts = nullptr) {
+  if (primary_player_index < 0) primary_player_index = player_index;
   Voxel& player = voxels[player_index];
   if (PlayerLiftCountAtPlayer(
           voxels, count, player_index, width, height) > 1) {
     return RecoilOverlappingPlayerLifts(
-        voxels, count, player_index, width, height);
+        voxels, count, player_index, width, height, primary_player_index);
   }
   bool raise = false;
   const int32_t lift_index = PlayerLiftAtPlayer(
@@ -515,7 +576,7 @@ bool TogglePlayerLiftAtPlayer(
           !TranslatePlayerLiftPayload(
               voxels,
               count,
-              player_index,
+              primary_player_index,
               lift_index,
               player.x,
               player.y,
@@ -524,19 +585,24 @@ bool TogglePlayerLiftAtPlayer(
               kLiftDy[outward],
               0,
               width,
-              height)) {
+              height,
+              true,
+              player_index,
+              selected_lifts)) {
         return false;
       }
       ++voxels[lift_index].generic_id;
-      player.x = target_x;
-      player.y = target_y;
+      if (g_voxel_object[player_index] < 0) {
+        player.x = target_x;
+        player.y = target_y;
+      }
       return true;
     }
     if (player.z == INT32_MAX ||
         !TranslatePlayerLiftPayload(
             voxels,
             count,
-            player_index,
+            primary_player_index,
             lift_index,
             player.x,
             player.y,
@@ -545,16 +611,19 @@ bool TogglePlayerLiftAtPlayer(
             0,
             1,
             width,
-            height)) {
+            height,
+            true,
+            player_index,
+            selected_lifts)) {
       return false;
     }
     ++voxels[lift_index].generic_id;
-    ++player.z;
+    if (g_voxel_object[player_index] < 0) ++player.z;
   } else {
     if (!TranslatePlayerLiftPayload(
             voxels,
             count,
-            player_index,
+            primary_player_index,
             lift_index,
             player.x,
             player.y,
@@ -563,11 +632,14 @@ bool TogglePlayerLiftAtPlayer(
             0,
             -1,
             width,
-            height)) {
+            height,
+            true,
+            player_index,
+            selected_lifts)) {
       return false;
     }
     --voxels[lift_index].generic_id;
-    --player.z;
+    if (g_voxel_object[player_index] < 0) --player.z;
   }
   return true;
 }

@@ -4175,6 +4175,93 @@ void TestPuncherRedirectsPlayerAndResetsVisually() {
         "a puncher should expose its sprung frame and reset before completion");
 }
 
+void TestCloneLiftActivationSurvivesWorkspaceResumeAndSearch() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  for (int32_t rotation = 0; rotation < 4; ++rotation) {
+    for (const bool raised : {false, true}) {
+      for (int32_t body_height = 1; body_height <= 2; ++body_height) {
+        for (const bool blocked : {false, true}) {
+          if (raised && blocked) continue;
+          std::vector<voxelbench::Voxel> initial = {
+              {0, 0, 1, Role("player"), -1},
+              {2, 3, raised ? 2 : 1, Role("clone"), 17},
+              {2, 2, 1, Role("player-lift"), raised ? 1 : 0},
+          };
+          if (body_height == 2) {
+            initial.push_back({2, 3, raised ? 3 : 2, Role("clone"), 17});
+          }
+          if (raised) initial.push_back({2, 3, 1, Role("wall"), -1});
+          if (blocked) initial.push_back({2, 2, body_height + 1, Role("wall"), -1});
+          const int32_t dynamic_count = static_cast<int32_t>(initial.size());
+          for (int32_t y = 0; y < 6; ++y) {
+            for (int32_t x = 0; x < 6; ++x) {
+              initial.push_back({x, y, 0, Role("floor"), -1});
+            }
+          }
+          for (auto& voxel : initial) {
+            for (int32_t turn = 0; turn < rotation; ++turn) {
+              const int32_t x = voxel.x;
+              voxel.x = 5 - voxel.y;
+              voxel.y = x;
+            }
+          }
+          auto entered = initial;
+          constexpr int32_t dx[] = {0, 1, 0, -1};
+          constexpr int32_t dy[] = {-1, 0, 1, 0};
+          for (auto& voxel : entered) {
+            if (voxel.role != Role("clone")) continue;
+            voxel.x += dx[rotation];
+            voxel.y += dy[rotation];
+          }
+          auto expected = entered;
+          if (!blocked) {
+            expected[2].generic_id ^= 1;
+            for (auto& voxel : expected) {
+              if (voxel.role == Role("clone")) voxel.z += raised ? -1 : 1;
+            }
+          }
+          const int32_t count = static_cast<int32_t>(initial.size());
+          for (const bool prepared : {false, true}) {
+            for (const bool resumed : {false, true}) {
+              auto voxels = initial;
+              const auto prepare = [&]() {
+                voxelbench::reset_workspace(&workspace);
+                if (prepared) {
+                  Check(voxelbench::prepare_scene(&workspace, voxels.data(), count,
+                            6, 6, dynamic_count),
+                        "clone lift scene must prepare for search or resume");
+                }
+              };
+              prepare();
+              voxelbench::reset_motion_state(&state);
+              Check(voxelbench::step_command_tick(&workspace, &state, voxels.data(),
+                        count, 6, 6, rotation) == voxelbench::TickResult::kMore &&
+                        state.tick == 1 && std::memcmp(voxels.data(), entered.data(),
+                            voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "clone entry must precede its lift activation frame");
+              if (resumed) prepare();
+              Check(voxelbench::step_command_tick(&workspace, &state, voxels.data(),
+                        count, 6, 6, rotation) == voxelbench::TickResult::kComplete &&
+                        state.tick == (blocked ? 1 : 2) &&
+                        std::memcmp(voxels.data(), expected.data(),
+                            voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "a resumed lift must move the whole clone or reject it atomically");
+              voxels = initial;
+              prepare();
+              Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(),
+                        count, 6, 6, rotation, true) == 0 &&
+                        std::memcmp(voxels.data(), expected.data(),
+                            voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "prepared search must match animated clone lift activation");
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void TestPunchMomentumCrossesRaisedAndLoweredLifts() {
   static voxelbench::PhysicsWorkspace workspace;
   static voxelbench::MotionState state;
@@ -4996,6 +5083,7 @@ int main() {
   Run(TestSearchTracksOrangeWallDepth, "TestSearchTracksOrangeWallDepth");
   Run(TestPuncherRedirectsPlayerAndResetsVisually, "TestPuncherRedirectsPlayerAndResetsVisually");
   Run(TestPunchMomentumCrossesRaisedAndLoweredLifts, "TestPunchMomentumCrossesRaisedAndLoweredLifts");
+  Run(TestCloneLiftActivationSurvivesWorkspaceResumeAndSearch, "TestCloneLiftActivationSurvivesWorkspaceResumeAndSearch");
   Run(TestInitialPuncherContactWaitsForCommand, "TestInitialPuncherContactWaitsForCommand");
   Run(TestBlockedPunchRearmsForNextCommand, "TestBlockedPunchRearmsForNextCommand");
   Run(TestPunchedBodyTransfersPlayerImpulseAcrossWorkspaceResume, "TestPunchedBodyTransfersPlayerImpulseAcrossWorkspaceResume");
