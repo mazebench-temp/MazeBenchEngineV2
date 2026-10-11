@@ -1892,7 +1892,10 @@ TickResult step_tick(
     player.x = target_x;
     player.y = target_y;
     player.z = target_z;
-    player_lift_pending = !lowered_side_lift_for_entry &&
+    // Punch momentum crosses lift platforms without actuating them. A lift
+    // event here would clear the impulse and interrupt the horizontal flight.
+    player_lift_pending = !automatic_punch_motion &&
+        !lowered_side_lift_for_entry &&
         PlayerLiftCanToggleOnEntry(
             voxels,
             count,

@@ -148,6 +148,10 @@ box carrying that puncher before being punched back, or step away from it.
 The sprung flag lasts only until the next tick, including across command
 boundaries when the preceding punch was blocked. It never disables later hits.
 
+Punch momentum passes over raised top lifts and through lowered platforms
+without toggling them. Their solid geometry still participates in collision;
+ordinary player entry continues to actuate lifts on a separate tick.
+
 A punch into a body transmits its initial impulse through the touching push
 chain and into the player. Those bodies then move simultaneously, retaining
 their own momentum until obstructed. One stopped body does not stop another

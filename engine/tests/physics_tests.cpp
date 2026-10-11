@@ -4175,6 +4175,82 @@ void TestPuncherRedirectsPlayerAndResetsVisually() {
         "a puncher should expose its sprung frame and reset before completion");
 }
 
+void TestPunchMomentumCrossesRaisedAndLoweredLifts() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState state;
+  for (int32_t rotation = 0; rotation < 4; ++rotation) {
+    const auto rotate = [rotation](voxelbench::Voxel voxel) {
+      for (int32_t turn = 0; turn < rotation; ++turn) {
+        const int32_t x = voxel.x;
+        voxel.x = 5 - voxel.y;
+        voxel.y = x;
+      }
+      return voxel;
+    };
+    for (const bool resume_workspace : {false, true}) {
+      std::vector<voxelbench::Voxel> voxels = {
+          {1, 4, 2, Role("player"), -1},
+          {1, 3, 2, Role("puncher"), ((1 + rotation) % 4) * 2},
+          {2, 3, 1, Role("player-lift"), 1},
+          {3, 3, 2, Role("player-lift"), 0},
+          {0, 3, 2, Role("solid"), -1},
+          {5, 3, 2, Role("solid"), -1},
+          {1, 4, 1, Role("solid"), -1},
+      };
+      for (int32_t x = 0; x < 6; ++x) {
+        if (x != 2) voxels.push_back({x, 3, 1, Role("solid"), -1});
+      }
+      for (int32_t y = 0; y < 6; ++y) {
+        for (int32_t x = 0; x < 6; ++x) {
+          voxels.push_back({x, y, 0, Role("floor"), -1});
+        }
+      }
+      for (auto& voxel : voxels) voxel = rotate(voxel);
+      const auto initial = voxels;
+      const int32_t count = static_cast<int32_t>(voxels.size());
+      voxelbench::reset_workspace(&workspace);
+      voxelbench::reset_motion_state(&state);
+      bool complete = false;
+      int32_t previous_tick = 0;
+      for (int32_t call = 0; call < 8; ++call) {
+        if (resume_workspace) voxelbench::reset_workspace(&workspace);
+        const auto result = voxelbench::step_tick(
+            &workspace, &state, voxels.data(), count, 6, 6, rotation);
+        Check(result == voxelbench::TickResult::kMore ||
+                  result == voxelbench::TickResult::kComplete,
+              "punch crossing lifts must remain valid after workspace resume");
+        if (state.tick != previous_tick) {
+          previous_tick = state.tick;
+          Check(state.tick >= 1 && state.tick <= 4,
+                "crossing lifts must not insert lift animation ticks");
+          const auto expected = rotate({state.tick, 3, 2, Role("player"), -1});
+          Check(voxels[0].x == expected.x && voxels[0].y == expected.y &&
+                    voxels[0].z == expected.z,
+                "each punch tick must advance horizontally through both lifts");
+          Check(voxels[2].generic_id == 1 && voxels[3].generic_id == 0,
+                "punch momentum must leave raised and lowered lift states unchanged");
+        }
+        if (result == voxelbench::TickResult::kComplete) {
+          complete = true;
+          break;
+        }
+      }
+      Check(complete && state.tick == 4 &&
+                voxels[1].generic_id == ((1 + rotation) % 4) * 2,
+            "the punch must stop at the wall and rearm in four frames");
+      const auto expected_final = voxels;
+      voxels = initial;
+      voxelbench::reset_workspace(&workspace);
+      Check(voxelbench::simulate_command(
+                &workspace, &state, voxels.data(), count, 6, 6, rotation) == 0,
+            "the final-state punch command must settle");
+      Check(std::memcmp(voxels.data(), expected_final.data(),
+                       voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+            "animated and final-state punch commands must agree across lifts");
+    }
+  }
+}
+
 void TestInitialPuncherContactWaitsForCommand() {
   static voxelbench::PhysicsWorkspace workspace;
   static voxelbench::MotionState state;
@@ -4919,6 +4995,7 @@ int main() {
   Run(TestProjectedOrangeFaceTransitionsWithDepth, "TestProjectedOrangeFaceTransitionsWithDepth");
   Run(TestSearchTracksOrangeWallDepth, "TestSearchTracksOrangeWallDepth");
   Run(TestPuncherRedirectsPlayerAndResetsVisually, "TestPuncherRedirectsPlayerAndResetsVisually");
+  Run(TestPunchMomentumCrossesRaisedAndLoweredLifts, "TestPunchMomentumCrossesRaisedAndLoweredLifts");
   Run(TestInitialPuncherContactWaitsForCommand, "TestInitialPuncherContactWaitsForCommand");
   Run(TestBlockedPunchRearmsForNextCommand, "TestBlockedPunchRearmsForNextCommand");
   Run(TestPunchedBodyTransfersPlayerImpulseAcrossWorkspaceResume, "TestPunchedBodyTransfersPlayerImpulseAcrossWorkspaceResume");
