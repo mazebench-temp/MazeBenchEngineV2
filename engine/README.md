@@ -45,6 +45,11 @@ When a wrapping actor's combined proposal is blocked, other actors in that
 proposal still receive their own input. Only a successful movement consumes
 every moved actor's input; a blocked body cannot cancel a clear neighboring move.
 
+A clone behind the player may enter the player's old cell only after the
+player's destination is shown to be clear or vacated by the current validated
+actor component. Merely receiving input does not make a leading clone vacate:
+a blocked clone remains solid, and unrelated clear actors still move.
+
 A player pushing a box inside a wrapping clone shares that clone's proposed
 vacated cells. The level push is probed with exactly the participating clone
 component before allowing it into the player's source cell. An obstruction

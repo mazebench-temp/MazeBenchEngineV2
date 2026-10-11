@@ -37,7 +37,8 @@ bool PlayerWillVacateForCloneCommand(
       return false;
     }
   } else if (g_object_kind[g_voxel_object[player_index]] == kPlayerObject) {
-    return true;
+    return include_command_component &&
+        g_component_objects[g_voxel_object[player_index]] != 0;
   }
   constexpr int32_t kDx[] = {0, 1, 0, -1};
   constexpr int32_t kDy[] = {-1, 0, 1, 0};
@@ -60,8 +61,14 @@ bool PlayerWillVacateForCloneCommand(
   if (target >= 0) {
     const int32_t object = g_voxel_object[target];
     if (object < 0) return false;
-    if (ObjectReceivesActorCommand(voxels, object)) return true;
-    if (g_object_kind[object] != kNormalObject &&
+    const bool command_actor = ObjectReceivesActorCommand(voxels, object);
+    // Receiving input is not proof of movement. A blocked actor remains solid;
+    // only actors in this collision-checked proposal may promise a vacancy.
+    if (command_actor &&
+        (!include_command_component || g_component_objects[object] == 0)) {
+      return false;
+    }
+    if (!command_actor && g_object_kind[object] != kNormalObject &&
         g_object_kind[object] != kWeightlessObject) {
       return false;
     }
@@ -175,9 +182,6 @@ bool AdvanceCloneCommandObjects(
     ActiveWorkspace().clone_command_tick_active = false;
     return false;
   }
-  const bool player_will_vacate = PlayerWillVacateForCloneCommand(
-      voxels, count, player_index, direction, width, height);
-
   bool advanced = false;
   for (;;) {
     int32_t next_object = -1;
@@ -248,7 +252,11 @@ bool AdvanceCloneCommandObjects(
     // command of its own. Consume only the initiating body's attempt here;
     // a successful translation consumes every actor it actually moves below.
     g_clone_command_processed[next_object] = 1;
-    const bool component_player_will_vacate = player_will_vacate ||
+    // Earlier components may have moved or stayed blocked. Check the current
+    // board instead of reusing a promise from before any actor was resolved.
+    const bool component_player_will_vacate =
+        PlayerWillVacateForCloneCommand(
+            voxels, count, player_index, direction, width, height) ||
         PlayerWillVacateForCloneCommand(
             voxels, count, player_index, direction, width, height, true);
 

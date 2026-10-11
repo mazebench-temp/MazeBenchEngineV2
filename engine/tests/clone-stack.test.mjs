@@ -3,7 +3,7 @@ import test from 'node:test';
 import {rotateVoxelsClockwise, rotateWorldClockwise} from '../../apps/web/app/worldBounds.mjs';
 import {project, simulateFrames, simulateFinal, frameDifference} from './helpers/project-engine.mjs';
 
-for (const id of ['test-665', 'test-666', 'test-678', 'test-679', 'test-680', 'test-681', 'test-682', 'test-683', 'test-684', 'test-685', 'test-686', 'test-688', 'test-689']) {
+for (const id of ['test-665', 'test-666', 'test-678', 'test-679', 'test-680', 'test-681', 'test-682', 'test-683', 'test-684', 'test-685', 'test-686', 'test-688', 'test-689', 'test-690']) {
   test(`${id}: clone support and carrying are independent of storage and group IDs`, () => {
     const fixture = project.tests.find(t=>t.id===id);
     assert(fixture, `Missing authored regression ${id}`);

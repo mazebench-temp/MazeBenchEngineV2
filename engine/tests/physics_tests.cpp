@@ -1650,6 +1650,81 @@ void TestWrappingCloneSharesPlayerPushVacancy() {
   }
 }
 
+void TestClonePlayerChainsRequireActualVacancies() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  // Blocked/clear pairs: one leading clone, a chain, a box push, a wrapper,
+  // then a ledge, a passive clone, and a multi-voxel player.
+  for (int32_t variant = 0; variant < 12; ++variant) {
+    for (int32_t rotation = 0; rotation < 4; ++rotation) {
+      for (const bool remote_ramp : {false, true}) {
+        for (const bool reversed : {false, true}) {
+          const bool wrapper = variant == 6 || variant == 7;
+          const int32_t z = variant == 8 ? 2 : 1;
+          std::vector<voxelbench::Voxel> start = {
+              {2, 3, z, Role("player"), -1},
+              {2, 2, z, Role("clone"), variant == 9 ? voxelbench::kCloneNoCommandIdFlag | 17 : 17},
+              {2, 4, z, Role("clone"), wrapper ? 17 : 29},
+          };
+          if (variant == 2 || variant == 3) start.push_back({2, 1, 1, Role("clone"), 43});
+          if (variant == 4 || variant == 5) start.push_back({2, 1, 1, Role("pushable"), -1});
+          if (wrapper) for (int32_t y = 1; y <= 4; ++y) start.push_back({3, y, 1, Role("clone"), 17});
+          if (variant >= 10) start.push_back({1, 3, 1, Role("player"), -1});
+          const int32_t group_count = static_cast<int32_t>(start.size());
+          start.push_back({6, 4, 1, Role("clone"), 71});
+          const int32_t dynamic_count = static_cast<int32_t>(start.size());
+          auto expected = start;
+          const bool group_moves = variant < 8 ? variant % 2 == 1 : variant == 11;
+          for (int32_t i = 0; i < group_count; ++i) {
+            if (group_moves || (variant == 10 && i == 1)) --expected[static_cast<size_t>(i)].y;
+          }
+          --expected.back().y;
+          if (reversed) {
+            std::reverse(start.begin(), start.end());
+            std::reverse(expected.begin(), expected.end());
+          }
+          for (int32_t y = 0; y < 8; ++y) for (int32_t x = 0; x < 8; ++x) {
+            start.push_back({x, y, 0, Role("floor"), -1});
+          }
+          if (variant == 0) start.push_back({2, 1, 1, Role("wall"), -1});
+          if (variant == 2 || variant == 4) start.push_back({2, 0, 1, Role("wall"), -1});
+          if (variant == 6) start.push_back({3, 0, 1, Role("wall"), -1});
+          if (variant == 10) start.push_back({1, 2, 1, Role("wall"), -1});
+          if (variant == 8) for (int32_t y = 2; y <= 4; ++y) start.push_back({2, y, 1, Role("wall"), -1});
+          const char* ramps[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+          if (remote_ramp) start.push_back({7, 7, 1, Role(ramps[rotation]), -1});
+          expected.insert(expected.end(), start.begin() + dynamic_count, start.end());
+          for (auto* scene : {&start, &expected}) for (auto& voxel : *scene) {
+            for (int32_t turn = 0; turn < rotation; ++turn) {
+              const int32_t x = voxel.x;
+              voxel.x = 7 - voxel.y;
+              voxel.y = x;
+            }
+          }
+          const int32_t count = static_cast<int32_t>(start.size());
+          for (const bool prepared : {false, true}) for (const bool animated : {false, true}) {
+            auto voxels = start;
+            voxelbench::reset_workspace(&workspace);
+            if (prepared) Check(voxelbench::prepare_scene(&workspace, voxels.data(), count,
+                8, 8, dynamic_count), "actor chain must prepare for search");
+            voxelbench::reset_motion_state(&motion);
+            if (animated) {
+              Check(voxelbench::step_command_tick(&workspace, &motion, voxels.data(), count,
+                        8, 8, rotation) == voxelbench::TickResult::kComplete && motion.tick == 1,
+                    "actor chain must resolve in one animation tick");
+            } else {
+              Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 8, 8, rotation) == 0,
+                    "actor chain search successor must resolve");
+            }
+            Check(std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                  "blocked actors must not promise player vacancies; independent clear actors still move");
+          }
+        }
+      }
+    }
+  }
+}
+
 void TestInterlockingCloneCommandComponent() {
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
@@ -5088,6 +5163,7 @@ int main() {
   Run(TestBlockedWrappingCloneDoesNotCancelFreeActors, "TestBlockedWrappingCloneDoesNotCancelFreeActors");
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
   Run(TestWrappingCloneSharesPlayerPushVacancy, "TestWrappingCloneSharesPlayerPushVacancy");
+  Run(TestClonePlayerChainsRequireActualVacancies, "TestClonePlayerChainsRequireActualVacancies");
   Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
   Run(TestPlayerPolycubeMovesAndFallsRigidly, "TestPlayerPolycubeMovesAndFallsRigidly");
   Run(TestExactSearchTracksPlayerPolycube, "TestExactSearchTracksPlayerPolycube");
