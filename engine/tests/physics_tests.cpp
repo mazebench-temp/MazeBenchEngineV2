@@ -1564,6 +1564,92 @@ void TestBlockedWrappingCloneDoesNotCancelFreeActors() {
   }
 }
 
+void TestWrappingCloneSharesPlayerPushVacancy() {
+  static voxelbench::PhysicsWorkspace workspace;
+  static voxelbench::MotionState motion;
+  for (const bool swap : {false, true}) {
+    for (const bool crate : {false, true}) {
+      for (int32_t obstacle = 0; obstacle < 5; ++obstacle) {
+        if ((crate && obstacle >= 3) || (swap && obstacle == 4)) continue;
+        for (int32_t rotation = 0; rotation < 4; ++rotation) {
+          for (const bool remote_ramp : {false, true}) {
+            const int32_t box_y = swap ? 3 : 2;
+            std::vector<voxelbench::Voxel> start = {
+                {2, swap ? 2 : 3, 1, Role("player"), -1},
+                {2, box_y, 1, Role(crate ? "pushable" : "weightless-pushable"), 0},
+                {2, 1, 1, Role("clone"), 17},
+                {2, 4, 1, Role("clone"), 17},
+                {3, 1, 1, Role("clone"), 17},
+                {3, 2, 1, Role("clone"), 17},
+                {3, 3, 1, Role("clone"), 17},
+                {3, 4, 1, Role("clone"), 17},
+                {5, 4, 1, Role("clone"), 71},
+            };
+            if (obstacle == 1) start.push_back({3, 0, 1, Role("wall"), -1});
+            if (obstacle == 2) start.push_back({5, 3, 1, Role("wall"), -1});
+            if (obstacle == 3) {
+              start.push_back({1, box_y, 1, Role("weightless-pushable"), 0});
+              start.push_back({1, box_y - 1, 1, Role("wall"), -1});
+            }
+            if (obstacle == 4) {
+              for (auto& voxel : start) {
+                if (voxel.role != Role("clone") || voxel.generic_id != 71) voxel.z = 2;
+              }
+              start.push_back({1, 2, 2, Role("weightless-pushable"), 0});
+              start.push_back({1, 2, 1, Role("weightless-pushable"), 0});
+              for (int32_t y = 0; y < 5; ++y) {
+                start.push_back({3, y, 1, Role("wall"), -1});
+                if (y != 2) start.push_back({2, y, 1, Role("wall"), -1});
+              }
+            }
+            const int32_t dynamic_count = static_cast<int32_t>(start.size());
+            for (int32_t y = 0; y < 6; ++y) {
+              for (int32_t x = 0; x < 6; ++x) start.push_back({x, y, 0, Role("floor"), -1});
+            }
+            const char* ramps[] = {"ice-slope-up", "ice-slope-right", "ice-slope-down", "ice-slope-left"};
+            if (remote_ramp) start.push_back({0, 5, 1, Role(ramps[rotation]), -1});
+            auto expected = start;
+            for (auto& voxel : expected) {
+              const bool independent = voxel.role == Role("clone") && voxel.generic_id == 71;
+              const bool group = voxel.role == Role("player") ||
+                  voxel.role == Role("pushable") || voxel.role == Role("weightless-pushable") ||
+                  (voxel.role == Role("clone") && !independent);
+              if ((independent && obstacle != 2) || (group && (obstacle == 0 || obstacle == 2))) --voxel.y;
+            }
+            for (auto* scene : {&start, &expected}) for (auto& voxel : *scene) {
+              for (int32_t turn = 0; turn < rotation; ++turn) {
+                const int32_t x = voxel.x;
+                voxel.x = 5 - voxel.y;
+                voxel.y = x;
+              }
+            }
+            const int32_t count = static_cast<int32_t>(start.size());
+            for (const bool prepared : {false, true}) {
+              auto voxels = start;
+              const auto prepare = [&]() {
+                voxelbench::reset_workspace(&workspace);
+                if (prepared) Check(voxelbench::prepare_scene(&workspace, voxels.data(),
+                    count, 6, 6, dynamic_count), "wrapping clone push must prepare for search");
+              };
+              prepare();
+              voxelbench::reset_motion_state(&motion);
+              Check(voxelbench::step_command_tick(&workspace, &motion, voxels.data(), count,
+                        6, 6, rotation) == voxelbench::TickResult::kComplete && motion.tick == 1 &&
+                        std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "a wrapping clone and player push must share a collision-checked vacancy");
+              voxels = start;
+              prepare();
+              Check(voxelbench::simulate_quiescent_turn(&workspace, voxels.data(), count, 6, 6, rotation) == 0 &&
+                        std::memcmp(voxels.data(), expected.data(), voxels.size() * sizeof(voxelbench::Voxel)) == 0,
+                    "prepared search must preserve clone/player push atomicity and independent actors");
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
 void TestInterlockingCloneCommandComponent() {
   voxelbench::Voxel voxels[] = {
       {0, 5, 1, Role("player"), -1},
@@ -5001,6 +5087,7 @@ int main() {
   Run(TestYellowSlopeAndCloneShareTheirGenericBody, "TestYellowSlopeAndCloneShareTheirGenericBody");
   Run(TestBlockedWrappingCloneDoesNotCancelFreeActors, "TestBlockedWrappingCloneDoesNotCancelFreeActors");
   Run(TestInterlockingCloneCommandComponent, "TestInterlockingCloneCommandComponent");
+  Run(TestWrappingCloneSharesPlayerPushVacancy, "TestWrappingCloneSharesPlayerPushVacancy");
   Run(TestExactSearchCannotCollectGoalsThroughClones, "TestExactSearchCannotCollectGoalsThroughClones");
   Run(TestPlayerPolycubeMovesAndFallsRigidly, "TestPlayerPolycubeMovesAndFallsRigidly");
   Run(TestExactSearchTracksPlayerPolycube, "TestExactSearchTracksPlayerPolycube");

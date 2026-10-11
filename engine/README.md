@@ -45,6 +45,12 @@ When a wrapping actor's combined proposal is blocked, other actors in that
 proposal still receive their own input. Only a successful movement consumes
 every moved actor's input; a blocked body cannot cancel a clear neighboring move.
 
+A player pushing a box inside a wrapping clone shares that clone's proposed
+vacated cells. The level push is probed with exactly the participating clone
+component before allowing it into the player's source cell. An obstruction
+anywhere in the combined push blocks that group; unrelated clones still receive
+their own input. Local ramp elevation changes retain their slope validation.
+
 Cargo above a player riding a clone inherits the clone's complete movement,
 including ramp elevation. A clone cannot walk onto cargo that the player's
 same command carries away; cargo blocked by terrain remains a valid foothold.

@@ -26,7 +26,8 @@ bool PlayerWillVacateForCloneCommand(
     int32_t player_index,
     int32_t direction,
     int32_t width,
-    int32_t height) {
+    int32_t height,
+    bool include_command_component = false) {
   if (player_index < 0 ||
       !ObjectIsActive(voxels, g_voxel_object[player_index], width, height)) {
     // A one-voxel player intentionally has no rigid-object record.
@@ -64,11 +65,41 @@ bool PlayerWillVacateForCloneCommand(
         g_object_kind[object] != kWeightlessObject) {
       return false;
     }
+    if (include_command_component && dz != 0) return false;
+    int32_t required_player_carrier = -1;
+    if (include_command_component) {
+      const int32_t support = target_z == INT32_MIN ? -1 : FindVoxelAt(
+          voxels, target_x, target_y, target_z - 1, width, height);
+      const int32_t support_object = support >= 0 ? g_voxel_object[support] : -1;
+      const bool support_stays = support >= 0 && support_object != object &&
+          (support_object < 0 || g_component_objects[support_object] == 0);
+      if (!support_stays) {
+        const int32_t current = player.z == INT32_MIN ? -1 : FindVoxelAt(
+            voxels, player.x, player.y, player.z - 1, width, height);
+        const bool may_leave = current >= 0 && (voxels[current].role == kFloorRole ||
+            IsIceRole(voxels[current].role) || g_voxel_object[current] == object);
+        if (!may_leave) {
+          required_player_carrier = current >= 0 ? g_voxel_object[current] : -1;
+          if (required_player_carrier < 0) return false;
+        }
+      }
+    }
     ClearMovingObjects();
     g_mandatory_objects[object] = 1;
     g_moving_objects[object] = 1;
     g_object_direction[object] = static_cast<uint8_t>(direction);
-    const bool can_move = TranslateMovingObjects(
+    if (include_command_component) {
+      // A wrapping clone may both vacate the box's destination and refill
+      // the player's source. Validate the box push with exactly those actors
+      // participating, rather than treating their old cells as fixed walls.
+      for (int32_t actor = 0; actor < g_object_count; ++actor) {
+        if (g_component_objects[actor] == 0) continue;
+        g_mandatory_objects[actor] = 1;
+        g_moving_objects[actor] = 1;
+        g_object_direction[actor] = static_cast<uint8_t>(direction);
+      }
+    }
+    bool can_move = TranslateMovingObjects(
         voxels,
         count,
         player_index,
@@ -81,7 +112,20 @@ bool PlayerWillVacateForCloneCommand(
         true,
         true,
         false,
-        false);
+        false,
+        required_player_carrier);
+    if (can_move && include_command_component) {
+      // This shared probe describes a level translation. A local ramp that
+      // changes any participant's elevation still needs its slope transaction;
+      // a distant ramp does not change this component's collision geometry.
+      for (int32_t actor = 0; actor < g_object_count; ++actor) {
+        if (g_moving_objects[actor] != 0 && ObjectSlopeVerticalDelta(
+                voxels, actor, direction, width, height, true) != 0) {
+          can_move = false;
+          break;
+        }
+      }
+    }
     ClearMovingObjects();
     return can_move;
   }
@@ -204,6 +248,9 @@ bool AdvanceCloneCommandObjects(
     // command of its own. Consume only the initiating body's attempt here;
     // a successful translation consumes every actor it actually moves below.
     g_clone_command_processed[next_object] = 1;
+    const bool component_player_will_vacate = player_will_vacate ||
+        PlayerWillVacateForCloneCommand(
+            voxels, count, player_index, direction, width, height, true);
 
     // Like the player, a clone may deliberately walk off Floor or Ice but not
     // step away from the top of a wall or stationary body into unsupported
@@ -213,7 +260,7 @@ bool AdvanceCloneCommandObjects(
     for (int32_t word = 0; word < (g_object_count + 63) / 64; ++word) {
       departing_support[word] = 0;
     }
-    if (player_will_vacate) {
+    if (component_player_will_vacate) {
       ClearMovingObjects();
       const int32_t player_dz = DeliberateSlopeVerticalDelta(
           voxels, voxels[player_index], direction, width, height, false);
@@ -294,7 +341,7 @@ bool AdvanceCloneCommandObjects(
     // Validate that carried destination before allowing the old cell to yield.
     const bool player_rides_component = player_rider.object >= 0 &&
         MovingPlayerCarrier(voxels, player_index, width, height) == player_rider.object;
-    const bool player_vacates = player_will_vacate || player_rides_component;
+    const bool player_vacates = component_player_will_vacate || player_rides_component;
     bool player_was_pushed = false;
     const bool moved = slope_scene
         ? TranslateSlopeMomentumObjects(
