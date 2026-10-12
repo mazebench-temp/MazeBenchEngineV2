@@ -25457,6 +25457,33 @@
         "clone-default"
       ],
       "file": "regression-pxp-supported-clone-component.json"
+    },
+    {
+      "id": "test-692",
+      "name": "Untitled test 692",
+      "groupTagId": "clone",
+      "tagIds": [
+        "clone-default"
+      ],
+      "file": "test-692.json"
+    },
+    {
+      "id": "test-693",
+      "name": "Untitled test 693",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-693.json"
+    },
+    {
+      "id": "test-694",
+      "name": "Untitled test 694",
+      "groupTagId": "lift",
+      "tagIds": [
+        "side-lift"
+      ],
+      "file": "test-694.json"
     }
   ]
 }
