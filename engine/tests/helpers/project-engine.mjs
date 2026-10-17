@@ -46,6 +46,7 @@ for (const direction of ["up", "right", "down", "left"]) {
   for (const family of ["ice-slope", "blue-box-slope", "yellow-clone-slope"]) {
     roleCodes.set(`${family}-${direction}`, roleCode(`${family}-${direction}`));
   }
+  roleCodes.set(`orange-wall-slope-${direction}`, roleCode(`orange-wall-slope-${direction}`));
 }
 const blocksById = new Map(project.blocks.map((block) => [block.id, block]));
 const floorBlockId = project.blocks.find((block) => block.roleId === "floor")?.id;
@@ -57,6 +58,7 @@ const buttonBlockIds = {
 };
 const slopeDirections = ["up", "right", "down", "left"];
 function slopePhysicsRoleId(baseRoleId, direction) {
+  if (baseRoleId === "orange-wall") return `orange-wall-slope-${direction}`;
   if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
   if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
   return `ice-slope-${direction}`;
@@ -84,7 +86,7 @@ function voxelMechanismId(voxel) {
       block.visual.buttonForm === "hidden",
     );
   }
-  if (block?.visual?.kind === "orange-wall") {
+  if (block?.roleId === "orange-wall") {
     return orangeWallMechanismValue(voxel, blocksById);
   }
   if (block?.visual?.kind === "puncher") {
@@ -139,7 +141,7 @@ function simulateFrames(voxels, direction, world) {
       z: buffer[index * stride + 2],
       ...(visualKind === "button"
         ? { stateId: 0 }
-        : visualKind === "orange-wall"
+        : blocksById.get(voxel.blockId)?.roleId === "orange-wall"
           ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)
@@ -227,7 +229,7 @@ function simulateFinal(voxels, direction, world) {
       z: buffer[index * stride + 2],
       ...(visualKind === "button"
         ? { stateId: 0 }
-        : visualKind === "orange-wall"
+        : blocksById.get(voxel.blockId)?.roleId === "orange-wall"
           ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
           : {}),
       ...(genericBlocks.has(voxel.blockId)

@@ -73,7 +73,7 @@ bool prepare_scene(
     if (role == kPlayerRole || IsCloneObjectRole(role) ||
         role == kPushableRole || IsWeightlessObjectRole(role) ||
         role == kPlayerLiftRole || role == kPlayerGateRole ||
-        role == kOrangeButtonRole || role == kOrangeWallRole ||
+        role == kOrangeButtonRole || IsOrangeWallRole(role) ||
         role == kPuncherRole || role == kFloatingFloorRole) {
       data.prepared_dynamic_voxel_count = -1;
       return false;
@@ -95,7 +95,7 @@ bool prepare_scene(
     data.prepared_has_player_lifts |= voxels[index].role == kPlayerLiftRole;
     data.prepared_has_orange_mechanisms |=
         voxels[index].role == kOrangeButtonRole ||
-        voxels[index].role == kOrangeWallRole;
+        IsOrangeWallRole(voxels[index].role);
     data.prepared_has_punchers |= voxels[index].role == kPuncherRole;
     data.prepared_has_floating_floors |=
         voxels[index].role == kFloatingFloorRole;

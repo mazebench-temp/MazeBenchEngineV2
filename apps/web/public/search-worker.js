@@ -1834,6 +1834,10 @@ function roleCodes(physics, roles) {
   const codes = new Map();
   const roleIds = [
     ...roles.map((role) => role.id),
+    "orange-wall-slope-up",
+    "orange-wall-slope-right",
+    "orange-wall-slope-down",
+    "orange-wall-slope-left",
     "ice-slope-up",
     "ice-slope-right",
     "ice-slope-down",
@@ -1856,6 +1860,7 @@ function roleCodes(physics, roles) {
 }
 
 function slopePhysicsRoleId(baseRoleId, direction) {
+  if (baseRoleId === "orange-wall") return `orange-wall-slope-${direction}`;
   if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
   if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
   return `ice-slope-${direction}`;
@@ -1962,12 +1967,14 @@ async function evaluate(
     candidate.voxels.length * stride,
   );
   candidate.voxels.forEach((voxel, index) => {
+    const orangeWall = blocksById.get(voxel.blockId)?.roleId === "orange-wall";
+    const depth = Math.max(0, Math.floor(voxel.mechanismDepth ?? voxel.stateId ?? 0));
     buffer.set([
       voxel.x,
       voxel.y,
-      voxel.z,
+      orangeWall ? voxel.z + (voxel.stateId === 0 ? Math.max(0, depth - 1) : depth) : voxel.z,
       voxelRole(voxel),
-      genericBlocks.has(voxel.blockId) ? Math.max(0, voxel.genericId ?? 0) : -1,
+      orangeWall ? depth : genericBlocks.has(voxel.blockId) ? Math.max(0, voxel.genericId ?? 0) : -1,
     ], index * stride);
   });
   const initialState = buffer.slice();

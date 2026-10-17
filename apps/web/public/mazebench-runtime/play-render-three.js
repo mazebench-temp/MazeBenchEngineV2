@@ -13,6 +13,9 @@
   modules.registerThreeRenderFunctions = function registerThreeRenderFunctions(app) {
     const threeCanvas = document.createElement("canvas");
     let THREE = null;
+    let surfaceKernel = null;
+    const joinedSurfaceGroups = new Map();
+    let numberFaceMasks = new WeakMap();
     let renderer = null;
     let scene = null;
     let edgeScene = null;
@@ -283,12 +286,14 @@
     }
 
     function withRenderContext(context, callback) {
+      flushJoinedSurfaces();
       const previousContext = activeRenderContext;
       activeRenderContext = context;
 
       try {
         callback();
       } finally {
+        flushJoinedSurfaces();
         activeRenderContext = previousContext;
       }
     }
@@ -372,7 +377,9 @@
     }
 
     function perspectiveCameraNearPlane() {
-      return Math.max(2, unit * 0.075);
+      return surfaceKernel.perspectiveNearForDistance(
+        lastCameraFitDistance, unit, Math.max(2, unit * 0.075)
+      );
     }
 
     function updateCameraModeToggle() {
@@ -2664,6 +2671,114 @@
       return filteredEdges;
     }
 
+    function joinedVoxelShapes(voxels, offset = { x: 0, y: 0, z: 0 }) {
+      return voxels.map(voxel => ({ position: [
+        voxel.x + (renderOffsetX() + offset.x) / unit,
+        voxel.z + offset.y / unit,
+        voxel.y + (renderOffsetZ() + offset.z) / unit
+      ] }));
+    }
+
+    function joinedSlopeShape(centerX, bottomY, centerZ, direction) {
+      return { position: [centerX / unit - 0.5, bottomY / unit, centerZ / unit - 0.5],
+        direction: normalizeCardinalDirection(direction) };
+    }
+
+    function terrainMeshFamily(descriptor) {
+      return descriptor.layer?.meshFamily || surfaceKernel.slopeMeshFamily(
+        descriptor.layer?.voxelKey || ({ ice_block: "ice-block", ice: "ice-block",
+          ice_slope: "ice-block", orange_ice_slope: "orange-wall", orange_wall: "orange-wall" }[descriptor.type] || descriptor.type)
+      );
+    }
+
+    function queueJoinedSurface(mesh, edge, settings) {
+      if (!settings || !surfaceKernel) return;
+      const key = JSON.stringify([settings.family, String(settings.id ?? ""),
+        mesh.material.color.getHex(), mesh.material.opacity, mesh.renderOrder,
+        edge?.material.opacity ?? 0]);
+      if (!joinedSurfaceGroups.has(key)) joinedSurfaceGroups.set(key, []);
+      joinedSurfaceGroups.get(key).push({ mesh, edge, shapes: settings.shapes });
+    }
+
+    function replaceJoinedGeometry(object, positions, normals) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions.map(
+        (value, index) => value * unit - object.position.getComponent(index % 3)
+      ), 3));
+      if (normals) geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+      if (!cachedGeometryHas(object.geometry)) object.geometry.dispose();
+      object.geometry = geometry;
+      object.userData.joinedSurface = true;
+    }
+
+    // Keep each piece's editor-pick metadata while generating one continuous
+    // surface and outline for its material/body. Cached world groups can then
+    // batch these meshes as usual. Never mutate a cached source geometry.
+    function flushJoinedSurfaces() {
+      if (!joinedSurfaceGroups.size) return;
+      const batches = Array.from(joinedSurfaceGroups.values(), records => ({
+        records,
+        shapes: records.flatMap(record => record.shapes),
+        visibility: `${records[0].mesh.material.opacity}:${records[0].mesh.renderOrder}`
+      }));
+      const occupants = new Map();
+      for (const batch of batches) {
+        if (!occupants.has(batch.visibility)) occupants.set(batch.visibility, []);
+        occupants.get(batch.visibility).push(...batch.shapes);
+      }
+      for (const { records, visibility } of surfaceKernel.slopeContactGroups(batches)) {
+        const faces = [];
+        for (const record of records) {
+          const part = surfaceKernel.joinedSurfaceFaces(record.shapes, occupants.get(visibility));
+          faces.push(...part);
+          replaceJoinedGeometry(record.mesh, surfaceKernel.joinedTrianglePositions(part), true);
+        }
+        let outlineWritten = false;
+        for (const { edge } of records) {
+          if (!edge) continue;
+          replaceJoinedGeometry(edge, outlineWritten ? [] : surfaceKernel.joinedEdgePositions(faces), false);
+          outlineWritten = true;
+        }
+      }
+      joinedSurfaceGroups.clear();
+    }
+
+    function mountedNumberFaceMask() {
+      const state = renderState();
+      if (numberFaceMasks.has(state)) return numberFaceMasks.get(state);
+      const fixtures = [];
+      for (let y = 0; y < state.height; y++) for (let x = 0; x < state.width; x++) {
+        for (const layer of renderTerrainLayersAt(x, y, state)) {
+          if (!["player_lift", "player_gate", "orange_button"].includes(layer.type)) continue;
+          fixtures.push({ x, y, z: layer.elevation ?? 0,
+            face: layer.type === "player_lift" ? normalizePlayerLiftOrientation(layer.direction) : "top" });
+        }
+      }
+      for (const actor of state.actors || []) {
+        if (actor.removed || !actorIsVisible(actor) || !["orange_button", "puncher"].includes(actor.type)) continue;
+        fixtures.push({ x: actor.renderX ?? actor.x, y: actor.renderY ?? actor.y,
+          z: actor.renderElevation ?? actor.elevation ?? 0,
+          face: actor.type === "puncher"
+            ? ({ up: "north", right: "east", down: "south", left: "west" }[actor.direction] || "north")
+            : actor.orientation || "top" });
+      }
+      const mask = surfaceKernel.mountedNumberFaces(fixtures);
+      numberFaceMasks.set(state, mask);
+      return mask;
+    }
+
+    function numberLabelCovered(kind, plane, a, b, offset) {
+      const face = { top: "top", bottom: "bottom", xplus: "east", xminus: "west",
+        zplus: "south", zminus: "north" }[kind];
+      const [x, y, z] = kind === "top" || kind === "bottom" ? [a, b, plane - (kind === "top" ? 1 : 0)]
+        : kind === "xplus" || kind === "xminus" ? [plane - (kind === "xplus" ? 1 : 0), a, b]
+        : [a, plane - (kind === "zplus" ? 1 : 0), b];
+      return mountedNumberFaceMask().has(surfaceKernel.numberFaceKey(
+        x + offset.x / unit, y + offset.z / unit, z + offset.y / unit, face
+      ));
+    }
+
     function addOutlinedMesh(geometry, color, position, options = {}) {
       const opacity = options.opacity ?? 1;
       const meshMaterial = material(color, opacity, {
@@ -2685,17 +2800,19 @@
       scene.add(mesh);
 
       if (options.outline === false || !edgeOutlinesEnabled()) {
+        queueJoinedSurface(mesh, null, options.joinedSurface);
         return mesh;
       }
 
       const edgeThreshold = options.edgeThreshold ?? 24;
-      addEdgeLines(
+      const edge = addEdgeLines(
         geometry,
         mesh.position,
         edgeThreshold,
         options.edgeOpacity ?? opacity,
         options.edgeGeometry
       );
+      queueJoinedSurface(mesh, edge, options.joinedSurface);
       return mesh;
     }
 
@@ -2887,6 +3004,7 @@
     }
 
     function mergeImmediateSceneObjects(container, kind) {
+      flushJoinedSurfaces();
       const batches = new Map();
       let sourceCount = 0;
       let mergedCount = 0;
@@ -3391,6 +3509,7 @@
           }
 
           const [a, b] = cellKey.split(",").map(Number);
+          if (numberLabelCovered(faceGroup.kind, faceGroup.plane, a, b, renderOffset)) return;
           const labelMesh = new THREE.Mesh(
             groupLabelPlaneGeometry(faceGroup.kind),
             labelMaterial
@@ -3498,6 +3617,10 @@
         return;
       }
 
+      if (mountedNumberFaceMask().has(surfaceKernel.numberFaceKey(
+        (center.x - renderOffsetX()) / unit - 0.5,
+        (center.z - renderOffsetZ()) / unit - 0.5, bottomY / unit, "top"
+      ))) return;
       const normalized = normalizeCardinalDirection(actor.direction);
       const slopeAngle = Math.atan2(elevationUnit, unit);
       const normalOffset = Math.max(0.9, unit * 0.014);
@@ -6838,6 +6961,8 @@
         terrainColor(descriptor.type, descriptor),
         { x: 0, y: 0, z: 0 },
         {
+          joinedSurface: { family: terrainMeshFamily(descriptor), id: descriptor.layer?.genericLabel,
+            shapes: joinedVoxelShapes(voxels) },
           edgeGeometry: polycubeEdgeGeometry(voxels, {
             descriptor,
             now,
@@ -7567,6 +7692,7 @@
     }
 
     function addIceSlopeCell(cell, descriptor, visibility, now) {
+      const editorOpacity = clamp01(descriptor.layer?.editorOpacity ?? 1);
       const centerX = (cell.left + cell.right) / 2 + renderOffsetX();
       const centerZ = (cell.top + cell.bottom) / 2 + renderOffsetZ();
       const bottomY = descriptor.bottomY ?? descriptor.topY - descriptor.blockHeight;
@@ -7605,11 +7731,16 @@
           z: centerZ
         },
         {
+          joinedSurface: { family: terrainMeshFamily(descriptor), id: descriptor.layer?.genericLabel,
+            shapes: [joinedSlopeShape(centerX, bottomY, centerZ, descriptor.layer?.direction)] },
           edgeGeometry: iceSlopeEdgeGeometry(descriptor.layer?.direction, {
             suppressContacts
           }),
           edgeThreshold: 18,
-          opacity: visibility,
+          opacity: visibility * editorOpacity,
+          edgeOpacity: visibility * Math.max(editorOpacity, 0.68),
+          depthWrite: editorOpacity >= 0.999,
+          renderOrder: editorOpacity < 0.999 ? 12 : 0,
           doubleSide: true,
           castShadow: renderContextCastsShadows(),
           receiveShadow: true,
@@ -8035,6 +8166,7 @@
       const columnRenderOffsetY = (column) => column.renderY - column.gridY;
       const entryCellKey = (entry) => [
         entry.groupId,
+        entry.actor.type, actorColor(entry.actor),
         entry.gridX,
         entry.gridY,
         rounded(entry.renderX),
@@ -8045,21 +8177,22 @@
       ].join(":");
       const columnGroupKey = (column) => [
         column.groupId,
+        column.actor.type, actorColor(column.actor),
         rounded(column.bottomY),
         rounded(column.topY),
         rounded(column.scale),
         rounded(column.sink),
         column.hasHoleFade ? 1 : 0
       ].join(":");
-      // Slope-shaped members stay out of the cube-only polycube batch so they
-      // retain wedge geometry. Group-aware contact suppression below removes
-      // internal seams where those wedges touch this same-ID cube mesh.
+      // Keep slope picking separate from the cube batch. Both paths feed the
+      // shared surface union before rendering, retaining material/body borders.
       const isGroupedPolycubeActor = (actor) =>
         (actor?.type === "weightless_box" || actor?.type === "clone") &&
         actor?.shape !== "slope";
       const canMergeStackedWeightlessEntries = (lower, upper) =>
         lower.groupId === upper.groupId &&
         lower.actor.type === upper.actor.type &&
+        actorColor(lower.actor) === actorColor(upper.actor) &&
         !lower.actor.renderInHole &&
         !upper.actor.renderInHole &&
         Math.abs(lower.scale - upper.scale) <= 0.001 &&
@@ -8073,6 +8206,7 @@
         columnHeightLevels(column) > 0;
       const polycubeGroupKey = (column) => [
         column.groupId,
+        column.actor.type, actorColor(column.actor),
         rounded(columnRenderOffsetX(column)),
         rounded(columnRenderOffsetY(column)),
         rounded(columnYOffset(column)),
@@ -8152,6 +8286,8 @@
           actorColor(columns[0].actor),
           renderOffset,
           {
+            joinedSurface: { family: columns[0].actor.meshFamily || columns[0].actor.type,
+              id: columns[0].groupId, shapes: joinedVoxelShapes(voxels, renderOffset) },
             edgeGeometry: polycubeEdgeGeometry(voxels, { groupedSlopeContacts }),
             edgeThreshold: 18,
             opacity,
@@ -9152,6 +9288,10 @@
             z: center.z
           },
           {
+            joinedSurface: Math.abs(scale - 1) < 0.001 && Math.abs(sink) < 0.001
+              ? { family: actor.meshFamily || actor.type, id: actor.groupId,
+                  shapes: [joinedSlopeShape(center.x, slopeBottomY, center.z, actor.direction)] }
+              : null,
             edgeGeometry: iceSlopeEdgeGeometry(actor.direction, { suppressContacts }),
             edgeThreshold: 18,
             opacity: opacity * visibility,
@@ -9200,6 +9340,8 @@
     }
 
     function disposeScene() {
+      joinedSurfaceGroups.clear();
+      numberFaceMasks = new WeakMap();
       clearEditorHoverHighlight();
       disposeSceneChildren(scene);
       disposeSceneChildren(edgeScene);
@@ -13404,6 +13546,16 @@
     }
 
     function renderSceneToComposite(shouldUpdateShadowMap) {
+      flushJoinedSurfaces();
+      // Camera fitting/zoom can change distance after syncRendererSize. Update
+      // depth precision on every path, including cached-scene camera movement.
+      if (camera.isPerspectiveCamera) {
+        const near = perspectiveCameraNearPlane();
+        if (camera.near !== near) {
+          camera.near = near;
+          camera.updateProjectionMatrix();
+        }
+      }
       syncPlayerLiftMarkerRotations();
       renderer.info?.reset?.();
       renderer.setClearColor("#050608", 1);
@@ -13799,8 +13951,9 @@
     app.threeRendererReady = (window.__MAZEBENCH_THREE__
       ? Promise.resolve(window.__MAZEBENCH_THREE__)
       : import(threeModuleUrl))
-      .then((module) => {
+      .then(async (module) => {
         THREE = module;
+        surfaceKernel = await import(assetUrl("/mazebench-runtime/joined-voxel-surface.mjs"));
       })
       .then(() => {
         renderer = new THREE.WebGLRenderer({

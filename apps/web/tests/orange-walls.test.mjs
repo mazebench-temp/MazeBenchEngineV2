@@ -28,6 +28,18 @@ const definitions = new Map([
     roleId: "orange-wall",
     visual: { kind: "orange-wall", orangeForm: "hidden" },
   }],
+  ["orange-wall-slope", {
+    id: "orange-wall-slope",
+    occupancy: "inactive",
+    roleId: "orange-wall",
+    visual: { kind: "slope", orangeForm: "visible" },
+  }],
+  ["orange-wall-slope-hidden", {
+    id: "orange-wall-slope-hidden",
+    occupancy: "inactive",
+    roleId: "orange-wall",
+    visual: { kind: "slope", orangeForm: "hidden" },
+  }],
 ]);
 
 test("all Orange Walls use the same nonnegative mechanism depth", () => {
@@ -111,5 +123,25 @@ test("visual comparison migrates retired face records to visible cubes", () => {
   assert.deepEqual(
     orangeWallVisualFrame({ voxels: [first, second] }, definitions).voxels,
     [{ ...first, stateId: 1 }, second],
+  );
+});
+
+test("orange slopes retain their shape and direction through hidden and visible engine frames", () => {
+  const floor = { x: 1, y: 1, z: 0, blockId: "floor" };
+  const slope = {
+    x: 1, y: 1, z: 1, blockId: "orange-wall-slope",
+    orientation: "right", variantId: 1, stateId: 1, mechanismDepth: 2,
+  };
+  const hidden = orangeWallFrameFromEngine({ voxels: [floor, slope] }, definitions).voxels[1];
+  assert.deepEqual(hidden, {
+    ...slope, blockId: "orange-wall-slope-hidden", stateId: 2, z: -1,
+  });
+  assert.deepEqual(
+    orangeWallFrameFromEngine({ voxels: [floor, { ...hidden, z: 1, mechanismDepth: 0 }] }, definitions).voxels[1],
+    { ...slope, mechanismDepth: 0 },
+  );
+  assert.deepEqual(
+    normalizeOrangeWallFrame({ voxels: [{ ...slope, stateId: 4, mechanismDepth: undefined }] }, definitions).voxels[0],
+    { ...slope, stateId: 1, mechanismDepth: 4 },
   );
 });

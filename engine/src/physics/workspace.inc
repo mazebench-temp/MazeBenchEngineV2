@@ -31,6 +31,10 @@ constexpr uint32_t kPlayerLiftRole = HashRoleLiteral("player-lift");
 constexpr uint32_t kPlayerGateRole = HashRoleLiteral("player-gate");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
+constexpr uint32_t kOrangeWallSlopeUpRole = HashRoleLiteral("orange-wall-slope-up");
+constexpr uint32_t kOrangeWallSlopeRightRole = HashRoleLiteral("orange-wall-slope-right");
+constexpr uint32_t kOrangeWallSlopeDownRole = HashRoleLiteral("orange-wall-slope-down");
+constexpr uint32_t kOrangeWallSlopeLeftRole = HashRoleLiteral("orange-wall-slope-left");
 constexpr uint32_t kPuncherRole = HashRoleLiteral("puncher");
 constexpr uint32_t kFloatingFloorRole = HashRoleLiteral("floating-floor");
 constexpr int32_t kFilledFloatingFloor = 1;
@@ -54,6 +58,15 @@ constexpr uint8_t kActorLiftSelected = 0x40;
 constexpr uint8_t kVacatedLiftRetryPending = 0x20;
 constexpr uint8_t kLiftContinuationMask =
     kActorLiftEntryPending | kVacatedLiftRetryPending;
+
+bool IsOrangeWallSlopeRole(uint32_t role) {
+  return role == kOrangeWallSlopeUpRole || role == kOrangeWallSlopeRightRole ||
+      role == kOrangeWallSlopeDownRole || role == kOrangeWallSlopeLeftRole;
+}
+
+bool IsOrangeWallRole(uint32_t role) {
+  return role == kOrangeWallRole || IsOrangeWallSlopeRole(role);
+}
 
 bool IsTerrainIceSlopeRole(uint32_t role) {
   return role == kIceSlopeUpRole || role == kIceSlopeRightRole ||
@@ -82,7 +95,7 @@ bool IsCloneObjectRole(uint32_t role) {
 
 bool IsIceSlopeRole(uint32_t role) {
   return IsTerrainIceSlopeRole(role) || IsBlueBoxSlopeRole(role) ||
-      IsYellowCloneSlopeRole(role);
+      IsYellowCloneSlopeRole(role) || IsOrangeWallSlopeRole(role);
 }
 
 bool IsIceRole(uint32_t role) {
@@ -122,7 +135,7 @@ bool MovingFixtureIgnoresOccupant(const Voxel& fixture, const Voxel* occupant) {
 }
 
 bool HasOrangeScope(const Voxel& voxel) {
-  return (voxel.role == kOrangeButtonRole || voxel.role == kOrangeWallRole) &&
+  return (voxel.role == kOrangeButtonRole || IsOrangeWallRole(voxel.role)) &&
       voxel.generic_id >= 0 && (voxel.generic_id & kOrangeScopedIdFlag) != 0;
 }
 
@@ -138,7 +151,7 @@ int32_t OrangeLocalId(const Voxel& voxel) {
 }
 
 int32_t OrangeWallDepth(const Voxel& voxel) {
-  if (voxel.role != kOrangeWallRole) return 0;
+  if (!IsOrangeWallRole(voxel.role)) return 0;
   // Negative values are accepted only for compatibility with the former
   // dedicated-face ABI. New callers encode every Orange Wall form with the
   // same nonnegative depth; form is derived from anchor, depth, and support.
@@ -152,7 +165,7 @@ int32_t OrangeWallDepth(const Voxel& voxel) {
 }
 
 void SetOrangeWallDepth(Voxel* voxel, int32_t depth) {
-  if (voxel == nullptr || voxel->role != kOrangeWallRole) return;
+  if (voxel == nullptr || !IsOrangeWallRole(voxel->role)) return;
   if (depth < 0) depth = 0;
   voxel->generic_id = HasOrangeScope(*voxel)
       ? (voxel->generic_id & ~kOrangeValueMask) | (depth & kOrangeValueMask)
@@ -175,7 +188,7 @@ int32_t OrangeWallSupportZ(
   // meaning of already-authored face and hidden states.
   int32_t lowest_anchor_z = wall.z;
   for (int32_t index = 0; index < count; ++index) {
-    if (voxels[index].role == kOrangeWallRole &&
+    if (IsOrangeWallRole(voxels[index].role) &&
         OrangeScope(voxels[index]) == OrangeScope(wall) &&
         voxels[index].x == wall.x && voxels[index].y == wall.y &&
         voxels[index].z < lowest_anchor_z) {
@@ -185,7 +198,7 @@ int32_t OrangeWallSupportZ(
   int32_t support_z = INT32_MIN;
   for (int32_t index = 0; index < count; ++index) {
     if (index == wall_index || voxels[index].x != wall.x ||
-        voxels[index].y != wall.y || voxels[index].role == kOrangeWallRole ||
+        voxels[index].y != wall.y || IsOrangeWallRole(voxels[index].role) ||
         voxels[index].role == kPlayerRole ||
         voxels[index].role == kPushableRole ||
         IsWeightlessObjectRole(voxels[index].role) ||
@@ -252,7 +265,7 @@ bool OrangeWallOccupiesZ(
     int32_t count,
     int32_t wall_index,
     int32_t z) {
-  if (voxels[wall_index].role != kOrangeWallRole ||
+  if (!IsOrangeWallRole(voxels[wall_index].role) ||
       OrangeWallIsFlatForDepth(
           voxels, count, wall_index, OrangeWallDepth(voxels[wall_index])) ||
       OrangeWallIsHiddenForDepth(
@@ -279,14 +292,14 @@ int32_t OrangeWallSurfaceZForDepth(
 }
 
 int32_t VoxelPhysicalZ(Voxel* voxels, int32_t count, int32_t index) {
-  return voxels[index].role == kOrangeWallRole
+  return IsOrangeWallRole(voxels[index].role)
       ? OrangeWallPhysicalZ(voxels, count, index)
       : voxels[index].z;
 }
 
 bool VoxelBlocksSpace(Voxel* voxels, int32_t count, int32_t index) {
   if (IsPassThroughVoxel(voxels[index])) return false;
-  return voxels[index].role != kOrangeWallRole ||
+  return !IsOrangeWallRole(voxels[index].role) ||
       (!OrangeWallIsFlatForDepth(
            voxels, count, index, OrangeWallDepth(voxels[index])) &&
        !OrangeWallIsHiddenForDepth(
@@ -295,13 +308,13 @@ bool VoxelBlocksSpace(Voxel* voxels, int32_t count, int32_t index) {
 
 int32_t IceSlopeDirection(uint32_t role) {
   if (role == kIceSlopeUpRole || role == kBlueBoxSlopeUpRole ||
-      role == kYellowCloneSlopeUpRole) return 0;
+      role == kYellowCloneSlopeUpRole || role == kOrangeWallSlopeUpRole) return 0;
   if (role == kIceSlopeRightRole || role == kBlueBoxSlopeRightRole ||
-      role == kYellowCloneSlopeRightRole) return 1;
+      role == kYellowCloneSlopeRightRole || role == kOrangeWallSlopeRightRole) return 1;
   if (role == kIceSlopeDownRole || role == kBlueBoxSlopeDownRole ||
-      role == kYellowCloneSlopeDownRole) return 2;
+      role == kYellowCloneSlopeDownRole || role == kOrangeWallSlopeDownRole) return 2;
   if (role == kIceSlopeLeftRole || role == kBlueBoxSlopeLeftRole ||
-      role == kYellowCloneSlopeLeftRole) return 3;
+      role == kYellowCloneSlopeLeftRole || role == kOrangeWallSlopeLeftRole) return 3;
   return -1;
 }
 
@@ -545,8 +558,8 @@ void HashInsertOrangeScene(uint64_t key, int32_t value, const Voxel* voxels) {
   }
   const HashEntry& previous = g_hash_entries[slot];
   if (previous.stamp == g_hash_generation &&
-      voxels[value].role == kOrangeWallRole &&
-      voxels[previous.value].role != kOrangeWallRole) return;
+      IsOrangeWallRole(voxels[value].role) &&
+      !IsOrangeWallRole(voxels[previous.value].role)) return;
   g_hash_entries[slot] = {key, value, g_hash_generation};
 }
 
@@ -726,11 +739,11 @@ int32_t FindVoxelAt(
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
       if (VoxelBlocksSpace(voxels, g_spatial_voxel_count, index) &&
           voxels[index].x == x && voxels[index].y == y &&
-          (voxels[index].role == kOrangeWallRole
+          (IsOrangeWallRole(voxels[index].role)
               ? OrangeWallOccupiesZ(
                     voxels, g_spatial_voxel_count, index, z)
               : voxels[index].z == z)) {
-        if (voxels[index].role != kOrangeWallRole) return index;
+        if (!IsOrangeWallRole(voxels[index].role)) return index;
         orange_occupant = index;
       }
     }
@@ -748,7 +761,7 @@ int32_t FindVoxelAt(
     // an extended supported wall only on a miss. Orange-wall counts are tiny
     // in authored rooms and this keeps the general spatial table compact.
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
-      if (voxels[index].role == kOrangeWallRole && voxels[index].x == x &&
+      if (IsOrangeWallRole(voxels[index].role) && voxels[index].x == x &&
           voxels[index].y == y && OrangeWallOccupiesZ(
               voxels, g_spatial_voxel_count, index, z)) {
         return index;

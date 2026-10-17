@@ -34,6 +34,8 @@ test("server-renders the VoxelBench editor", async () => {
   assert.match(html, /Ice slope/);
   assert.match(html, /Blue box slope/);
   assert.match(html, /Yellow clone slope/);
+  assert.match(html, /Orange wall slope/);
+  assert.match(html, /Invisible orange wall slope/);
   assert.match(html, /Red gate/);
   assert.match(html, /Puncher/);
   assert.match(html, /Floating floor/);

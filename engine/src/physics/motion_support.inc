@@ -144,7 +144,7 @@ void TranslateHiddenOrangeWallsWithProposals(
   }
   for (int32_t wall_index = 0; wall_index < count; ++wall_index) {
     Voxel& wall = voxels[wall_index];
-    if (wall.role != kOrangeWallRole ||
+    if (!IsOrangeWallRole(wall.role) ||
         !OrangeWallIsHiddenForDepth(
             voxels, count, wall_index, OrangeWallDepth(wall))) {
       continue;

@@ -98,3 +98,18 @@ npm run benchmark:search:wasm
 ```
 
 `benchmark:physics` reports both a prepared eight-voxel Ice push and the shared passive player-command accelerator. The native and WASM search benchmarks solve the same frozen 110-voxel, arbitrary-3D fixture at its proven 435-command optimum, replay the returned solution, and report exact solve latency plus clearly separated global-state, local-state, successor, and command-simulation rates. Native uses the host CPU instruction set while WASM is a generic browser target, so each is a platform baseline rather than a direct native-versus-WASM contest.
+
+### Shared rendering geometry
+
+`apps/web/public/mazebench-runtime/joined-voxel-surface.mjs` is the canonical
+cube/slope surface and mounted-number visibility kernel shared with
+MazeBenchBenchmarking. Matching material/body families join without internal
+faces or coplanar outlines; different body IDs and selected materials stay
+separate. Mounted lifts, gates, buttons, and punchers suppress the supporting
+face's number. The Test Lab keeps its scene adapter, camera, and editor picking.
+
+After kernel changes, run `node --test apps/web/tests/joined-voxel-surface.test.mjs`.
+In the sibling Benchmarking checkout run `node scripts/sync-rendering.mjs`,
+`node scripts/sync-rendering.mjs --check`, and its joined-mesh, numbered-face,
+and rendering-parity tests. This is browser rendering only, separate from
+C++/WASM engine synchronization and historical benchmark observations.

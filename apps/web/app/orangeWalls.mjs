@@ -62,7 +62,7 @@ export function orangeWallSupportZ(wall, voxels, definitions) {
     const definition = definitionFor(definitions, candidate.blockId);
     if (!definition || definition.visual?.kind === "gem" ||
         definition.visual?.kind === "button" ||
-        definition.visual?.kind === "orange-wall" ||
+        definition.roleId === "orange-wall" ||
         definition.roleId === "player" ||
         definition.roleId === "pushable" ||
         definition.roleId === "weightless-pushable" ||
@@ -93,7 +93,7 @@ function orangeWallSupportZFromEngineAnchors(wall, voxels, definitions) {
     const definition = definitionFor(definitions, candidate.blockId);
     if (!definition || definition.visual?.kind === "gem" ||
         definition.visual?.kind === "button" ||
-        definition.visual?.kind === "orange-wall" ||
+        definition.roleId === "orange-wall" ||
         definition.roleId === "player" || definition.roleId === "pushable" ||
         definition.roleId === "weightless-pushable" ||
         (definition.visual?.kind === "lift" &&
@@ -146,7 +146,7 @@ export function orangeWallDepthForState(wall, voxels, definitions, stateId) {
 
 export function normalizeOrangeWallFrame(frame, definitions) {
   if (!frame.voxels.some((voxel) =>
-    definitionFor(definitions, voxel.blockId)?.visual?.kind === "orange-wall")) {
+    definitionFor(definitions, voxel.blockId)?.roleId === "orange-wall")) {
     return frame;
   }
   const voxels = frame.voxels.map((voxel) => ({ ...voxel }));
@@ -154,7 +154,7 @@ export function normalizeOrangeWallFrame(frame, definitions) {
     ...frame,
     voxels: voxels.map((voxel) => {
       const definition = definitionFor(definitions, voxel.blockId);
-      if (definition?.visual?.kind !== "orange-wall") return voxel;
+      if (definition?.roleId !== "orange-wall") return voxel;
       const state = orangeWallPhysicalState(voxel, voxels, definitions);
       return {
         ...voxel,
@@ -173,6 +173,8 @@ function orangeWallBlockIdForForm(wall, definitions, form) {
     : definitions ?? [];
   return all.find((definition) =>
     definition?.roleId === "orange-wall" &&
+    (definition.visual?.kind === "slope") ===
+      (definitionFor(definitions, wall.blockId)?.visual?.kind === "slope") &&
     (definition.visual?.orangeForm ?? "visible") === form)?.id ?? wall.blockId;
 }
 

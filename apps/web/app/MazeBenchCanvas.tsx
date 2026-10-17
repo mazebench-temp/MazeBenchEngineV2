@@ -149,6 +149,7 @@ type MazeBenchModules = {
 };
 
 type TerrainLayer = {
+  meshFamily: string;
   direction?: string;
   editorOnly?: boolean;
   editorOpacity?: number;
@@ -158,7 +159,7 @@ type TerrainLayer = {
   raised: boolean;
   orangeForm?: "cube" | "face" | "hidden";
   selectionKey: string;
-  type: "wall" | "ice_slope" | "orange_wall" | "player_gate" | "player_lift";
+  type: "wall" | "ice_slope" | "orange_ice_slope" | "orange_wall" | "player_gate" | "player_lift";
   voxelColor: string;
   voxelKey: string;
 };
@@ -172,6 +173,7 @@ type TerrainCell = {
 };
 
 type RenderActor = {
+  meshFamily: string;
   collectionId: string;
   direction?: string;
   editorOnly?: boolean;
@@ -426,6 +428,7 @@ function frameToPlayData(
     const hiddenButton = definition.visual.kind === "button" &&
       definition.visual.buttonForm === "hidden";
     return [{
+      meshFamily: definition.roleId,
       collectionId: `voxel-tests:${cellObjectSelectionKey(voxel)}`,
       ...(isRigidFamilyMember
         ? {
@@ -493,7 +496,7 @@ function frameToPlayData(
           const selected = selectedVoxelKeys.has(cellObjectSelectionKey(voxel));
           const isLift = definition.visual.kind === "lift";
           const isGate = definition.visual.kind === "gate";
-          const hiddenOrangeWall = definition.visual.kind === "orange-wall" &&
+          const hiddenOrangeWall = definition.roleId === "orange-wall" &&
             definition.visual.orangeForm === "hidden";
           return {
             ...(definition.visual.kind === "slope"
@@ -509,7 +512,7 @@ function frameToPlayData(
             ...(hiddenOrangeWall
               ? { editorOnly: true, editorOpacity: 0.5 }
               : {}),
-            genericLabel: definition.visual.kind === "orange-wall"
+            genericLabel: definition.roleId === "orange-wall"
               ? String(orangeWallMechanismDepth(voxel))
               : genericBlockIds.has(definition.id) && !isLift
                 ? String(Math.max(0, Math.floor(Number(voxel.genericId) || 0)))
@@ -520,22 +523,23 @@ function frameToPlayData(
               : isGate
                 ? gateIsRaised(voxel.genericId)
               : true,
-            ...(definition.visual.kind === "orange-wall"
+            ...(definition.roleId === "orange-wall"
               ? { orangeForm: hiddenOrangeWall ? "hidden" as const : "cube" as const }
               : {}),
             selectionKey: cellObjectSelectionKey(voxel),
             type: definition.visual.kind === "slope"
-              ? "ice_slope"
+              ? definition.roleId === "orange-wall" ? "orange_ice_slope" : "ice_slope"
               : isLift
                 ? "player_lift"
               : isGate
                 ? "player_gate"
-              : definition.visual.kind === "orange-wall"
+              : definition.roleId === "orange-wall"
                 ? "orange_wall"
                 : "wall",
             voxelColor: selected
               ? lerpHexColor(definition.color, "#34e7f0", 0.48)
               : definition.color,
+            meshFamily: definition.roleId,
             voxelKey: definition.id,
           };
         })

@@ -91,6 +91,7 @@ function framesHaveSameCoordinates(left: Frame, right: Frame) {
 }
 
 function slopePhysicsRoleId(baseRoleId: string, direction: string) {
+  if (baseRoleId === "orange-wall") return `orange-wall-slope-${direction}`;
   if (baseRoleId === "weightless-pushable") return `blue-box-slope-${direction}`;
   if (baseRoleId === "clone") return `yellow-clone-slope-${direction}`;
   return `ice-slope-${direction}`;
@@ -104,6 +105,10 @@ async function roleCodesById(physics: PhysicsExports, roles: PhysicsRole[]) {
 
   const roleIds = [
     ...roles.map((role) => role.id),
+    "orange-wall-slope-up",
+    "orange-wall-slope-right",
+    "orange-wall-slope-down",
+    "orange-wall-slope-left",
     "ice-slope-up",
     "ice-slope-right",
     "ice-slope-down",
@@ -187,7 +192,7 @@ async function physicsAdapterContext(
         visual.buttonForm === "hidden",
       );
     }
-    if (visual?.kind === "orange-wall") {
+    if (blocksById.get(voxel.blockId)?.roleId === "orange-wall") {
       return orangeWallMechanismValue(voxel);
     }
     if (visual?.kind === "puncher") {
@@ -292,7 +297,7 @@ export async function simulateCommandWithCpp(
         z: voxelBuffer[offset + 2],
         ...(visualKind === "button"
           ? { stateId: 0 }
-          : visualKind === "orange-wall"
+          : blocksById.get(voxel.blockId)?.roleId === "orange-wall"
             ? { mechanismDepth: orangeWallDepthFromMechanismValue(mechanismId) }
             : {}),
         ...(genericBlockIds.has(voxel.blockId)

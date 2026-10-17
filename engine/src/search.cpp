@@ -40,8 +40,18 @@ constexpr uint32_t kPlayerGateRole = HashRoleLiteral("player-gate");
 constexpr uint32_t kPuncherRole = HashRoleLiteral("puncher");
 constexpr uint32_t kOrangeButtonRole = HashRoleLiteral("orange-button");
 constexpr uint32_t kOrangeWallRole = HashRoleLiteral("orange-wall");
+constexpr uint32_t kOrangeWallSlopeUpRole = HashRoleLiteral("orange-wall-slope-up");
+constexpr uint32_t kOrangeWallSlopeRightRole = HashRoleLiteral("orange-wall-slope-right");
+constexpr uint32_t kOrangeWallSlopeDownRole = HashRoleLiteral("orange-wall-slope-down");
+constexpr uint32_t kOrangeWallSlopeLeftRole = HashRoleLiteral("orange-wall-slope-left");
 constexpr uint32_t kFloatingFloorRole = HashRoleLiteral("floating-floor");
 constexpr int32_t kFilledFloatingFloor = 1;
+
+bool IsOrangeWallRole(uint32_t role) {
+  return role == kOrangeWallRole || role == kOrangeWallSlopeUpRole ||
+      role == kOrangeWallSlopeRightRole || role == kOrangeWallSlopeDownRole ||
+      role == kOrangeWallSlopeLeftRole;
+}
 
 int32_t SearchOrangeWallDepth(int32_t value) {
   if (value <= -2) {
@@ -444,7 +454,7 @@ void LoadNode(SearchData* data, const SearchNode& node) {
   for (int32_t dynamic = 0; dynamic < data->dynamic_voxel_count; ++dynamic) {
     const int32_t entity = data->voxel_entities[dynamic];
     if (entity < 0) {
-      if (data->scene[dynamic].role == kOrangeWallRole) {
+      if (IsOrangeWallRole(data->scene[dynamic].role)) {
         data->scene[dynamic].generic_id = SearchOrangeWallValueForDepth(
             data->scene[dynamic].generic_id, node.orange_depth);
       }
@@ -541,7 +551,7 @@ bool CaptureCandidate(SearchData* data) {
     }
   }
   for (int32_t index = 0; index < data->dynamic_voxel_count; ++index) {
-    if (data->scene[index].role == kOrangeWallRole) {
+    if (IsOrangeWallRole(data->scene[index].role)) {
       data->candidate_orange_depth = static_cast<uint16_t>(
           SearchOrangeWallDepth(data->scene[index].generic_id) > UINT16_MAX
                 ? UINT16_MAX
@@ -1180,7 +1190,7 @@ bool InitializeSearch(
   // Search stores one room-wide orange depth. Transient connected-world
   // scopes belong to command simulation and cannot be collapsed into it.
   for (int32_t index = 0; index < count; ++index) {
-    if ((voxels[index].role == kOrangeButtonRole || voxels[index].role == kOrangeWallRole) &&
+    if ((voxels[index].role == kOrangeButtonRole || IsOrangeWallRole(voxels[index].role)) &&
         voxels[index].generic_id >= 0 && (voxels[index].generic_id & kOrangeScopedIdFlag) != 0) {
       return false;
     }
@@ -1249,7 +1259,7 @@ bool InitializeSearch(
   // values are mutable. Keep them in physics' rebuilt prefix without spending
   // a search coordinate entity for each fixed fixture.
   for (int32_t source = 0; source < count; ++source) {
-    if (voxels[source].role != kOrangeWallRole &&
+    if (!IsOrangeWallRole(voxels[source].role) &&
         voxels[source].role != kPlayerGateRole) continue;
     const int32_t target = data->dynamic_voxel_count++;
     data->scene[target] = voxels[source];
@@ -1262,7 +1272,7 @@ bool InitializeSearch(
   static_count = data->dynamic_voxel_count;
   for (int32_t source = 0; source < count; ++source) {
     if (IsDynamic(voxels[source].role) ||
-        voxels[source].role == kOrangeWallRole ||
+        IsOrangeWallRole(voxels[source].role) ||
         voxels[source].role == kPlayerGateRole) continue;
     const int32_t target = static_count++;
     data->scene[target] = voxels[source];

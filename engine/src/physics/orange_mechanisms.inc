@@ -23,7 +23,7 @@ bool RefreshOrangeButtonVisibility(
     bool rides_wall = false;
     bool folded_into_support = false;
     for (int32_t wall_index = 0; wall_index < count; ++wall_index) {
-      if (voxels[wall_index].role != kOrangeWallRole) continue;
+      if (!IsOrangeWallRole(voxels[wall_index].role)) continue;
       const int32_t surface = OrangeWallSurfaceZForDepth(
           voxels, count, wall_index, OrangeWallDepth(voxels[wall_index]));
       if (!OrangeFixtureTracksWall(
@@ -74,7 +74,7 @@ bool OrangeButtonShouldBePressed(
     // folded into terrain by the Orange Wall itself; that face is invisible,
     // and therefore contributes no pressure.
     for (int32_t index = 0; index < g_spatial_voxel_count; ++index) {
-      if (voxels[index].role != kOrangeWallRole) continue;
+      if (!IsOrangeWallRole(voxels[index].role)) continue;
       const int32_t surface = OrangeWallSurfaceZForDepth(
           voxels, g_spatial_voxel_count, index,
           OrangeWallDepth(voxels[index]));
@@ -128,7 +128,7 @@ bool NormalizeInitialOrangeWallAnchors(
   CountPressedOrangeButtons(voxels, count, width, height, pressed_by_scope);
   for (int32_t index = 0; index < count; ++index) {
     Voxel& wall = voxels[index];
-    if (wall.role != kOrangeWallRole) continue;
+    if (!IsOrangeWallRole(wall.role)) continue;
     const int32_t pressed = pressed_by_scope[OrangeScope(wall)];
     const int32_t depth = OrangeWallDepth(wall);
     if (depth >= pressed) continue;
@@ -154,7 +154,7 @@ bool OrangeMechanismsNeedTick(
   int32_t pressed_by_scope[kOrangeScopeCount];
   CountPressedOrangeButtons(voxels, count, width, height, pressed_by_scope);
   for (int32_t index = 0; index < count; ++index) {
-    if (voxels[index].role == kOrangeWallRole &&
+    if (IsOrangeWallRole(voxels[index].role) &&
         g_blocked_orange_walls[index] == 0 &&
         OrangeWallDepth(voxels[index]) != pressed_by_scope[OrangeScope(voxels[index])]) {
       return true;
@@ -211,7 +211,7 @@ bool OrangeFixtureTracksWall(
   if (OrangeFixtureRidesWallSurface(fixture, wall, wall_surface_z)) return true;
   if ((fixture.role != kOrangeButtonRole &&
        fixture.role != kPlayerLiftRole) ||
-      wall.role != kOrangeWallRole || fixture.generic_id < 0) {
+      !IsOrangeWallRole(wall.role) || fixture.generic_id < 0) {
     return false;
   }
   const int32_t orientation = OrangeLocalId(fixture) / 2;
@@ -233,7 +233,7 @@ bool OrangeFixtureTracksWall(
 }
 
 bool OrangeWallsShareFace(const Voxel& left, const Voxel& right) {
-  if (left.role != kOrangeWallRole || right.role != kOrangeWallRole) {
+  if (!IsOrangeWallRole(left.role) || !IsOrangeWallRole(right.role)) {
     return false;
   }
   if (OrangeScope(left) != OrangeScope(right)) return false;
@@ -265,7 +265,7 @@ bool AdvanceOrangeWallComponents(
   bool changed = false;
   bool player_moved = false;
   for (int32_t seed = 0; seed < count; ++seed) {
-    if (voxels[seed].role != kOrangeWallRole ||
+    if (!IsOrangeWallRole(voxels[seed].role) ||
         g_orange_component_walls[seed] != 0) continue;
     const int32_t target_depth = target_depths[OrangeScope(voxels[seed])];
     int32_t queue_begin = 0;
@@ -370,7 +370,7 @@ bool AdvanceOrangeWallComponents(
         const int32_t occupant = FindVoxelAt(voxels, wall.x, wall.y,
             OrangeWallPhysicalZ(voxels, count, index), width, height);
         if (occupant < 0 || occupant == index ||
-            (voxels[occupant].role == kOrangeWallRole &&
+            (IsOrangeWallRole(voxels[occupant].role) &&
              g_orange_component_walls[occupant] == 2)) continue;
         if (occupant == player_index && player_rides_wall) continue;
         const int32_t other = g_voxel_object[occupant];
@@ -379,7 +379,7 @@ bool AdvanceOrangeWallComponents(
         // must not stop the entire connected structure from lowering. Actors
         // and movable bodies retain the usual collision/carrier checks.
         if (other < 0 && occupant != player_index &&
-            voxels[occupant].role != kOrangeWallRole &&
+            !IsOrangeWallRole(voxels[occupant].role) &&
             OrangeWallDepth(wall) > g_component_indegree[index]) {
           continue;
         }

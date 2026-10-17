@@ -78,7 +78,7 @@ void BuildCanonicalPunchCycleDirections(
 int64_t OrangeDepthSum(const Voxel* voxels, int32_t count) {
   int64_t total = 0;
   for (int32_t index = 0; index < count; ++index) {
-    if (voxels[index].role == kOrangeWallRole) {
+    if (IsOrangeWallRole(voxels[index].role)) {
       total += OrangeWallDepth(voxels[index]);
     }
   }
@@ -240,7 +240,7 @@ void BeginCommandCycleTracking(
       has_slope |= IsIceSlopeRole(voxels[index].role);
       has_orange_mechanism |=
           voxels[index].role == kOrangeButtonRole ||
-          voxels[index].role == kOrangeWallRole;
+          IsOrangeWallRole(voxels[index].role);
       has_puncher |= voxels[index].role == kPuncherRole;
     }
   }

@@ -63,7 +63,7 @@ void BuildObjects(Voxel* voxels, int32_t count) {
           voxels[index].role == kOrangeButtonRole;
       continue;
     }
-    if (voxels[index].role == kOrangeWallRole) {
+    if (IsOrangeWallRole(voxels[index].role)) {
       ActiveWorkspace().scene_has_orange_mechanisms = true;
       continue;
     }
@@ -217,7 +217,7 @@ bool OrangeButtonIsMountedToWall(
   for (int32_t wall_index = 0; wall_index < g_spatial_voxel_count;
        ++wall_index) {
     const Voxel& wall = voxels[wall_index];
-    if (wall.role != kOrangeWallRole) continue;
+    if (!IsOrangeWallRole(wall.role)) continue;
     const int64_t raised_button_z = static_cast<int64_t>(button.z) +
         OrangeWallDepth(wall);
     if (orientation == 0 && button.x == wall.x && button.y == wall.y &&

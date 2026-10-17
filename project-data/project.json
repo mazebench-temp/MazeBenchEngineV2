@@ -280,6 +280,28 @@
       }
     },
     {
+      "id": "orange-wall-slope",
+      "name": "Orange wall slope",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "slope",
+        "orangeForm": "visible"
+      }
+    },
+    {
+      "id": "orange-wall-slope-hidden",
+      "name": "Invisible orange wall slope",
+      "color": "#B85F16",
+      "roleId": "orange-wall",
+      "occupancy": "inactive",
+      "visual": {
+        "kind": "slope",
+        "orangeForm": "hidden"
+      }
+    },
+    {
       "id": "orange-button",
       "name": "Orange button",
       "color": "#F59E0B",
@@ -25484,6 +25506,15 @@
         "side-lift"
       ],
       "file": "test-694.json"
+    },
+    {
+      "id": "test-695",
+      "name": "Untitled test 695",
+      "groupTagId": "orange-walls",
+      "tagIds": [
+        "orange-walls-default"
+      ],
+      "file": "test-695.json"
     }
   ]
 }
